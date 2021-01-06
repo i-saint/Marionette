@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouseRecorder", "MouseRecorder.vcxproj", "{11990C37-1C63-418F-9AB1-74076C470584}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouseReplayer", "MouseReplayer.vcxproj", "{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11990C37-1C63-418F-9AB1-74076C470584}.Debug|x64.ActiveCfg = Debug|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Debug|x64.Build.0 = Debug|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Release|x64.ActiveCfg = Release|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Release|x64.Build.0 = Release|x64
+		{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}.Debug|x64.ActiveCfg = Debug|x64
+		{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}.Debug|x64.Build.0 = Debug|x64
+		{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}.Release|x64.ActiveCfg = Release|x64
+		{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5643C738-8B39-4F48-B134-C66874EDBCF0}
+	EndGlobalSection
+EndGlobal
