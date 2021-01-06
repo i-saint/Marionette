@@ -3,7 +3,7 @@
 
 #define mrAPI extern "C" __declspec(dllexport)
 
-using millisec = uint32_t;
+using millisec = uint64_t;
 
 enum class OpType : int
 {
@@ -54,6 +54,7 @@ private:
     millisec m_time_start = 0;
     bool m_lb = false, m_rb = false, m_mb = false;
     int m_x = 0, m_y = 0;
+    uint32_t m_last_input_time = 0;
     std::vector<OpRecord> m_records;
 };
 
@@ -72,3 +73,11 @@ private:
     uint32_t m_loop_required = 0, m_loop_current = 0;
     std::vector<OpRecord> m_records;
 };
+
+
+void Print(const char* fmt, ...);
+#ifdef mrDebug
+    #define DbgPrint(...) Print(__VA_ARGS__)
+#else
+    #define DbgPrint(...)
+#endif

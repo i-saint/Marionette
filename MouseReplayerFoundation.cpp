@@ -4,34 +4,62 @@
 #pragma comment(lib,"user32.lib")
 
 
+void Print(const char* fmt, ...)
+{
+    char buf[1024*2];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+#ifdef _WIN32
+    ::OutputDebugStringA(buf);
+#else
+    printf("%s", buf);
+#endif
+}
+
+millisec NowMS()
+{
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
+void SleepMS(millisec v)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(v));
+}
+
+
 
 std::string OpRecord::toText() const
 {
     char buf[256]{};
     switch (type)
     {
-    case OpType::Wait:
-        snprintf(buf, sizeof(buf), "Wait [%d]", time);
-        break;
-
     case OpType::MouseMove:
-        snprintf(buf, sizeof(buf), "MouseMove %d %d [%d]", data.mouse.x, data.mouse.y, time);
+        snprintf(buf, sizeof(buf), "%lld: MouseMove %d %d", time, data.mouse.x, data.mouse.y);
         break;
 
     case OpType::MouseDown:
-        snprintf(buf, sizeof(buf), "MouseDown %d [%d]", data.mouse.button, time);
+        snprintf(buf, sizeof(buf), "%lld: MouseDown %d", time, data.mouse.button);
         break;
 
     case OpType::MouseUp:
-        snprintf(buf, sizeof(buf), "MouseUp %d [%d]", data.mouse.button, time);
+        snprintf(buf, sizeof(buf), "%lld: MouseUp %d", time, data.mouse.button);
         break;
 
     case OpType::KeyDown:
-        snprintf(buf, sizeof(buf), "KeyDown %d [%d]", data.key.code, time);
+        snprintf(buf, sizeof(buf), "%lld: KeyDown %d", time, data.key.code);
         break;
 
     case OpType::KeyUp:
-        snprintf(buf, sizeof(buf), "KeyUp %d [%d]", data.key.code, time);
+        snprintf(buf, sizeof(buf), "%lld: KeyUp %d", time, data.key.code);
+        break;
+
+    case OpType::Wait:
+        snprintf(buf, sizeof(buf), "%lld: Wait", time);
         break;
 
     default:
@@ -45,18 +73,18 @@ bool OpRecord::fromText(const std::string& v)
     type = OpType::Unknown;
 
     const char* src = v.c_str();
-    if (sscanf(src, "Wait [%d]", &time) == 1)
-        type = OpType::Wait;
-    else if (sscanf(src, "MouseMove %d %d [%d]", &data.mouse.x, &data.mouse.y, &time) == 3)
+    if (sscanf(src, "%lld: MouseMove %d %d", &time, &data.mouse.x, &data.mouse.y) == 3)
         type = OpType::MouseMove;
-    else if (sscanf(src, "MouseDown %d [%d]", &data.mouse.button, &time) == 2)
+    else if (sscanf(src, "%lld: MouseDown %d", &time, &data.mouse.button) == 2)
         type = OpType::MouseDown;
-    else if (sscanf(src, "MouseUp %d [%d]", &data.mouse.button, &time) == 2)
+    else if (sscanf(src, "%lld: MouseUp %d", &time, &data.mouse.button) == 2)
         type = OpType::MouseUp;
-    else if (sscanf(src, "KeyDown %d [%d]", &data.key.code, &time) == 2)
+    else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
-    else if (sscanf(src, "KeyUp %d [%d]", &data.key.code, &time) == 2)
+    else if (sscanf(src, "%lld: KeyUp %d", &time, &data.key.code) == 2)
         type = OpType::KeyUp;
+    else if (sscanf(src, "%lld: Wait", &time) == 1)
+        type = OpType::Wait;
     return type != OpType::Unknown;
 }
 
@@ -125,18 +153,11 @@ void OpRecord::execute() const
 }
 
 
-millisec NowMS()
-{
-    using namespace std::chrono;
-    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
-}
-
-void SleepMS(millisec v)
-{
-    std::this_thread::sleep_for(std::chrono::milliseconds(v));
-}
-
-
+// note:
+// SetWindowsHookEx() is ideal for recording mouse, but it is it is too restricted after Windows Vista.
+// (requires admin privilege, UI access, etc.
+//  https://www.wintellect.com/so-you-want-to-set-a-windows-journal-recording-hook-on-vista-it-s-not-nearly-as-easy-as-you-think/ )
+// so, use low level input API instead.
 
 bool Recorder::startRecording()
 {
@@ -182,9 +203,28 @@ bool Recorder::update()
     };
 
 
-    bool lb = ::GetKeyState(VK_LBUTTON) & 0x80;
-    bool rb = ::GetKeyState(VK_RBUTTON) & 0x80;
-    bool mb = ::GetKeyState(VK_MBUTTON) & 0x80;
+    LASTINPUTINFO lii{};
+    lii.cbSize = sizeof(LASTINPUTINFO);
+    if (::GetLastInputInfo(&lii)) {
+        if (m_last_input_time == lii.dwTime) {
+            // state is not changed since last update.
+            return true;
+        }
+    }
+
+    m_last_input_time = lii.dwTime;
+    //DbgPrint("input state changed [%d]\n", m_last_input_time);
+
+    BYTE state[256];
+    if (!::GetKeyboardState(state)) {
+        DbgPrint("*** GetKeyboardState() failed ***\n", m_last_input_time);
+        return true;
+    }
+
+    // handle mouse
+    bool lb = state[VK_LBUTTON] & 0x80;
+    bool rb = state[VK_RBUTTON] & 0x80;
+    bool mb = state[VK_MBUTTON] & 0x80;
     if (m_lb != lb) {
         m_lb = lb;
         addButtonRecord(lb, 1);
@@ -197,8 +237,8 @@ bool Recorder::update()
         m_mb = mb;
         addButtonRecord(mb, 3);
     }
-
     if (!button_changed && (m_lb || m_rb || m_mb)) {
+        // handle dragging
         CURSORINFO ci;
         ci.cbSize = sizeof(ci);
         ::GetCursorInfo(&ci);
@@ -206,7 +246,8 @@ bool Recorder::update()
             addMoveRecord();
     }
 
-    if (::GetKeyState(VK_ESCAPE) & 0x80) {
+    // stop if escape key is pressed
+    if (state[VK_ESCAPE] & 0x80) {
         OpRecord rec;
         rec.type = OpType::Wait;
         addRecord(rec);
@@ -225,6 +266,7 @@ void Recorder::addRecord(OpRecord rec)
 
     rec.time = NowMS() - m_time_start;
     m_records.push_back(rec);
+    DbgPrint("record added: %s\n", rec.toText().c_str());
 }
 
 bool Recorder::save(const char* path) const
@@ -268,13 +310,16 @@ bool Player::update()
         return false;
 
     millisec now = NowMS() - m_time_start;
+    // execute records
     for (;;) {
         const auto& rec = m_records[m_record_index];
         if (now >= rec.time) {
             rec.execute();
             ++m_record_index;
+            DbgPrint("record executed: %s\n", rec.toText().c_str());
 
             if (m_record_index == m_records.size()) {
+                // go next loop or stop
                 ++m_loop_current;
                 m_record_index = 0;
                 m_time_start = NowMS();
@@ -286,6 +331,7 @@ bool Player::update()
         }
     }
 
+    // stop if escape key is pressed
     if (::GetKeyState(VK_ESCAPE) & 0x80) {
         m_playing = false;
         return false;
