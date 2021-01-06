@@ -156,24 +156,29 @@ bool Recorder::stopRecording()
 
 bool Recorder::update()
 {
-    auto addButtonRecord = [this](bool down, int button) {
-        {
-            CURSORINFO ci;
-            ci.cbSize = sizeof(ci);
-            ::GetCursorInfo(&ci);
+    bool button_changed = false;
 
-            OpRecord rec;
-            rec.type = OpType::MouseMove;
-            rec.data.mouse.x = ci.ptScreenPos.x;
-            rec.data.mouse.y = ci.ptScreenPos.y;
-            addRecord(rec);
-        }
-        {
-            OpRecord rec;
-            rec.type = down ? OpType::MouseDown : OpType::MouseUp;
-            rec.data.mouse.button = button;
-            addRecord(rec);
-        }
+    auto addMoveRecord = [&]() {
+        CURSORINFO ci;
+        ci.cbSize = sizeof(ci);
+        ::GetCursorInfo(&ci);
+
+        OpRecord rec;
+        rec.type = OpType::MouseMove;
+        m_x = rec.data.mouse.x = ci.ptScreenPos.x;
+        m_y = rec.data.mouse.y = ci.ptScreenPos.y;
+        addRecord(rec);
+    };
+
+    auto addButtonRecord = [&](bool down, int button) {
+        addMoveRecord();
+
+        OpRecord rec;
+        rec.type = down ? OpType::MouseDown : OpType::MouseUp;
+        rec.data.mouse.button = button;
+        addRecord(rec);
+
+        button_changed = true;
     };
 
 
@@ -191,6 +196,14 @@ bool Recorder::update()
     if (m_mb != mb) {
         m_mb = mb;
         addButtonRecord(mb, 3);
+    }
+
+    if (!button_changed && (m_lb || m_rb || m_mb)) {
+        CURSORINFO ci;
+        ci.cbSize = sizeof(ci);
+        ::GetCursorInfo(&ci);
+        if (m_x != ci.ptScreenPos.x || m_y != ci.ptScreenPos.y)
+            addMoveRecord();
     }
 
     if (::GetKeyState(VK_ESCAPE) & 0x80) {
@@ -271,6 +284,11 @@ bool Player::update()
         else {
             break;
         }
+    }
+
+    if (::GetKeyState(VK_ESCAPE) & 0x80) {
+        m_playing = false;
+        return false;
     }
 
     SleepMS(1);
