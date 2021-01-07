@@ -52,9 +52,8 @@ public:
 private:
     bool m_recording = false;
     millisec m_time_start = 0;
-    bool m_lb = false, m_rb = false, m_mb = false;
-    int m_x = 0, m_y = 0;
-    uint32_t m_last_input_time = 0;
+    HWND m_hwnd = nullptr;
+
     std::vector<OpRecord> m_records;
 };
 

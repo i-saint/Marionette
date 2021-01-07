@@ -105,8 +105,9 @@ void OpRecord::execute() const
             // If MOUSEEVENTF_ABSOLUTE value is specified, dx and dy contain normalized absolute coordinates between 0 and 65,535.
             // The event procedure maps these coordinates onto the display surface.
             // Coordinate (0,0) maps onto the upper-left corner of the display surface, (65535,65535) maps onto the lower-right corner.
-            LONG screen_width = ::GetSystemMetrics(SM_CXSCREEN) - 1;
-            LONG screen_height = ::GetSystemMetrics(SM_CYSCREEN) - 1;
+
+            LONG screen_width = ::GetSystemMetrics(SM_CXSCREEN) - 1; // SM_CXVIRTUALSCREEN
+            LONG screen_height = ::GetSystemMetrics(SM_CYSCREEN) - 1; // SM_CYVIRTUALSCREEN
             input.mi.dx = (LONG)(data.mouse.x * (65535.0f / screen_width));
             input.mi.dy = (LONG)(data.mouse.y * (65535.0f / screen_height));
             input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
@@ -159,10 +160,146 @@ void OpRecord::execute() const
 //  https://www.wintellect.com/so-you-want-to-set-a-windows-journal-recording-hook-on-vista-it-s-not-nearly-as-easy-as-you-think/ )
 // so, use low level input API instead.
 
+static LRESULT CALLBACK MouseRecorderProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    static bool s_lb = false, s_rb = false, s_mb = false;
+    static int s_x = 0, s_y = 0;
+
+    if (Msg == WM_INPUT) {
+        auto recorder = (Recorder*)::GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
+        auto hRawInput = (HRAWINPUT)lParam;
+        UINT dwSize = 0;
+        char buf[1024];
+        auto raw = (RAWINPUT*)buf;
+        // first GetRawInputData() get dwSize, second one get RAWINPUT data.
+        ::GetRawInputData(hRawInput, RID_INPUT, buf, &dwSize, sizeof(RAWINPUTHEADER));
+        if (dwSize >= sizeof(buf)) {
+            DbgPrint("*** GetRawInputData() buffer size exceeded ***\n");
+            return 0;
+        }
+        ::GetRawInputData(hRawInput, RID_INPUT, buf, &dwSize, sizeof(RAWINPUTHEADER));
+
+        if (raw->header.dwType == RIM_TYPEMOUSE) {
+            bool button_changed = false;
+
+            auto addMoveRecord = [&]() {
+                // RAWMOUSE provide only relative mouse position (in most cases)
+                // so GetCursorInfo() to get absolute position
+                CURSORINFO ci;
+                ci.cbSize = sizeof(ci);
+                ::GetCursorInfo(&ci);
+
+                OpRecord rec;
+                rec.type = OpType::MouseMove;
+                s_x = rec.data.mouse.x = ci.ptScreenPos.x;
+                s_y = rec.data.mouse.y = ci.ptScreenPos.y;
+                recorder->addRecord(rec);
+            };
+
+            auto addButtonRecord = [&](bool down, int button) {
+                addMoveRecord();
+
+                OpRecord rec;
+                rec.type = down ? OpType::MouseDown : OpType::MouseUp;
+                rec.data.mouse.button = button;
+                recorder->addRecord(rec);
+
+                button_changed = true;
+            };
+
+
+            auto& rawMouse = raw->data.mouse;
+            auto buttons = rawMouse.usButtonFlags;
+
+            // handle buttons
+            if (buttons & RI_MOUSE_LEFT_BUTTON_DOWN) {
+                s_lb = true;
+                addButtonRecord(s_lb, 1);
+            }
+            else if (buttons & RI_MOUSE_LEFT_BUTTON_UP) {
+                s_lb = false;
+                addButtonRecord(s_lb, 1);
+            }
+            else if (buttons & RI_MOUSE_RIGHT_BUTTON_DOWN) {
+                s_rb = true;
+                addButtonRecord(s_rb, 1);
+            }
+            else if (buttons & RI_MOUSE_RIGHT_BUTTON_UP) {
+                s_rb = false;
+                addButtonRecord(s_rb, 1);
+            }
+            else if (buttons & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
+                s_mb = true;
+                addButtonRecord(s_mb, 1);
+            }
+            else if (buttons & RI_MOUSE_MIDDLE_BUTTON_UP) {
+                s_mb = false;
+                addButtonRecord(s_mb, 1);
+            }
+            else if (buttons == 0) {
+                // handle dragging
+                if (s_lb || s_rb || s_mb) {
+                    CURSORINFO ci;
+                    ci.cbSize = sizeof(ci);
+                    ::GetCursorInfo(&ci);
+                    if (s_x != ci.ptScreenPos.x || s_y != ci.ptScreenPos.y)
+                        addMoveRecord();
+                }
+            }
+        }
+        else if (raw->header.dwType == RIM_TYPEKEYBOARD) {
+            // stop recording if escape is pressed
+            if (raw->data.keyboard.VKey == VK_ESCAPE) {
+                OpRecord rec;
+                rec.type = OpType::Wait;
+                recorder->addRecord(rec);
+                recorder->stopRecording();
+            }
+        }
+        return 0;
+    }
+
+    return ::DefWindowProc(hWnd, Msg, wParam, lParam);
+}
+
 bool Recorder::startRecording()
 {
     if (m_recording)
         return false;
+
+    WNDCLASS wx = {};
+    wx.lpfnWndProc = &MouseRecorderProc;
+    wx.hInstance = ::GetModuleHandle(nullptr);
+    wx.lpszClassName = TEXT("MouseRecorderClass");
+    if (!::RegisterClass(&wx)) {
+        DbgPrint("*** RegisterClassEx() failed ***\n");
+        return false;
+    }
+
+    m_hwnd = ::CreateWindow(wx.lpszClassName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wx.hInstance, nullptr);
+    if (!m_hwnd) {
+        DbgPrint("*** CreateWindowEx() failed ***\n");
+        return false;
+    }
+    ::SetWindowLongPtr(m_hwnd, GWLP_USERDATA, (LONG_PTR)this);
+
+    RAWINPUTDEVICE rid[2]{};
+    // mouse
+    rid[0].usUsagePage = 0x01;
+    rid[0].usUsage = 0x02;
+    rid[0].dwFlags = RIDEV_NOLEGACY | RIDEV_INPUTSINK;
+    rid[0].hwndTarget = m_hwnd;
+    // keyboard
+    rid[1].usUsagePage = 0x01;
+    rid[1].usUsage = 0x06;
+    rid[1].dwFlags = RIDEV_NOLEGACY | RIDEV_INPUTSINK;
+    rid[1].hwndTarget = m_hwnd;
+    if (!::RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
+        DbgPrint("*** RegisterRawInputDevices() failed ***\n");
+        stopRecording();
+        return false;
+    }
 
     m_time_start = NowMS();
     m_recording = true;
@@ -171,91 +308,22 @@ bool Recorder::startRecording()
 
 bool Recorder::stopRecording()
 {
-    // nothing to do for now
+    if (m_hwnd) {
+        ::DestroyWindow(m_hwnd);
+        m_hwnd = nullptr;
+    }
+    m_recording = false;
+
     return true;
 }
 
 bool Recorder::update()
 {
-    bool button_changed = false;
-
-    auto addMoveRecord = [&]() {
-        CURSORINFO ci;
-        ci.cbSize = sizeof(ci);
-        ::GetCursorInfo(&ci);
-
-        OpRecord rec;
-        rec.type = OpType::MouseMove;
-        m_x = rec.data.mouse.x = ci.ptScreenPos.x;
-        m_y = rec.data.mouse.y = ci.ptScreenPos.y;
-        addRecord(rec);
-    };
-
-    auto addButtonRecord = [&](bool down, int button) {
-        addMoveRecord();
-
-        OpRecord rec;
-        rec.type = down ? OpType::MouseDown : OpType::MouseUp;
-        rec.data.mouse.button = button;
-        addRecord(rec);
-
-        button_changed = true;
-    };
-
-
-    LASTINPUTINFO lii{};
-    lii.cbSize = sizeof(LASTINPUTINFO);
-    if (::GetLastInputInfo(&lii)) {
-        if (m_last_input_time == lii.dwTime) {
-            // state is not changed since last update.
-            return true;
-        }
+    MSG msg{};
+    if (::GetMessage(&msg, m_hwnd, 0, 0)) {
+        ::TranslateMessage(&msg);
+        ::DispatchMessage(&msg);
     }
-
-    m_last_input_time = lii.dwTime;
-    //DbgPrint("input state changed [%d]\n", m_last_input_time);
-
-    BYTE state[256];
-    if (!::GetKeyboardState(state)) {
-        DbgPrint("*** GetKeyboardState() failed ***\n", m_last_input_time);
-        return true;
-    }
-
-    // handle mouse
-    bool lb = state[VK_LBUTTON] & 0x80;
-    bool rb = state[VK_RBUTTON] & 0x80;
-    bool mb = state[VK_MBUTTON] & 0x80;
-    if (m_lb != lb) {
-        m_lb = lb;
-        addButtonRecord(lb, 1);
-    }
-    if (m_rb != rb) {
-        m_rb = rb;
-        addButtonRecord(rb, 2);
-    }
-    if (m_mb != mb) {
-        m_mb = mb;
-        addButtonRecord(mb, 3);
-    }
-    if (!button_changed && (m_lb || m_rb || m_mb)) {
-        // handle dragging
-        CURSORINFO ci;
-        ci.cbSize = sizeof(ci);
-        ::GetCursorInfo(&ci);
-        if (m_x != ci.ptScreenPos.x || m_y != ci.ptScreenPos.y)
-            addMoveRecord();
-    }
-
-    // stop if escape key is pressed
-    if (state[VK_ESCAPE] & 0x80) {
-        OpRecord rec;
-        rec.type = OpType::Wait;
-        addRecord(rec);
-
-        m_recording = false;
-    }
-
-    SleepMS(1);
     return m_recording;
 }
 
