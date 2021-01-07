@@ -1,6 +1,32 @@
 #include "pch.h"
 #include "MouseReplayer.h"
 
+namespace mr {
+
+class Recorder : public IRecorder
+{
+public:
+    void release() override;
+    bool startRecording() override;
+    bool stopRecording() override;
+    bool update() override;
+    bool save(const char* path) const override;
+
+    // internal
+    void addRecord(OpRecord rec);
+    void onInput(const RAWINPUT& raw);
+
+private:
+    bool m_recording = false;
+    millisec m_time_start = 0;
+    HWND m_hwnd = nullptr;
+    bool m_lb = false, m_rb = false, m_mb = false;
+    int m_x = 0, m_y = 0;
+
+    std::vector<OpRecord> m_records;
+};
+
+
 // note:
 // SetWindowsHookEx() is ideal for recording mouse, but it is it is too restricted after Windows Vista.
 // (requires admin privilege, UI access, etc.
@@ -108,6 +134,11 @@ void Recorder::onInput(const RAWINPUT& raw)
     }
 }
 
+void Recorder::release()
+{
+    delete this;
+}
+
 bool Recorder::startRecording()
 {
     if (m_recording)
@@ -192,3 +223,10 @@ bool Recorder::save(const char* path) const
         ofs << rec.toText() << std::endl;
     return true;
 }
+
+mrAPI IRecorder* CreateRecorder()
+{
+    return new Recorder();
+}
+
+} // namespace mr

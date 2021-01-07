@@ -1,6 +1,30 @@
 #include "pch.h"
 #include "MouseReplayer.h"
 
+namespace mr {
+
+class Player : public IPlayer
+{
+public:
+    void release() override;
+    bool startReplay(uint32_t loop) override;
+    bool stopReplay() override;
+    bool update() override;
+    bool load(const char* path) override;
+
+private:
+    bool m_playing = false;
+    millisec m_time_start = 0;
+    uint32_t m_record_index = 0;
+    uint32_t m_loop_required = 0, m_loop_current = 0;
+    std::vector<OpRecord> m_records;
+};
+
+
+void Player::release()
+{
+    delete this;
+}
 
 bool Player::startReplay(uint32_t loop)
 {
@@ -80,3 +104,10 @@ bool Player::load(const char* path)
 
     return !m_records.empty();
 }
+
+mrAPI IPlayer* CreatePlayer()
+{
+    return new Player();
+}
+
+} // namespace mr

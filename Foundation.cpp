@@ -3,6 +3,7 @@
 
 #pragma comment(lib,"user32.lib")
 
+namespace mr {
 
 void Print(const char* fmt, ...)
 {
@@ -153,4 +154,4 @@ void OpRecord::execute() const
     }
 }
 
-
+} // namespace mr

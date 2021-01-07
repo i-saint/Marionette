@@ -1,9 +1,20 @@
 #pragma once
 
-
 #define mrAPI extern "C" __declspec(dllexport)
 
+namespace mr {
+
 using millisec = uint64_t;
+
+#ifdef mrDebug
+    #define DbgPrint(...) Print(__VA_ARGS__)
+#else
+    #define DbgPrint(...)
+#endif
+void Print(const char* fmt, ...);
+millisec NowMS();
+void SleepMS(millisec v);
+
 
 enum class OpType : int
 {
@@ -37,50 +48,48 @@ struct OpRecord
     void execute() const;
 };
 
-class Recorder
+class IRecorder
 {
 public:
-    bool startRecording();
-    bool stopRecording();
-    bool update();
-    bool save(const char* path) const;
-
-    // internal
-    void addRecord(OpRecord rec);
-    void onInput(const RAWINPUT& raw);
-
-private:
-    bool m_recording = false;
-    millisec m_time_start = 0;
-    HWND m_hwnd = nullptr;
-    bool m_lb = false, m_rb = false, m_mb = false;
-    int m_x = 0, m_y = 0;
-
-    std::vector<OpRecord> m_records;
+    virtual ~IRecorder() {}
+    virtual void release() = 0;
+    virtual bool startRecording() = 0;
+    virtual bool stopRecording() = 0;
+    virtual bool update() = 0;
+    virtual bool save(const char* path) const = 0;
 };
 
-class Player
+class IPlayer
 {
 public:
-    bool startReplay(uint32_t loop = 1);
-    bool stopReplay();
-    bool update();
-    bool load(const char* path);
-
-private:
-    bool m_playing = false;
-    millisec m_time_start = 0;
-    uint32_t m_record_index = 0;
-    uint32_t m_loop_required = 0, m_loop_current = 0;
-    std::vector<OpRecord> m_records;
+    virtual ~IPlayer() {}
+    virtual void release() = 0;
+    virtual bool startReplay(uint32_t loop = 1) = 0;
+    virtual bool stopReplay() = 0;
+    virtual bool update() = 0;
+    virtual bool load(const char* path) = 0;
 };
 
+mrAPI IRecorder* CreateRecorder();
+mrAPI IPlayer* CreatePlayer();
 
-#ifdef mrDebug
-    #define DbgPrint(...) Print(__VA_ARGS__)
-#else
-    #define DbgPrint(...)
-#endif
-void Print(const char* fmt, ...);
-millisec NowMS();
-void SleepMS(millisec v);
+
+// utils
+
+template<class T>
+struct releaser
+{
+    void operator()(T* p) { p->release(); }
+};
+
+inline std::shared_ptr<IRecorder> CreateRecorderShared()
+{
+    return std::shared_ptr<IRecorder>(CreateRecorder(), releaser<IRecorder>());
+}
+
+inline std::shared_ptr<IPlayer> CreatePlayerShared()
+{
+    return std::shared_ptr<IPlayer>(CreatePlayer(), releaser<IPlayer>());
+}
+
+} // namespace mr

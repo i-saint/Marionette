@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
     if (argc >= 3)
         loop = std::max<int>(1, std::atoi(argv[2]));
 
-    Player player;
-    if (!player.load(path))
+    auto player = mr::CreatePlayerShared();
+    if (!player->load(path))
         return 1;
-    player.startReplay(loop);
-    while (player.update()) {}
-    player.stopReplay();
+    player->startReplay(loop);
+    while (player->update()) {}
+    player->stopReplay();
 }
