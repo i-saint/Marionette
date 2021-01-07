@@ -11,11 +11,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="MouseReplayer.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="MouseReplayerFoundation.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Recorder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MouseReplayer.h" />

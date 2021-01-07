@@ -3,7 +3,9 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="MouseRecorder.cpp" />
-    <ClCompile Include="MouseReplayerFoundation.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Recorder.cpp" />
+    <ClCompile Include="Foundation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

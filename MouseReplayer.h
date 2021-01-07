@@ -37,7 +37,6 @@ struct OpRecord
     void execute() const;
 };
 
-
 class Recorder
 {
 public:
@@ -77,9 +76,11 @@ private:
 };
 
 
-void Print(const char* fmt, ...);
 #ifdef mrDebug
     #define DbgPrint(...) Print(__VA_ARGS__)
 #else
     #define DbgPrint(...)
 #endif
+void Print(const char* fmt, ...);
+millisec NowMS();
+void SleepMS(millisec v);

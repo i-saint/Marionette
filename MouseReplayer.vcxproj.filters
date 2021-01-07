@@ -2,8 +2,10 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="MouseReplayerFoundation.cpp" />
     <ClCompile Include="MouseReplayer.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Recorder.cpp" />
+    <ClCompile Include="Foundation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
