@@ -48,11 +48,14 @@ public:
 
     // internal
     void addRecord(OpRecord rec);
+    void onInput(const RAWINPUT& raw);
 
 private:
     bool m_recording = false;
     millisec m_time_start = 0;
     HWND m_hwnd = nullptr;
+    bool m_lb = false, m_rb = false, m_mb = false;
+    int m_x = 0, m_y = 0;
 
     std::vector<OpRecord> m_records;
 };
