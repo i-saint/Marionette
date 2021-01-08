@@ -7,8 +7,9 @@ class Player : public IPlayer
 {
 public:
     void release() override;
-    bool startReplay(uint32_t loop) override;
-    bool stopReplay() override;
+    bool start(uint32_t loop) override;
+    bool stop() override;
+    bool isPlaying() const override;
     bool update() override;
     bool load(const char* path) override;
 
@@ -26,7 +27,7 @@ void Player::release()
     delete this;
 }
 
-bool Player::startReplay(uint32_t loop)
+bool Player::start(uint32_t loop)
 {
     if (m_playing)
         return false;
@@ -39,7 +40,7 @@ bool Player::startReplay(uint32_t loop)
     return true;
 }
 
-bool Player::stopReplay()
+bool Player::stop()
 {
     if (!m_playing)
         return false;
@@ -48,10 +49,20 @@ bool Player::stopReplay()
     return true;
 }
 
+bool Player::isPlaying() const
+{
+    return m_playing;
+}
+
 bool Player::update()
 {
-    if (!m_playing || m_records.empty() || m_loop_current >= m_loop_required)
+    if (!m_playing || m_records.empty())
         return false;
+
+    if (m_loop_current >= m_loop_required) {
+        m_playing = false;
+        return false;
+    }
 
     millisec now = NowMS() - m_time_start;
     // execute records
@@ -73,12 +84,6 @@ bool Player::update()
         else {
             break;
         }
-    }
-
-    // stop if escape key is pressed
-    if (::GetKeyState(VK_ESCAPE) & 0x80) {
-        m_playing = false;
-        return false;
     }
 
     SleepMS(1);

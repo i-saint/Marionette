@@ -10,9 +10,9 @@ int main(int argc, char* argv[])
     auto path = argv[1];
 
     auto recorder = mr::CreateRecorderShared();
-    if (!recorder->startRecording())
+    if (!recorder->start())
         return 1;
     while (recorder->update()) {}
-    recorder->stopRecording();
+    recorder->stop();
     recorder->save(path);
 }

@@ -9,5 +9,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <functional>
 #include <chrono>
 #include <thread>
+#include <mutex>

@@ -6,14 +6,18 @@ namespace mr {
 class Recorder : public IRecorder
 {
 public:
+    ~Recorder() override;
     void release() override;
-    bool startRecording() override;
-    bool stopRecording() override;
+    bool start() override;
+    bool stop() override;
+    bool isRecording() const override;
     bool update() override;
     bool save(const char* path) const override;
 
+    void setHandler(OpRecordHandler handler) override;
+    void addRecord(const OpRecord& rec) override;
+
     // internal
-    void addRecord(OpRecord rec);
     void onInput(const RAWINPUT& raw);
 
 private:
@@ -24,6 +28,7 @@ private:
     int m_x = 0, m_y = 0;
 
     std::vector<OpRecord> m_records;
+    OpRecordHandler m_handler = nullptr;
 };
 
 
@@ -46,8 +51,6 @@ static LRESULT CALLBACK MouseRecorderProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
         auto recorder = (Recorder*)::GetWindowLongPtr(hWnd, GWLP_USERDATA);
         if (recorder)
             recorder->onInput(*(RAWINPUT*)buf);
-
-        return 0;
     }
 
     return ::DefWindowProc(hWnd, Msg, wParam, lParam);
@@ -124,14 +127,20 @@ void Recorder::onInput(const RAWINPUT& raw)
         }
     }
     else if (raw.header.dwType == RIM_TYPEKEYBOARD) {
-        // stop recording if escape is pressed
-        if (raw.data.keyboard.VKey == VK_ESCAPE) {
-            OpRecord rec;
-            rec.type = OpType::Wait;
-            addRecord(rec);
-            stopRecording();
-        }
+        OpRecord rec;
+        if (raw.data.keyboard.Flags & RI_KEY_BREAK)
+            rec.type = OpType::KeyUp;
+        else
+            rec.type = OpType::KeyDown;
+
+        rec.data.key.code = raw.data.keyboard.VKey;
+        addRecord(rec);
     }
+}
+
+Recorder::~Recorder()
+{
+    stop();
 }
 
 void Recorder::release()
@@ -139,21 +148,30 @@ void Recorder::release()
     delete this;
 }
 
-bool Recorder::startRecording()
+bool Recorder::start()
 {
     if (m_recording)
         return false;
 
+    static std::once_flag s_once;
+    static bool s_registered = false;
+
     WNDCLASS wx = {};
     wx.lpfnWndProc = &MouseRecorderProc;
     wx.hInstance = ::GetModuleHandle(nullptr);
-    wx.lpszClassName = TEXT("MouseRecorderClass");
-    if (!::RegisterClass(&wx)) {
+    wx.lpszClassName = TEXT("mrRecorderClass");
+
+    std::call_once(s_once, [&wx]() {
+        if (::RegisterClass(&wx))
+            s_registered = true;
+        });
+
+    if (!s_registered) {
         DbgPrint("*** RegisterClassEx() failed ***\n");
         return false;
     }
 
-    m_hwnd = ::CreateWindow(wx.lpszClassName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wx.hInstance, nullptr);
+    m_hwnd = ::CreateWindow(wx.lpszClassName, nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, wx.hInstance, nullptr);
     if (!m_hwnd) {
         DbgPrint("*** CreateWindowEx() failed ***\n");
         return false;
@@ -164,16 +182,16 @@ bool Recorder::startRecording()
     // mouse
     rid[0].usUsagePage = 0x01;
     rid[0].usUsage = 0x02;
-    rid[0].dwFlags = RIDEV_NOLEGACY | RIDEV_INPUTSINK;
+    rid[0].dwFlags = RIDEV_INPUTSINK;
     rid[0].hwndTarget = m_hwnd;
     // keyboard
     rid[1].usUsagePage = 0x01;
     rid[1].usUsage = 0x06;
-    rid[1].dwFlags = RIDEV_NOLEGACY | RIDEV_INPUTSINK;
+    rid[1].dwFlags = RIDEV_INPUTSINK;
     rid[1].hwndTarget = m_hwnd;
     if (!::RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
         DbgPrint("*** RegisterRawInputDevices() failed ***\n");
-        stopRecording();
+        stop();
         return false;
     }
 
@@ -182,35 +200,45 @@ bool Recorder::startRecording()
     return true;
 }
 
-bool Recorder::stopRecording()
+bool Recorder::stop()
 {
+    m_recording = false;
+
     if (m_hwnd) {
         ::DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }
-    m_recording = false;
 
     return true;
 }
 
+bool Recorder::isRecording() const
+{
+    return m_recording;
+}
+
 bool Recorder::update()
 {
-    MSG msg{};
-    if (::GetMessage(&msg, m_hwnd, 0, 0)) {
-        ::TranslateMessage(&msg);
-        ::DispatchMessage(&msg);
+    if (m_hwnd) {
+        MSG msg{};
+        while (::PeekMessage(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+        }
     }
     return m_recording;
 }
 
-void Recorder::addRecord(OpRecord rec)
+void Recorder::addRecord(const OpRecord& rec_)
 {
-    if (!m_recording)
-        return;
-
-    rec.time = NowMS() - m_time_start;
-    m_records.push_back(rec);
-    DbgPrint("record added: %s\n", rec.toText().c_str());
+    OpRecord rec = rec_;
+    if (rec.time == -1) {
+        rec.time = NowMS() - m_time_start;
+    }
+    if ((!m_handler || m_handler(rec)) && m_recording) {
+        m_records.push_back(rec);
+        DbgPrint("record added: %s\n", rec.toText().c_str());
+    }
 }
 
 bool Recorder::save(const char* path) const
@@ -222,6 +250,11 @@ bool Recorder::save(const char* path) const
     for (auto& rec : m_records)
         ofs << rec.toText() << std::endl;
     return true;
+}
+
+void Recorder::setHandler(OpRecordHandler handler)
+{
+    m_handler = handler;
 }
 
 mrAPI IRecorder* CreateRecorder()

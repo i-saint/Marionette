@@ -10,5 +10,9 @@
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="MouseReplayer.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MouseReplayer.rc" />
   </ItemGroup>
 </Project>
