@@ -2,26 +2,6 @@
 #include "resource.h"
 #include "MouseReplayer.h"
 
-//int main(int argc, char *argv[])
-//{
-//    if (argc < 2) {
-//        puts("usage: MousePlayer.exe path_to_replay_file");
-//        return 0;
-//    }
-//
-//    auto path = argv[1];
-//    int loop = 1;
-//    if (argc >= 3)
-//        loop = std::max<int>(1, std::atoi(argv[2]));
-//
-//    auto player = mr::CreatePlayerShared();
-//    if (!player->load(path))
-//        return 1;
-//    player->start(loop);
-//    while (player->update()) {}
-//    player->stop();
-//}
-
 
 class MouseReplayerApp
 {
@@ -108,11 +88,6 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         break;
     }
     return ret;
-}
-
-static bool RecordHandler(mr::OpRecord& rec, void* userdata)
-{
-    return ((MouseReplayerApp*)userdata)->onRecord(rec);
 }
 
 void MouseReplayerApp::start()
