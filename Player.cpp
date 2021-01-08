@@ -17,7 +17,7 @@ private:
     bool m_playing = false;
     millisec m_time_start = 0;
     uint32_t m_record_index = 0;
-    uint32_t m_loop_required = 0, m_loop_current = 0;
+    uint32_t m_loop_required = 0, m_loop_count = 0;
     std::vector<OpRecord> m_records;
 };
 
@@ -34,7 +34,7 @@ bool Player::start(uint32_t loop)
 
     m_time_start = NowMS();
     m_loop_required = loop;
-    m_loop_current = 0;
+    m_loop_count = 0;
     m_record_index = 0;
     m_playing = true;
     return true;
@@ -51,7 +51,7 @@ bool Player::stop()
 
 bool Player::isPlaying() const
 {
-    return m_playing;
+    return this && m_playing;
 }
 
 bool Player::update()
@@ -59,10 +59,6 @@ bool Player::update()
     if (!m_playing || m_records.empty())
         return false;
 
-    if (m_loop_current >= m_loop_required) {
-        m_playing = false;
-        return false;
-    }
 
     millisec now = NowMS() - m_time_start;
     // execute records
@@ -70,15 +66,21 @@ bool Player::update()
         const auto& rec = m_records[m_record_index];
         if (now >= rec.time) {
             rec.execute();
-            ++m_record_index;
             DbgPrint("record executed: %s\n", rec.toText().c_str());
+            ++m_record_index;
 
             if (m_record_index == m_records.size()) {
                 // go next loop or stop
-                ++m_loop_current;
-                m_record_index = 0;
-                m_time_start = NowMS();
-                break;
+                ++m_loop_count;
+                if (m_loop_count >= m_loop_required) {
+                    m_playing = false;
+                    return false;
+                }
+                else {
+                    m_record_index = 0;
+                    m_time_start = NowMS();
+                    break;
+                }
             }
         }
         else {

@@ -11,7 +11,7 @@ public:
     bool toggleRecording();
     bool togglePlaying();
 
-    bool onRecord(mr::OpRecord& rec);
+    bool onInput(mr::OpRecord& rec);
 
 public:
     HWND m_hwnd = nullptr;
@@ -92,6 +92,8 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 void MouseReplayerApp::start()
 {
+    mr::AddInputHandler([this](mr::OpRecord& rec) { return onInput(rec); });
+
     m_hwnd = ::CreateDialogParam(::GetModuleHandle(nullptr), MAKEINTRESOURCE(IDD_MAINWINDOW), nullptr, mrDialogCB, (LPARAM)this);
 
     MSG msg;
@@ -101,12 +103,10 @@ void MouseReplayerApp::start()
             ::DispatchMessage(&msg);
         }
 
+        mr::UpdateInputs();
+
         if (m_player) {
             m_player->update();
-
-            // stop if escape key is pressed
-            if (::GetKeyState(VK_ESCAPE) & 0x80)
-                m_player->stop();
 
             if (!m_player->isPlaying())
                 togglePlaying();
@@ -141,7 +141,6 @@ bool MouseReplayerApp::toggleRecording()
     }
     else {
         m_recorder = mr::CreateRecorderShared();
-        m_recorder->setHandler([this](mr::OpRecord& rec) { return onRecord(rec); });
         m_recorder->start();
 
         ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, L"‖");
@@ -171,16 +170,43 @@ bool MouseReplayerApp::togglePlaying()
     }
 }
 
-bool MouseReplayerApp::onRecord(mr::OpRecord& rec)
+bool MouseReplayerApp::onInput(mr::OpRecord& rec)
 {
+    static bool s_ctrl, s_alt, s_shift;
     if (rec.type == mr::OpType::KeyDown) {
+        // stop if escape is pressed
         if (rec.data.key.code == VK_ESCAPE) {
-            mr::OpRecord rec;
-            rec.type = mr::OpType::Wait;
-            m_recorder->addRecord(rec);
-            m_recorder->stop();
-            return false;
+            if (m_player && m_player->isPlaying())
+                m_player->stop();
+            if (m_recorder && m_recorder->isRecording())
+                m_recorder->stop();
         }
+
+        if (rec.data.key.code == VK_CONTROL)
+            s_ctrl = true;
+        if (rec.data.key.code == VK_MENU)
+            s_alt = true;
+        if (rec.data.key.code == VK_SHIFT)
+            s_shift = true;
+    }
+    if (rec.type == mr::OpType::KeyUp) {
+        if (s_ctrl && rec.data.key.code == VK_F1)
+            togglePlaying();
+        if (s_ctrl && rec.data.key.code == VK_F2)
+            toggleRecording();
+
+        if (rec.data.key.code == VK_CONTROL)
+            s_ctrl = false;
+        if (rec.data.key.code == VK_MENU)
+            s_alt = false;
+        if (rec.data.key.code == VK_SHIFT)
+            s_shift = false;
+    }
+
+    // ignore function keys
+    if (rec.data.key.code == VK_ESCAPE ||
+        (rec.data.key.code >= VK_F1 && rec.data.key.code <= VK_F24)) {
+        return false;
     }
     return true;
 }

@@ -62,7 +62,6 @@ public:
     virtual bool update() = 0;
     virtual bool save(const char* path) const = 0;
 
-    virtual void setHandler(OpRecordHandler handler) = 0;
     virtual void addRecord(const OpRecord& rec) = 0;
 };
 
@@ -77,6 +76,10 @@ public:
     virtual bool update() = 0;
     virtual bool load(const char* path) = 0;
 };
+
+mrAPI int AddInputHandler(const OpRecordHandler& handler);
+mrAPI void RemoveInputHandler(int i);
+mrAPI void UpdateInputs();
 
 mrAPI IRecorder* CreateRecorder();
 mrAPI IPlayer* CreatePlayer();
