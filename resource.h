@@ -5,7 +5,8 @@
 #define IDD_MAINWINDOW                  102
 #define IDC_BUTTON_RECORDING            1001
 #define IDC_BUTTON_PLAY                 1002
-#define IDC_MESSAGE                     1003
+#define IDC_BUTTON_RECORDING2           1003
+#define IDC_BUTTON_EXIT                 1003
 
 // Next default values for new objects
 // 

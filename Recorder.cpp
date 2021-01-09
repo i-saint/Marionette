@@ -31,6 +31,7 @@ public:
 private:
     InputReceiver();
     ~InputReceiver();
+    InputReceiver(const InputReceiver&) = delete;
 
     HWND m_hwnd = nullptr;
     bool m_lb = false, m_rb = false, m_mb = false;
