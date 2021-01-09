@@ -2,6 +2,8 @@
 #include "resource.h"
 #include "MouseReplayer.h"
 
+#pragma comment(lib,"user32.lib")
+
 #define mrTPlay L"▶"
 #define mrTRec  L"⚫"
 #define mrTStop L"❚❚"

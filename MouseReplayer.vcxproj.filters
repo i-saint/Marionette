@@ -7,6 +7,7 @@
     <ClCompile Include="Recorder.cpp" />
     <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
+    <ClCompile Include="Image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

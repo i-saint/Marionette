@@ -118,4 +118,8 @@ public:
 };
 mrAPI IInputReceiver* GetReceiver();
 
+
+#ifdef mrWithOpenCV
+#endif // mrWithOpenCV
+
 } // namespace mr

@@ -1,7 +1,6 @@
 ﻿#include "pch.h"
 #include "MouseReplayer.h"
 
-#pragma comment(lib,"user32.lib")
 
 namespace mr {
 

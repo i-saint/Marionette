@@ -14,3 +14,11 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+
+#define mrWithOpenCV
+
+#ifdef mrWithOpenCV
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#endif // mrWithOpenCV
