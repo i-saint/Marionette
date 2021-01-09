@@ -45,6 +45,7 @@ private:
 
 InputReceiver::InputReceiver()
 {
+    // create invisible window to receive input messages
     WNDCLASS wx = {};
     wx.lpfnWndProc = &receiverProc;
     wx.hInstance = ::GetModuleHandle(nullptr);
@@ -61,6 +62,7 @@ InputReceiver::InputReceiver()
     }
     ::SetWindowLongPtr(m_hwnd, GWLP_USERDATA, (LONG_PTR)this);
 
+    // register rawinput devices
     RAWINPUTDEVICE rid[2]{};
     // mouse
     rid[0].usUsagePage = 0x01;
@@ -100,6 +102,7 @@ void InputReceiver::onInput(RAWINPUT& raw)
     };
 
     if (raw.header.dwType == RIM_TYPEMOUSE) {
+        // handle mouse
 
         auto addButtonRecord = [&](bool down, int button) {
             OpRecord rec;
@@ -155,6 +158,7 @@ void InputReceiver::onInput(RAWINPUT& raw)
         }
     }
     else if (raw.header.dwType == RIM_TYPEKEYBOARD) {
+        // handle keyboard
         OpRecord rec;
         if (raw.data.keyboard.Flags & RI_KEY_BREAK)
             rec.type = OpType::KeyUp;
@@ -172,7 +176,8 @@ LRESULT CALLBACK InputReceiver::receiverProc(HWND hWnd, UINT Msg, WPARAM wParam,
         auto hRawInput = (HRAWINPUT)lParam;
         UINT dwSize = 0;
         char buf[256];
-        // first GetRawInputData() get dwSize, second one get RAWINPUT data.
+        // first one get dwSize, second one get RAWINPUT data.
+        // in this case size of raw input data can be assumed constant because device is mouse or keyboard.
         ::GetRawInputData(hRawInput, RID_INPUT, buf, &dwSize, sizeof(RAWINPUTHEADER));
         ::GetRawInputData(hRawInput, RID_INPUT, buf, &dwSize, sizeof(RAWINPUTHEADER));
 

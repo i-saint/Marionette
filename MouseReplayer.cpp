@@ -2,6 +2,10 @@
 #include "resource.h"
 #include "MouseReplayer.h"
 
+#define mrTPlay L"▶"
+#define mrTRec  L"⚫"
+#define mrTStop L"❚❚"
+#define mrTExit L"✕"
 
 class MouseReplayerApp
 {
@@ -14,6 +18,9 @@ public:
     bool togglePlaying();
     bool exit();
 
+    // internal
+    void repaint();
+    void setDataPath(const char *v);
     bool onInput(mr::OpRecord& rec);
 
 public:
@@ -82,9 +89,9 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
     {
         // .rc file can not handle unicode. non-ascii characters must be set from program.
         // https://social.msdn.microsoft.com/Forums/ja-JP/fa09ec19-0253-478b-849f-9ae2980a3251
-        CtrlSetText(IDC_BUTTON_PLAY, L"▶");
-        CtrlSetText(IDC_BUTTON_RECORDING, L"⚫");
-        CtrlSetText(IDC_BUTTON_EXIT, L"✕");
+        CtrlSetText(IDC_BUTTON_PLAY, mrTPlay);
+        CtrlSetText(IDC_BUTTON_RECORDING, mrTRec);
+        CtrlSetText(IDC_BUTTON_EXIT, mrTExit);
         ::ShowWindow(hDlg, SW_SHOW);
         ret = TRUE;
         break;
@@ -102,6 +109,7 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
     case WM_CTLCOLORDLG:
     {
         auto& app = GetApp();
+        // change background color if recording|playing
         if (app.m_player)
             return (INT_PTR)app.m_brush_playing;
         if (app.m_recorder)
@@ -109,6 +117,7 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         return (INT_PTR)nullptr;
     }
 
+    // handle drag & drop and move window
     case WM_MOUSEMOVE:
     {
         int x = GET_X_LPARAM(lParam);
@@ -116,7 +125,6 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         HandleClientAreaDrag(hDlg, WM_MOUSEMOVE, x, y);
         break;
     }
-
     case WM_LBUTTONUP:
     {
         int x = GET_X_LPARAM(lParam);
@@ -124,7 +132,6 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         HandleClientAreaDrag(hDlg, WM_LBUTTONUP, x, y);
         break;
     }
-
     case WM_LBUTTONDOWN:
     {
         int x = GET_X_LPARAM(lParam);
@@ -133,6 +140,17 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         break;
     }
 
+    // handle file drop
+    case WM_DROPFILES:
+    {
+        auto hDrop = (HDROP)wParam;
+        char path[MAX_PATH];
+        ::DragQueryFileA(hDrop, 0, path, sizeof(path));
+        GetApp().setDataPath(path);
+        break;
+    }
+
+    // handle buttons
     case WM_COMMAND:
     {
         auto& app = GetApp();
@@ -243,22 +261,18 @@ bool MouseReplayerApp::toggleRecording()
         m_recorder->save(m_data_path.c_str());
         m_recorder = nullptr;
 
-        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, L"●");
+        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, mrTRec);
         ::EnableWindow(GetDlgItem(m_hwnd, IDC_BUTTON_PLAY), true);
-
-        ::InvalidateRect(m_hwnd, nullptr, 1);
-        ::UpdateWindow(m_hwnd);
+        repaint();
         return false;
     }
     else {
         m_recorder = mr::CreateRecorderShared();
         m_recorder->start();
 
-        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, L"‖");
+        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, mrTStop);
         ::EnableWindow(GetDlgItem(m_hwnd, IDC_BUTTON_PLAY), false);
-
-        ::InvalidateRect(m_hwnd, nullptr, 1);
-        ::UpdateWindow(m_hwnd);
+        repaint();
         return true;
     }
 }
@@ -269,11 +283,9 @@ bool MouseReplayerApp::togglePlaying()
         m_player->stop();
         m_player = nullptr;
 
-        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_PLAY, L"▶");
+        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_PLAY, mrTPlay);
         ::EnableWindow(GetDlgItem(m_hwnd, IDC_BUTTON_RECORDING), true);
-
-        ::InvalidateRect(m_hwnd, nullptr, 1);
-        ::UpdateWindow(m_hwnd);
+        repaint();
         return false;
     }
     else {
@@ -281,11 +293,9 @@ bool MouseReplayerApp::togglePlaying()
         m_player->load(m_data_path.c_str());
         m_player->start();
 
-        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_PLAY, L"‖");
+        ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_PLAY, mrTStop);
         ::EnableWindow(GetDlgItem(m_hwnd, IDC_BUTTON_RECORDING), false);
-
-        ::InvalidateRect(m_hwnd, nullptr, 1);
-        ::UpdateWindow(m_hwnd);
+        repaint();
         return true;
     }
 }
@@ -299,6 +309,17 @@ bool MouseReplayerApp::exit()
     else {
         return false;
     }
+}
+
+void MouseReplayerApp::repaint()
+{
+    ::InvalidateRect(m_hwnd, nullptr, 1);
+    ::UpdateWindow(m_hwnd);
+}
+
+void MouseReplayerApp::setDataPath(const char* v)
+{
+    m_data_path = v;
 }
 
 bool MouseReplayerApp::onInput(mr::OpRecord& rec)
@@ -347,5 +368,8 @@ bool MouseReplayerApp::onInput(mr::OpRecord& rec)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    MouseReplayerApp::instance().start();
+    auto& app = MouseReplayerApp::instance();
+    if (__argc >= 2)
+        app.setDataPath(__argv[1]);
+    app.start();
 }
