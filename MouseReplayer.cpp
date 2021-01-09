@@ -199,7 +199,8 @@ MouseReplayerApp& MouseReplayerApp::instance()
 
 void MouseReplayerApp::start()
 {
-    mr::AddInputHandler([this](mr::OpRecord& rec) { return onInput(rec); });
+    auto receiver = mr::GetReceiver();
+    receiver->addHandler([this](mr::OpRecord& rec) { return onInput(rec); });
 
     m_hwnd = ::CreateDialogParam(::GetModuleHandle(nullptr), MAKEINTRESOURCE(IDD_MAINWINDOW), nullptr, mrDialogCB, (LPARAM)this);
     m_brush_recording = CreateSolidBrush(RGB(255, 0, 0));
@@ -212,7 +213,7 @@ void MouseReplayerApp::start()
             ::DispatchMessage(&msg);
         }
 
-        mr::UpdateInputs();
+        receiver->update();
 
         if (m_player) {
             m_player->update();
@@ -220,12 +221,15 @@ void MouseReplayerApp::start()
             if (!m_player->isPlaying())
                 togglePlaying();
         }
-
         if (m_recorder) {
             m_recorder->update();
             if (!m_recorder->isRecording())
                 toggleRecording();
         }
+
+        // possible better way:
+        // use GetMesssage() and Player & Recorder do their jobs in worker threads.
+        mr::SleepMS(1);
 
         if (m_finished)
             break;

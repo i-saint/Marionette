@@ -77,10 +77,6 @@ public:
     virtual bool load(const char* path) = 0;
 };
 
-mrAPI int AddInputHandler(const OpRecordHandler& handler);
-mrAPI void RemoveInputHandler(int i);
-mrAPI void UpdateInputs();
-
 mrAPI IRecorder* CreateRecorder();
 mrAPI IPlayer* CreatePlayer();
 
@@ -105,5 +101,21 @@ inline IPlayerPtr CreatePlayerShared()
 {
     return IPlayerPtr(CreatePlayer(), releaser<IPlayer>());
 }
+
+
+// internal
+
+class IInputReceiver
+{
+public:
+    virtual ~IInputReceiver() {}
+    virtual bool valid() const = 0;
+    virtual void update() = 0;
+    virtual int addHandler(OpRecordHandler v) = 0;
+    virtual void removeHandler(int i) = 0;
+    virtual int addRecorder(OpRecordHandler v) = 0;
+    virtual void removeRecorder(int i) = 0;
+};
+mrAPI IInputReceiver* GetReceiver();
 
 } // namespace mr

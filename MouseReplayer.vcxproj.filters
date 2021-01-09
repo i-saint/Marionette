@@ -6,6 +6,7 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Recorder.cpp" />
     <ClCompile Include="Foundation.cpp" />
+    <ClCompile Include="InputReceiver.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

@@ -88,7 +88,6 @@ bool Player::update()
         }
     }
 
-    SleepMS(1);
     return true;
 }
 
