@@ -29,7 +29,7 @@ void Player::release()
 
 bool Player::start(uint32_t loop)
 {
-    if (m_playing)
+    if (m_playing || m_records.empty())
         return false;
 
     m_time_start = NowMS();

@@ -5,7 +5,7 @@
 #define mrTPlay L"▶"
 #define mrTRec  L"⚫"
 #define mrTStop L"❚❚"
-#define mrTExit L"✕"
+#define mrTExit L"✖"
 
 class MouseReplayerApp
 {
