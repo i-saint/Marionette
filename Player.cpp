@@ -112,6 +112,12 @@ bool Player::start(uint32_t loop)
     m_loop_count = 0;
     m_record_index = 0;
     m_playing = true;
+
+    CURSORINFO ci;
+    ci.cbSize = sizeof(ci);
+    ::GetCursorInfo(&ci);
+    m_state.x = ci.ptScreenPos.x;
+    m_state.y = ci.ptScreenPos.y;
     return true;
 }
 
@@ -199,6 +205,7 @@ void Player::execRecord(const OpRecord& rec)
             input.type = INPUT_MOUSE;
             MakeMouseMove(input, m_state.x, m_state.y);
             ::SendInput(1, &input, sizeof(INPUT));
+            ::SendInput(1, &input, sizeof(INPUT));
         }
         break;
     }
@@ -245,7 +252,7 @@ void Player::execRecord(const OpRecord& rec)
             if (image) {
                 bool match;
                 int x, y;
-                std::tie(match, x, y) = MatchImage(nullptr, *image);
+                std::tie(match, x, y) = MatchImage(*image);
                 if (match) {
                     m_state.x = x;
                     m_state.y = y;

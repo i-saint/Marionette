@@ -10,21 +10,16 @@
 
 namespace mr {
 
-cv::Mat CaptureScreenshot(HWND hwnd)
+bool CaptureScreenshot(cv::Mat& ret, RECT& rect)
 {
-    RECT rect{};
-    if (!hwnd) {
-        rect.right = ::GetSystemMetrics(SM_CXSCREEN);
-        rect.bottom = ::GetSystemMetrics(SM_CYSCREEN);
-    }
-    else {
-        ::GetWindowRect(hwnd, &rect);
-    }
+    int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    rect = { x, y, width + x, height + y };
 
-    HDC dc = ::GetDC(hwnd);
+    HDC dc = ::GetDC(nullptr);
     HDC hdc = ::CreateCompatibleDC(dc);
-    int width = rect.right - rect.left;
-    int height = rect.bottom - rect.top;
 
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
@@ -37,11 +32,12 @@ cv::Mat CaptureScreenshot(HWND hwnd)
     info.bmiHeader.biClrUsed = 0;
     info.bmiHeader.biClrImportant = 0;
 
-    cv::Mat ret(height, width, CV_8UC3);
+    ret = cv::Mat(height, width, CV_8UC3);
     byte* data;
     if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
         ::SelectObject(hdc, hbmp);
-        ::BitBlt(hdc, 0, 0, width, height, dc, 0, 0, SRCCOPY);
+        //::BitBlt(hdc, x, y, width, height, dc, 0, 0, SRCCOPY);
+        ::StretchBlt(hdc, 0, 0, width, height, dc, x, y, width, height, SRCCOPY);
 
         auto* dst = ret.ptr();
         for (int y = 0; y < height; ++y) {
@@ -58,19 +54,19 @@ cv::Mat CaptureScreenshot(HWND hwnd)
         ::DeleteObject(hbmp);
     }
     ::DeleteDC(hdc);
-    ::ReleaseDC(hwnd, dc);
+    ::ReleaseDC(nullptr, dc);
 
-    return ret;
- 
-    //auto monitor = ::MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST);
+    return true;
 }
 
-std::tuple<bool, int, int> MatchImage(HWND hwnd, const cv::Mat& tmp_img)
+std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img)
 {
     try {
         cv::Mat screenshot;
-        cv::cvtColor(CaptureScreenshot(hwnd), screenshot, cv::COLOR_BGR2GRAY);
-        //cv::cvtColor(tmp_img, tmp_img, cv::IMREAD_GRAYSCALE);
+        RECT rect;
+        CaptureScreenshot(screenshot, rect);
+        cv::cvtColor(screenshot, screenshot, cv::COLOR_BGR2GRAY);
+        //cv::cvtColor(tmp_img, tmp_img, cv::COLOR_BGR2GRAY);
 
         cv::Mat dst_img;
         cv::matchTemplate(screenshot, tmp_img, dst_img, cv::TM_CCORR_NORMED);
@@ -79,16 +75,18 @@ std::tuple<bool, int, int> MatchImage(HWND hwnd, const cv::Mat& tmp_img)
         cv::Point pos1, pos2;
         cv::minMaxLoc(dst_img, &min_val, &max_val, &pos1, &pos2);
 
-        if (max_val >= 0.9) {
+        cv::rectangle(screenshot, cv::Rect(pos2.x, pos2.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
+
+        if (max_val >= 0.95) {
             return {
                 true,
-                pos2.x + (tmp_img.cols / 2),
-                pos2.y + (tmp_img.rows / 2)
+                pos2.x + rect.left + (tmp_img.cols / 2),
+                pos2.y + rect.top + (tmp_img.rows / 2)
             };
         }
     }
     catch (const cv::Exception& e) {
-        DbgPrint("*** MatchImage() raises exxception: %s ***\n", e.what());
+        DbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
     }
     return { false, 0, 0 };
 }
@@ -96,9 +94,13 @@ std::tuple<bool, int, int> MatchImage(HWND hwnd, const cv::Mat& tmp_img)
 void TestCaptureScreenshot()
 {
     ::Sleep(1000);
+
+    RECT rect{};
+    ::GetWindowRect(::GetForegroundWindow(), &rect);
+
     //auto mat = CaptureScreenshot(::GetForegroundWindow());
-    auto mat = CaptureScreenshot(nullptr);
-    cv::imwrite("out.png", mat);
+    //auto mat = CaptureScreenshot(nullptr);
+    //cv::imwrite("out.png", mat);
 }
 
 void TestMatchTemplate()
