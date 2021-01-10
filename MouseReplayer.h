@@ -125,7 +125,7 @@ mrAPI IInputReceiver* GetReceiver();
 
 
 #ifdef mrWithOpenCV
-std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img);
+std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold = 0.8);
 #endif // mrWithOpenCV
 
 } // namespace mr

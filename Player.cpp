@@ -204,6 +204,8 @@ void Player::execRecord(const OpRecord& rec)
             INPUT input{};
             input.type = INPUT_MOUSE;
             MakeMouseMove(input, m_state.x, m_state.y);
+
+            // it seems single mouse move can't step over display boundary. so SendInput twice.
             ::SendInput(1, &input, sizeof(INPUT));
             ::SendInput(1, &input, sizeof(INPUT));
         }

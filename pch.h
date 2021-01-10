@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <windowsx.h>
+#include <shellscalingapi.h>
 
 #include <cstdio>
 #include <cstdint>
