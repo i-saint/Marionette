@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "MouseReplayer.h"
 
 #ifdef mrWithOpenCV
 #pragma comment(lib,"gdi32.lib")
@@ -9,12 +10,18 @@
 
 namespace mr {
 
-cv::Mat CaptureScreenshot(HWND wnd)
+cv::Mat CaptureScreenshot(HWND hwnd)
 {
-    RECT rect;
-    ::GetWindowRect(wnd, &rect);
+    RECT rect{};
+    if (!hwnd) {
+        rect.right = ::GetSystemMetrics(SM_CXSCREEN);
+        rect.bottom = ::GetSystemMetrics(SM_CYSCREEN);
+    }
+    else {
+        ::GetWindowRect(hwnd, &rect);
+    }
 
-    HDC dc = ::GetDC(wnd);
+    HDC dc = ::GetDC(hwnd);
     HDC hdc = ::CreateCompatibleDC(dc);
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
@@ -51,18 +58,68 @@ cv::Mat CaptureScreenshot(HWND wnd)
         ::DeleteObject(hbmp);
     }
     ::DeleteDC(hdc);
-    ::ReleaseDC(wnd, dc);
+    ::ReleaseDC(hwnd, dc);
 
     return ret;
  
     //auto monitor = ::MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST);
 }
 
+std::tuple<bool, int, int> MatchImage(HWND hwnd, const cv::Mat& tmp_img)
+{
+    try {
+        cv::Mat screenshot;
+        cv::cvtColor(CaptureScreenshot(hwnd), screenshot, cv::COLOR_BGR2GRAY);
+        //cv::cvtColor(tmp_img, tmp_img, cv::IMREAD_GRAYSCALE);
+
+        cv::Mat dst_img;
+        cv::matchTemplate(screenshot, tmp_img, dst_img, cv::TM_CCORR_NORMED);
+
+        double min_val, max_val;
+        cv::Point pos1, pos2;
+        cv::minMaxLoc(dst_img, &min_val, &max_val, &pos1, &pos2);
+
+        if (max_val >= 0.9) {
+            return {
+                true,
+                pos2.x + (tmp_img.cols / 2),
+                pos2.y + (tmp_img.rows / 2)
+            };
+        }
+    }
+    catch (const cv::Exception& e) {
+        DbgPrint("*** MatchImage() raises exxception: %s ***\n", e.what());
+    }
+    return { false, 0, 0 };
+}
+
 void TestCaptureScreenshot()
 {
-    ::Sleep(3000);
-    auto mat = CaptureScreenshot(::GetForegroundWindow());
+    ::Sleep(1000);
+    //auto mat = CaptureScreenshot(::GetForegroundWindow());
+    auto mat = CaptureScreenshot(nullptr);
     cv::imwrite("out.png", mat);
+}
+
+void TestMatchTemplate()
+{
+    cv::Mat src_img = cv::imread("src.png", cv::IMREAD_GRAYSCALE);
+    cv::Mat tmp_img = cv::imread("template.png", cv::IMREAD_GRAYSCALE);
+    cv::resize(tmp_img, tmp_img, cv::Size(), 2, 2);
+
+    int d1 = src_img.type();
+    int d2 = tmp_img.type();
+
+    cv::Mat dst_img;
+    cv::matchTemplate(src_img, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
+
+    double min_val, max_val;
+    cv::Point pos1, pos2;
+    cv::minMaxLoc(dst_img, &min_val, &max_val, &pos1, &pos2);
+
+    cv::rectangle(src_img, cv::Rect(pos2.x, pos2.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
+    cv::imwrite("result.png", src_img);
+    cv::imwrite("match.exr", dst_img);
 }
 
 } // namespace mr

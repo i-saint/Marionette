@@ -20,22 +20,28 @@ enum class OpType : int
 {
     Unknown,
     Wait,
-    MouseMove,
-    MouseDown,
-    MouseUp,
+    PushState,
+    PopState,
     KeyDown,
     KeyUp,
+    MouseDown,
+    MouseUp,
+    MouseMoveAbs,
+    MouseMoveRel,
+    MouseMoveMatch,
 };
 
 struct OpRecord
 {
     OpType type = OpType::Unknown;
     millisec time = -1;
-    union
+    struct
     {
         struct
         {
             int x, y, button;
+            int image_handle;
+            std::string image_path;
         } mouse;
         struct
         {
@@ -45,7 +51,6 @@ struct OpRecord
 
     std::string toText() const;
     bool fromText(const std::string& v);
-    void execute() const;
 };
 
 using OpRecordHandler = std::function<bool (OpRecord& rec)>;
@@ -120,6 +125,7 @@ mrAPI IInputReceiver* GetReceiver();
 
 
 #ifdef mrWithOpenCV
+std::tuple<bool, int, int> MatchImage(HWND hwnd, const cv::Mat& tmp_img);
 #endif // mrWithOpenCV
 
 } // namespace mr

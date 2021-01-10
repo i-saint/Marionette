@@ -149,7 +149,7 @@ void InputReceiver::onInput(RAWINPUT& raw)
             ::GetCursorInfo(&ci);
             if (m_x != ci.ptScreenPos.x || m_y != ci.ptScreenPos.y) {
                 OpRecord rec;
-                rec.type = OpType::MouseMove;
+                rec.type = OpType::MouseMoveAbs;
                 m_x = rec.data.mouse.x = ci.ptScreenPos.x;
                 m_y = rec.data.mouse.y = ci.ptScreenPos.y;
                 dispatchRecord(rec);

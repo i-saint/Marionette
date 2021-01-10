@@ -372,8 +372,16 @@ bool MouseReplayerApp::onInput(mr::OpRecord& rec)
 }
 
 
+namespace mr {
+    void TestMatchTemplate();
+    void TestCaptureScreenshot();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    mr::TestMatchTemplate();
+    //mr::TestCaptureScreenshot();
+
     auto& app = MouseReplayerApp::instance();
     if (__argc >= 2)
         app.setDataPath(__argv[1]);

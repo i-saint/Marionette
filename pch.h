@@ -14,6 +14,8 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <future>
+#include <tuple>
 
 #define mrWithOpenCV
 
