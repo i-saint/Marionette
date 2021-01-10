@@ -79,7 +79,11 @@ using ScreenDataPtr = std::shared_ptr<ScreenData>;
 
 struct MatchImageCtx
 {
+    // inputs
+    bool care_scale_factor = true;
     cv::Mat tmp_img;
+
+    // outputs
     double highest_score = 0.0;
     std::vector<ScreenDataPtr> screens;
 };
@@ -98,24 +102,32 @@ static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
         sdata->image = CaptureScreenshot(*rect);
         //cv::imwrite("screenshot.png", image);
 
-        // dps-aware scaling + resize to half
-        double s = (1.0 / sdata->scale_factor) * 0.5;
-        cv::resize(sdata->image, sdata->image, {}, s, s);
+        // convert to gray scale
         cv::cvtColor(sdata->image, sdata->image, cv::COLOR_BGR2GRAY);
 
-        cv::Mat dst_img;
-        cv::matchTemplate(sdata->image, ctx->tmp_img, dst_img, cv::TM_CCORR_NORMED);
-        cv::minMaxLoc(dst_img, nullptr, &sdata->score, nullptr, &sdata->position);
+        cv::Mat tmp_img;
+        // handle display scaling factor
+        if (!ctx->care_scale_factor || sdata->scale_factor == 1.0)
+            tmp_img = ctx->tmp_img;
+        else
+            cv::resize(ctx->tmp_img, tmp_img, {}, sdata->scale_factor, sdata->scale_factor);
 
+        cv::Mat dst_img;
+        cv::Point pos;
+        cv::matchTemplate(sdata->image, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
+        cv::minMaxLoc(dst_img, nullptr, &sdata->score, nullptr, &pos);
+        sdata->position.x = pos.x + (tmp_img.cols / 2);
+        sdata->position.y = pos.y + (tmp_img.rows / 2);
+
+#ifdef mrDebug
         //// debug output
         //cv::cvtColor(sdata->image, sdata->image, cv::COLOR_GRAY2BGR);
-        //cv::rectangle(sdata->image, cv::Rect(sdata->position.x, sdata->position.y, ctx->tmp_img.cols, ctx->tmp_img.rows), CV_RGB(255, 0, 0), 2);
+        //cv::rectangle(sdata->image, cv::Rect(pos.x, pos.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
         //cv::imwrite("result.png", sdata->image);
+#endif // mrDebug
 
         ctx->screens.push_back(sdata);
         ctx->highest_score = std::max(ctx->highest_score, sdata->score);
-        sdata->position.x /= s;
-        sdata->position.y /= s;
     }
     catch (const cv::Exception& e) {
         DbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
@@ -128,7 +140,7 @@ static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
 std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold)
 {
     MatchImageCtx ctx;
-    cv::resize(tmp_img, ctx.tmp_img, {}, 0.5, 0.5);
+    ctx.tmp_img = tmp_img;
 
     ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
     DbgPrint("match score: %lf\n", ctx.highest_score);
@@ -138,8 +150,8 @@ std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold)
             if (sd->score == ctx.highest_score) {
                 return {
                     true,
-                    sd->position.x + sd->screen_rect.left + (tmp_img.cols / 2),
-                    sd->position.y + sd->screen_rect.top + (tmp_img.rows / 2)
+                    sd->position.x + sd->screen_rect.left,
+                    sd->position.y + sd->screen_rect.top
                 };
             }
         }
