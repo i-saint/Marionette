@@ -141,14 +141,21 @@ bool Player::update()
         return false;
 
 
-    millisec now = NowMS() - m_time_start;
     // execute records
     for (;;) {
         const auto& rec = m_records[m_record_index];
-        if (now >= rec.time) {
+
+        millisec time_now = NowMS();
+        millisec time_rec = time_now - m_time_start;
+        if (time_rec >= rec.time) {
             execRecord(rec);
-            DbgPrint("record executed: %s\n", rec.toText().c_str());
             ++m_record_index;
+
+            // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
+            millisec elapsed = NowMS() - time_now;
+            if (rec.type == OpType::MouseMoveMatch)
+                m_time_start += elapsed;
+            DbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
 
             if (m_record_index == m_records.size()) {
                 // go next loop or stop
@@ -168,7 +175,6 @@ bool Player::update()
             break;
         }
     }
-
     return true;
 }
 
@@ -250,16 +256,22 @@ void Player::execRecord(const OpRecord& rec)
         }
         else if (rec.type == OpType::MouseMoveMatch) {
 #ifdef mrWithOpenCV
+            bool matched = false;
             auto image = ImageManager::instance().get(rec.data.mouse.image_handle);
             if (image) {
                 bool match;
                 int x, y;
-                std::tie(match, x, y) = MatchImage(*image);
+                std::tie(match, x, y) = MatchImage(*image, 0.6f);
                 if (match) {
                     m_state.x = x;
                     m_state.y = y;
                     MakeMouseMove(input, m_state.x, m_state.y);
+                    matched = true;
                 }
+            }
+            if (!matched) {
+                stop();
+                break;
             }
 #else
             break;

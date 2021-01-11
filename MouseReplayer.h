@@ -5,14 +5,25 @@
 namespace mr {
 
 using millisec = uint64_t;
+using nanosec = uint64_t;
+
+#define mrEnableProfile
 
 #ifdef mrDebug
     #define DbgPrint(...) ::mr::Print(__VA_ARGS__)
 #else
     #define DbgPrint(...)
 #endif
+
+#ifdef mrEnableProfile
+    #define DbgProfile(...) ::mr::ProfileTimer _dbg_pftimer(__VA_ARGS__)
+#else
+    #define DbgProfile(...)
+#endif
+
 void Print(const char* fmt, ...);
 millisec NowMS();
+nanosec NowNS();
 void SleepMS(millisec v);
 
 
@@ -123,9 +134,31 @@ public:
 };
 mrAPI IInputReceiver* GetReceiver();
 
+class Timer
+{
+public:
+    Timer();
+    void reset();
+    float elapsed() const; // in sec
+
+private:
+    nanosec m_begin = 0;
+};
+
+class ProfileTimer : public Timer
+{
+public:
+    ProfileTimer(const char* mes, ...);
+    ~ProfileTimer();
+
+private:
+    std::string m_message;
+};
+
+
 
 #ifdef mrWithOpenCV
-std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold = 0.9);
+std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold = 0.8);
 #endif // mrWithOpenCV
 
 } // namespace mr

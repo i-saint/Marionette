@@ -11,12 +11,16 @@
 
 namespace mr {
 
+// todo: try WindowsGraphicsCapture
+// https://blogs.windows.com/windowsdeveloper/2019/09/16/new-ways-to-do-screen-capture/
+
 cv::Mat CaptureScreenshot(RECT rect)
 {
     int x = rect.left;
     int y = rect.top;
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
+    DbgProfile("CaptureScreenshot %d %d: ", width, height);
 
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
@@ -32,16 +36,16 @@ cv::Mat CaptureScreenshot(RECT rect)
     cv::Mat ret(height, width, CV_8UC3);
     byte* data;
 
-    HDC dc = ::GetDC(nullptr);
-    HDC cdc = ::CreateCompatibleDC(dc);
-    if (HBITMAP hbmp = ::CreateDIBSection(cdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
-        ::SelectObject(cdc, hbmp);
-        ::StretchBlt(cdc, 0, 0, width, height, dc, x, y, width, height, SRCCOPY);
+    HDC hscreen = ::GetDC(nullptr);
+    HDC hdc = ::CreateCompatibleDC(hscreen);
+    if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
+        ::SelectObject(hdc, hbmp);
+        ::StretchBlt(hdc, 0, 0, width, height, hscreen, x, y, width, height, SRCCOPY);
 
         auto* dst = ret.ptr();
-        for (int y = 0; y < height; ++y) {
-            auto* src = &data[4 * width * (height - y - 1)];
-            for (int x = 0; x < width; ++x) {
+        for (int i = 0; i < height; ++i) {
+            auto* src = &data[4 * width * (height - i - 1)];
+            for (int j = 0; j < width; ++j) {
                 dst[0] = src[0];
                 dst[1] = src[1];
                 dst[2] = src[2];
@@ -52,8 +56,8 @@ cv::Mat CaptureScreenshot(RECT rect)
 
         ::DeleteObject(hbmp);
     }
-    ::DeleteDC(cdc);
-    ::ReleaseDC(nullptr, dc);
+    ::DeleteDC(hdc);
+    ::ReleaseDC(nullptr, hscreen);
     return ret;
 }
 
@@ -68,12 +72,18 @@ cv::Mat CaptureScreenshot()
 
 struct ScreenData
 {
+    int index = 0;
+
     RECT screen_rect{};
     float scale_factor = 1.0f;
     cv::Mat image;
 
     cv::Point position{};
     double score = 0.0;
+
+    std::future<void> task;
+
+    void match(const cv::Mat& tmp_img_, bool care_scale_factor);
 };
 using ScreenDataPtr = std::shared_ptr<ScreenData>;
 
@@ -82,11 +92,82 @@ struct MatchImageCtx
     // inputs
     bool care_scale_factor = true;
     cv::Mat tmp_img;
+    std::mutex mutex;
 
     // outputs
-    double highest_score = 0.0;
+    int screen_index = 0;
     std::vector<ScreenDataPtr> screens;
 };
+
+void ScreenData::match(const cv::Mat& tmp_img_, bool care_scale_factor)
+{
+//#define mrDbgScreenshots
+
+    try {
+#ifdef mrDbgScreenshots
+        char file_screenshot[128];
+        char file_result[128];
+        char file_score[128];
+        sprintf(file_screenshot, "screenshot%d.png", index);
+        sprintf(file_result, "result%d.png", index);
+        sprintf(file_score, "score%d.exr", index);
+#endif // mrDbgScreenshots
+
+        // resize images to half for faster matching
+
+        float scale = 0.5f;
+        if (care_scale_factor)
+            scale /= scale_factor;
+
+        image = CaptureScreenshot(screen_rect);
+        cv::resize(image, image, {}, scale, scale, cv::INTER_AREA);
+#ifdef mrDbgScreenshots
+        cv::imwrite(file_screenshot, image);
+#endif // mrDbgScreenshots
+
+        // to gray scale
+        cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+
+        cv::Mat tmp_img;
+        cv::resize(tmp_img_, tmp_img, {}, 0.5, 0.5, cv::INTER_AREA);
+
+        cv::Mat dst_img;
+        cv::Point match_pos;
+
+        //// CCOEFF
+        //cv::matchTemplate(image, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
+        //cv::minMaxLoc(dst_img, nullptr, &score, nullptr, &match_pos);
+
+        // SQDIFF
+        cv::matchTemplate(image, tmp_img, dst_img, cv::TM_SQDIFF_NORMED);
+        cv::minMaxLoc(dst_img, &score, nullptr, &match_pos, nullptr);
+        score = 1.0 - score;
+
+        // cuda + SQDIFF
+        //cv::cuda::getCudaEnabledDeviceCount();
+        //cv::cuda::GpuMat gsrc(image);
+        //cv::cuda::GpuMat gtmp(tmp_img);
+        //cv::cuda::GpuMat gdst(tmp_img);
+        //cv::matchTemplate(gsrc, gtmp, gdst, cv::TM_SQDIFF_NORMED);
+        //cv::minMaxLoc(dst_img, &score, nullptr, &match_pos, nullptr);
+        //score = 1.0 - score;
+
+        // half-sized screen position to actual screen position
+        position.x = (match_pos.x + (tmp_img.cols / 2)) / scale;
+        position.y = (match_pos.y + (tmp_img.rows / 2)) / scale;
+
+#ifdef mrDbgScreenshots
+        cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+        cv::rectangle(image, cv::Rect(match_pos.x, match_pos.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
+        cv::imwrite(file_result, image);
+        cv::imwrite(file_score, dst_img);
+#endif // mrDbgScreenshots
+    }
+    catch (const cv::Exception& e) {
+        DbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
+    }
+}
+
 
 static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
 {
@@ -95,66 +176,45 @@ static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
     UINT dpix, dpiy;
     ::GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &dpix, &dpiy);
 
-    try {
-        auto sdata = std::make_shared<ScreenData>();
-        sdata->screen_rect = *rect;
-        sdata->scale_factor = dpix / 96.0;
-        sdata->image = CaptureScreenshot(*rect);
-        //cv::imwrite("screenshot.png", image);
+    auto sdata = std::make_shared<ScreenData>();
+    sdata->index = ctx->screen_index++;
+    sdata->screen_rect = *rect;
+    sdata->scale_factor = dpix / 96.0;
+    ctx->screens.push_back(sdata);
 
-        // convert to gray scale
-        cv::cvtColor(sdata->image, sdata->image, cv::COLOR_BGR2GRAY);
-
-        cv::Mat tmp_img;
-        // handle display scaling factor
-        if (!ctx->care_scale_factor || sdata->scale_factor == 1.0)
-            tmp_img = ctx->tmp_img;
-        else
-            cv::resize(ctx->tmp_img, tmp_img, {}, sdata->scale_factor, sdata->scale_factor);
-
-        cv::Mat dst_img;
-        cv::Point pos;
-        cv::matchTemplate(sdata->image, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
-        cv::minMaxLoc(dst_img, nullptr, &sdata->score, nullptr, &pos);
-        sdata->position.x = pos.x + (tmp_img.cols / 2);
-        sdata->position.y = pos.y + (tmp_img.rows / 2);
-
-#ifdef mrDebug
-        //// debug output
-        //cv::cvtColor(sdata->image, sdata->image, cv::COLOR_GRAY2BGR);
-        //cv::rectangle(sdata->image, cv::Rect(pos.x, pos.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
-        //cv::imwrite("result.png", sdata->image);
-#endif // mrDebug
-
-        ctx->screens.push_back(sdata);
-        ctx->highest_score = std::max(ctx->highest_score, sdata->score);
-    }
-    catch (const cv::Exception& e) {
-        DbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
-    }
-
+    sdata->task = std::async(std::launch::async, [ctx, sdata]() {
+        sdata->match(ctx->tmp_img, ctx->care_scale_factor);
+        });
     return TRUE;
 }
 
 
 std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold)
 {
+    DbgProfile("MatchImage(): ");
+
     MatchImageCtx ctx;
     ctx.tmp_img = tmp_img;
 
     ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
-    DbgPrint("match score: %lf\n", ctx.highest_score);
 
-    if (ctx.highest_score >= threshold) {
-        for (auto& sd : ctx.screens) {
-            if (sd->score == ctx.highest_score) {
-                return {
-                    true,
-                    sd->position.x + sd->screen_rect.left,
-                    sd->position.y + sd->screen_rect.top
-                };
-            }
+    ScreenDataPtr sdata;
+    double highest_score = 0.0;
+    for (auto& s : ctx.screens) {
+        s->task.get();
+        if (s->score > highest_score) {
+            highest_score = s->score;
+            sdata = s;
         }
+    }
+
+    DbgPrint("match score: %lf\n", highest_score);
+    if (sdata && highest_score >= threshold) {
+        return {
+            true,
+            sdata->position.x + sdata->screen_rect.left,
+            sdata->position.y + sdata->screen_rect.top
+        };
     }
     return { false, 0, 0 };
 }

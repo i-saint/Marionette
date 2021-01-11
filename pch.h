@@ -17,6 +17,7 @@
 #include <mutex>
 #include <future>
 #include <tuple>
+#include <regex>
 
 #define mrWithOpenCV
 

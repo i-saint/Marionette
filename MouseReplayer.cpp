@@ -9,6 +9,18 @@
 #define mrTStop L"❚❚"
 #define mrTExit L"✖"
 
+
+struct Key
+{
+    uint32_t ctrl : 1;
+    uint32_t alt : 1;
+    uint32_t shift : 1;
+    uint32_t code : 29;
+};
+bool operator<(const Key& a, const Key& b) { return (uint32_t&)a < (uint32_t&)b; }
+bool operator>(const Key& a, const Key& b) { return (uint32_t&)a > (uint32_t&)b; }
+bool operator==(const Key& a, const Key& b) { return (uint32_t&)a == (uint32_t&)b; }
+
 class MouseReplayerApp
 {
 public:

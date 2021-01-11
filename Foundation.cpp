@@ -26,9 +26,48 @@ millisec NowMS()
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
+nanosec NowNS()
+{
+    using namespace std::chrono;
+    return duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
 void SleepMS(millisec v)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(v));
+}
+
+Timer::Timer()
+{
+    reset();
+}
+
+void Timer::reset()
+{
+    m_begin = NowNS();
+}
+
+float Timer::elapsed() const
+{
+    return (NowNS() - m_begin) / 1000000000.0;
+}
+
+
+ProfileTimer::ProfileTimer(const char* mes, ...)
+{
+    va_list args;
+    va_start(args, mes);
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), mes, args);
+    va_end(args);
+
+    m_message = buf;
+}
+
+ProfileTimer::~ProfileTimer()
+{
+    float t = elapsed() * 1000.0f;
+    Print("%s - %.2fms\n", m_message.c_str(), t);
 }
 
 
