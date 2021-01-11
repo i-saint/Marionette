@@ -50,7 +50,97 @@ public:
 
     HBRUSH m_brush_recording = nullptr;
     HBRUSH m_brush_playing = nullptr;
+
+    std::map<Key, mr::IPlayerPtr> m_keymap;
 };
+
+// Body: [](Key key, std::string path)
+template<class Body>
+static std::map<Key, std::string> LoadKeymap(const char* path, const Body& body)
+{
+    std::map<Key, std::string> ret;
+
+    std::ifstream ifs(path, std::ios::in);
+    if (!ifs)
+        return ret;
+
+    static std::map<std::string, int> keymap
+    {
+        {"back", VK_BACK},
+        {"tab", VK_TAB},
+        {"clear", VK_CLEAR},
+        {"enter", VK_RETURN},
+        {"pause", VK_PAUSE},
+        {"escape", VK_ESCAPE},
+        {"space", VK_SPACE},
+        {"f1", VK_F1},
+        {"f2", VK_F2},
+        {"f3", VK_F3},
+        {"f4", VK_F4},
+        {"f5", VK_F5},
+        {"f6", VK_F6},
+        {"f7", VK_F7},
+        {"f8", VK_F8},
+        {"f9", VK_F9},
+        {"f10", VK_F10},
+        {"f11", VK_F11},
+        {"f12", VK_F12},
+    };
+    static std::regex line("([^:]+):\\s*(.+)");
+
+    std::string l;
+    while (std::getline(ifs, l)) {
+        std::smatch mline;
+        std::regex_match(l, mline, line);
+        if (mline.size()) {
+            std::string keys = mline[1];
+            for (char& c : keys)
+                c = std::tolower(c);
+
+            std::smatch mkeys;
+            auto match_keys = [&keys, &mkeys](auto& r) {
+                std::regex_match(keys, mkeys, r);
+                return !mkeys.empty();
+            };
+
+            auto split = [](std::string str, std::string separator, const auto& body) {
+                size_t offset = 0;
+                for (;;) {
+                    size_t pos = str.find(separator, offset);
+                    body(str.substr(offset, pos - offset));
+                    if (pos == std::string::npos)
+                        break;
+                    else
+                        offset = pos + separator.size();
+                }
+            };
+
+            Key key{};
+            split(keys, "+", [&](std::string k) {
+                if (k == "ctrl")
+                    key.ctrl = 1;
+                else if (k == "alt")
+                    key.alt = 1;
+                else if (k == "shift")
+                    key.shift = 1;
+                else {
+                    if (k.size() == 1) {
+                        key.code = std::toupper(k[0]);
+                    }
+                    else {
+                        auto i = keymap.find(k);
+                        if (i != keymap.end())
+                            key.code = i->second;
+                    }
+                }
+            });
+
+            if (key.code)
+                body(key, mline[2].str());
+        }
+    }
+    return ret;
+}
 
 static void HandleClientAreaDrag(HWND hwnd, UINT msg, int mouseX, int mouseY)
 {
@@ -213,6 +303,13 @@ MouseReplayerApp& MouseReplayerApp::instance()
 
 void MouseReplayerApp::start()
 {
+    LoadKeymap("keymap.txt", [this](Key k, std::string path) {
+        auto player = mr::CreatePlayerShared();
+        if (player->load(path.c_str()))
+            m_keymap[k] = player;
+        DbgPrint("%d %s\n", k.code, path.c_str());
+        });
+
     auto receiver = mr::GetReceiver();
     receiver->addHandler([this](mr::OpRecord& rec) { return onInput(rec); });
 
@@ -240,6 +337,9 @@ void MouseReplayerApp::start()
             if (!m_recorder->isRecording())
                 toggleRecording();
         }
+
+        for (auto& kvp : m_keymap)
+            kvp.second->update();
 
         // possible better way:
         // use GetMesssage() and Player & Recorder do their jobs in worker threads.
@@ -360,6 +460,15 @@ bool MouseReplayerApp::onInput(mr::OpRecord& rec)
             s_alt = true;
         if (rec.data.key.code == VK_SHIFT)
             s_shift = true;
+
+        Key k{};
+        k.ctrl = s_ctrl;
+        k.alt = s_alt;
+        k.shift = s_shift;
+        k.code = rec.data.key.code;
+        auto i = m_keymap.find(k);
+        if (i != m_keymap.end())
+            i->second->start();
     }
     if (rec.type == mr::OpType::KeyUp) {
         if (s_ctrl && rec.data.key.code == VK_F1)
