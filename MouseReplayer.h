@@ -158,7 +158,20 @@ private:
 
 
 #ifdef mrWithOpenCV
-std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold = 0.8);
+struct MatchImageParams
+{
+    // inputs
+    cv::Mat* tmplate_imgage = nullptr;
+    int block_size = 11;
+    float color_offset = -10.0;
+    bool care_scale_factor = true;
+
+    // outputs
+    float score = 0.0f;
+    cv::Point position{};
+};
+
+float MatchImage(MatchImageParams& params);
 #endif // mrWithOpenCV
 
 } // namespace mr

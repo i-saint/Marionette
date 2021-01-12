@@ -259,12 +259,12 @@ void Player::execRecord(const OpRecord& rec)
             bool matched = false;
             auto image = ImageManager::instance().get(rec.data.mouse.image_handle);
             if (image) {
-                bool match;
-                int x, y;
-                std::tie(match, x, y) = MatchImage(*image, 0.6f);
-                if (match) {
-                    m_state.x = x;
-                    m_state.y = y;
+                MatchImageParams params;
+                params.tmplate_imgage = image;
+                float score = MatchImage(params);
+                if (score >= 0.1f) {
+                    m_state.x = params.position.x;
+                    m_state.y = params.position.y;
                     MakeMouseMove(input, m_state.x, m_state.y);
                     matched = true;
                 }

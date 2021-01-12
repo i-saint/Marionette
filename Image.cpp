@@ -83,23 +83,21 @@ struct ScreenData
 
     std::future<void> task;
 
-    void match(const cv::Mat& tmp_img_, bool care_scale_factor);
+    void match(const MatchImageParams& args);
 };
 using ScreenDataPtr = std::shared_ptr<ScreenData>;
 
 struct MatchImageCtx
 {
     // inputs
-    bool care_scale_factor = true;
-    cv::Mat tmp_img;
-    std::mutex mutex;
+    const MatchImageParams* args = nullptr;
 
     // outputs
     int screen_index = 0;
     std::vector<ScreenDataPtr> screens;
 };
 
-void ScreenData::match(const cv::Mat& tmp_img_, bool care_scale_factor)
+void ScreenData::match(const MatchImageParams& args)
 {
 //#define mrDbgScreenshots
 
@@ -108,15 +106,17 @@ void ScreenData::match(const cv::Mat& tmp_img_, bool care_scale_factor)
         char file_screenshot[128];
         char file_result[128];
         char file_score[128];
+        char file_binary[128];
         sprintf(file_screenshot, "screenshot%d.png", index);
         sprintf(file_result, "result%d.png", index);
         sprintf(file_score, "score%d.exr", index);
+        sprintf(file_binary, "binary%d.png", index);
 #endif // mrDbgScreenshots
 
         // resize images to half for faster matching
 
         float scale = 0.5f;
-        if (care_scale_factor)
+        if (args.care_scale_factor)
             scale /= scale_factor;
 
         image = CaptureScreenshot(screen_rect);
@@ -128,8 +128,16 @@ void ScreenData::match(const cv::Mat& tmp_img_, bool care_scale_factor)
         // to gray scale
         cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
 
+        int blocksize = args.block_size;
+        double C = args.color_offset;
+        cv::adaptiveThreshold(image, image, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, blocksize, C);
+#ifdef mrDbgScreenshots
+        cv::imwrite(file_binary, image);
+#endif // mrDbgScreenshots
+
         cv::Mat tmp_img;
-        cv::resize(tmp_img_, tmp_img, {}, 0.5, 0.5, cv::INTER_AREA);
+        cv::resize(*args.tmplate_imgage, tmp_img, {}, 0.5, 0.5, cv::INTER_AREA);
+        cv::adaptiveThreshold(tmp_img, tmp_img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, blocksize, C);
 
         cv::Mat dst_img;
         cv::Point match_pos;
@@ -183,18 +191,18 @@ static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
     ctx->screens.push_back(sdata);
 
     sdata->task = std::async(std::launch::async, [ctx, sdata]() {
-        sdata->match(ctx->tmp_img, ctx->care_scale_factor);
+        sdata->match(*ctx->args);
         });
     return TRUE;
 }
 
 
-std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold)
+float MatchImage(MatchImageParams& args)
 {
     DbgProfile("MatchImage(): ");
 
     MatchImageCtx ctx;
-    ctx.tmp_img = tmp_img;
+    ctx.args = &args;
 
     ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
 
@@ -209,14 +217,14 @@ std::tuple<bool, int, int> MatchImage(const cv::Mat& tmp_img, double threshold)
     }
 
     DbgPrint("match score: %lf\n", highest_score);
-    if (sdata && highest_score >= threshold) {
-        return {
-            true,
+    if (sdata) {
+        args.score = highest_score;
+        args.position = {
             sdata->position.x + sdata->screen_rect.left,
             sdata->position.y + sdata->screen_rect.top
         };
     }
-    return { false, 0, 0 };
+    return highest_score;
 }
 
 void TestCaptureScreenshot()
