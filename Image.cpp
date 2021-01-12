@@ -14,13 +14,11 @@ namespace mr {
 // todo: try WindowsGraphicsCapture
 // https://blogs.windows.com/windowsdeveloper/2019/09/16/new-ways-to-do-screen-capture/
 
-cv::Mat CaptureScreen(RECT rect)
+template<class Blt>
+static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
 {
-    int x = rect.left;
-    int y = rect.top;
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    DbgProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
 
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
@@ -33,32 +31,52 @@ cv::Mat CaptureScreen(RECT rect)
     info.bmiHeader.biClrUsed = 0;
     info.bmiHeader.biClrImportant = 0;
 
-    cv::Mat ret(height, width, CV_8UC3);
+    cv::Mat ret(height, width, CV_8UC4);
     byte* data;
 
-    HDC hscreen = ::GetDC(nullptr);
+    HDC hscreen = ::GetDC(hwnd);
     HDC hdc = ::CreateCompatibleDC(hscreen);
     if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
         ::SelectObject(hdc, hbmp);
-        ::StretchBlt(hdc, 0, 0, width, height, hscreen, x, y, width, height, SRCCOPY);
+        blt(hscreen, hdc);
 
-        auto* dst = ret.ptr();
+        int pitch = width * 4;
         for (int i = 0; i < height; ++i) {
-            auto* src = &data[4 * width * (height - i - 1)];
-            for (int j = 0; j < width; ++j) {
-                dst[0] = src[0];
-                dst[1] = src[1];
-                dst[2] = src[2];
-                dst += 3;
-                src += 4;
-            }
+            auto* src = &data[pitch * (height - i - 1)];
+            auto* dst = ret.ptr() + (pitch * i);
+            memcpy(dst, src, pitch);
         }
 
         ::DeleteObject(hbmp);
     }
     ::DeleteDC(hdc);
-    ::ReleaseDC(nullptr, hscreen);
+    ::ReleaseDC(hwnd, hscreen);
     return ret;
+}
+
+
+cv::Mat CaptureScreen(RECT rect)
+{
+    int x = rect.left;
+    int y = rect.top;
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+    DbgProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
+
+    return CaptureImpl(rect, nullptr, [&](HDC hscreen, HDC hdc) {
+        ::StretchBlt(hdc, 0, 0, width, height, hscreen, x, y, width, height, SRCCOPY);
+        });
+}
+
+cv::Mat CaptureEntireScreen()
+{
+    int x = ::GetSystemMetrics(SM_XVIRTUALSCREEN);
+    int y = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
+    int width = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    int height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    DbgProfile("CaptureEntireScreen %dx%d at %d,%d: ", width, height, x, y);
+
+    return CaptureScreen({ x, y, width + x, height + y });
 }
 
 cv::Mat CaptureWindow(HWND hwnd)
@@ -70,55 +88,11 @@ cv::Mat CaptureWindow(HWND hwnd)
     int height = rect.bottom - rect.top;
     DbgProfile("CaptureWindow %d %d: ", width, height);
 
-    BITMAPINFO info{};
-    info.bmiHeader.biSize = sizeof(info.bmiHeader);
-    info.bmiHeader.biWidth = width;
-    info.bmiHeader.biHeight = height;
-    info.bmiHeader.biPlanes = 1;
-    info.bmiHeader.biBitCount = 32;
-    info.bmiHeader.biCompression = BI_RGB;
-    info.bmiHeader.biSizeImage = width * height * 4;
-    info.bmiHeader.biClrUsed = 0;
-    info.bmiHeader.biClrImportant = 0;
-
-    cv::Mat ret(height, width, CV_8UC3);
-    byte* data;
-
-    HDC hscreen = ::GetDC(hwnd);
-    HDC hdc = ::CreateCompatibleDC(hscreen);
-    if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
-        ::SelectObject(hdc, hbmp);
-
+    return CaptureImpl(rect, hwnd, [&](HDC hscreen, HDC hdc) {
         // BitBlt() can't capture Chrome, Edge, etc. PrintWindow() with PW_RENDERFULLCONTENT can do it.
         //::BitBlt(hdc, 0, 0, width, height, hscreen, 0, 0, SRCCOPY);
         ::PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT);
-
-        auto* dst = ret.ptr();
-        for (int i = 0; i < height; ++i) {
-            auto* src = &data[4 * width * (height - i - 1)];
-            for (int j = 0; j < width; ++j) {
-                dst[0] = src[0];
-                dst[1] = src[1];
-                dst[2] = src[2];
-                dst += 3;
-                src += 4;
-            }
-        }
-
-        ::DeleteObject(hbmp);
-    }
-    ::DeleteDC(hdc);
-    ::ReleaseDC(nullptr, hscreen);
-    return ret;
-}
-
-cv::Mat CaptureScreen()
-{
-    int x = ::GetSystemMetrics(SM_XVIRTUALSCREEN);
-    int y = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
-    int width = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    int height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    return CaptureScreen({ x, y, width + x, height + y });
+        });
 }
 
 struct ScreenData
@@ -180,7 +154,7 @@ void ScreenData::match(const MatchImageParams& args)
 #endif // mrDbgScreenshots
 
         // to gray scale
-        cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(image, image, cv::COLOR_BGRA2GRAY);
 
         int blocksize = args.block_size;
         double C = args.color_offset;
