@@ -24,6 +24,11 @@
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="setup.vcxproj">
+      <Project>{1c5de91b-7ae9-4304-9fa1-0de1aba8c02d}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{63CBDC2A-183A-495A-9242-8F34277C7695}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

@@ -1,6 +1,6 @@
 @echo off
 
-cd External
+cd Externals
 
 IF NOT EXIST "7za.exe" (
     echo "downloading 7za.exe..."

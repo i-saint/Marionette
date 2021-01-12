@@ -14,7 +14,7 @@
     <CustomBuild Include="setup.bat">
       <FileType>Document</FileType>
       <Command>%(Identity)</Command>
-      <Outputs>External\Externals.7z</Outputs>
+      <Outputs>Externals\Externals.7z</Outputs>
       <Message>%(Identity)</Message>
       <LinkObjects>false</LinkObjects>
     </CustomBuild>
