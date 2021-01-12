@@ -81,14 +81,6 @@ std::string OpRecord::toText() const
         snprintf(buf, sizeof(buf), "%lld: Wait", time);
         break;
 
-    case OpType::SaveMousePos:
-        snprintf(buf, sizeof(buf), "%lld: PushState", time);
-        break;
-
-    case OpType::LoadMousePos:
-        snprintf(buf, sizeof(buf), "%lld: PopState", time);
-        break;
-
     case OpType::KeyDown:
         snprintf(buf, sizeof(buf), "%lld: KeyDown %d", time, data.key.code);
         break;
@@ -117,6 +109,14 @@ std::string OpRecord::toText() const
         snprintf(buf, sizeof(buf), "%lld: MouseMoveMatch %s", time, data.mouse.image_path.c_str());
         break;
 
+    case OpType::SaveMousePos:
+        snprintf(buf, sizeof(buf), "%lld: SaveMousePos %d", time, data.mouse.slot);
+        break;
+
+    case OpType::LoadMousePos:
+        snprintf(buf, sizeof(buf), "%lld: LoadMousePos %d", time, data.mouse.slot);
+        break;
+
     default:
         break;
     }
@@ -131,10 +131,6 @@ bool OpRecord::fromText(const std::string& v)
     const char* src = v.c_str();
     if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1)
         type = OpType::Wait;
-    else if (std::strstr(src, "PushState") && sscanf(src, "%lld: ", &time) == 1)
-        type = OpType::SaveMousePos;
-    else if (std::strstr(src, "PopState") && sscanf(src, "%lld: ", &time) == 1)
-        type = OpType::LoadMousePos;
     else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
     else if (sscanf(src, "%lld: KeyUp %d", &time, &data.key.code) == 2)
@@ -151,6 +147,10 @@ bool OpRecord::fromText(const std::string& v)
         data.mouse.image_path = buf;
         type = OpType::MouseMoveMatch;
     }
+    else if (sscanf(src, "%lld: SaveMousePos %d", &time, &data.mouse.slot) == 2)
+        type = OpType::SaveMousePos;
+    else if (sscanf(src, "%lld: LoadMousePos %d", &time, &data.mouse.slot) == 2)
+        type = OpType::LoadMousePos;
     return type != OpType::Unknown;
 }
 
