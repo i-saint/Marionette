@@ -267,7 +267,6 @@ void Player::execRecord(const OpRecord& rec)
         m_mouse_state_slots[rec.data.mouse.slot] = m_state;
         break;
     }
-
     case OpType::LoadMousePos:
     {
         auto i = m_mouse_state_slots.find(rec.data.mouse.slot);

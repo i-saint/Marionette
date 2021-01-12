@@ -142,6 +142,20 @@ public:
 };
 mrAPI IInputReceiver* GetReceiver();
 
+struct Key
+{
+    uint32_t ctrl : 1;
+    uint32_t alt : 1;
+    uint32_t shift : 1;
+    uint32_t code : 29;
+};
+inline bool operator<(const Key& a, const Key& b) { return (uint32_t&)a < (uint32_t&)b; }
+inline bool operator>(const Key& a, const Key& b) { return (uint32_t&)a > (uint32_t&)b; }
+inline bool operator==(const Key& a, const Key& b) { return (uint32_t&)a == (uint32_t&)b; }
+
+std::map<Key, std::string> LoadKeymap(const char* path, const std::function<void(Key key, std::string path)>& body);
+
+
 class Timer
 {
 public:
