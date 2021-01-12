@@ -14,13 +14,13 @@ namespace mr {
 // todo: try WindowsGraphicsCapture
 // https://blogs.windows.com/windowsdeveloper/2019/09/16/new-ways-to-do-screen-capture/
 
-cv::Mat CaptureScreenshot(RECT rect)
+cv::Mat CaptureScreen(RECT rect)
 {
     int x = rect.left;
     int y = rect.top;
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    DbgProfile("CaptureScreenshot %d %d: ", width, height);
+    DbgProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
 
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
@@ -61,13 +61,64 @@ cv::Mat CaptureScreenshot(RECT rect)
     return ret;
 }
 
-cv::Mat CaptureScreenshot()
+cv::Mat CaptureWindow(HWND hwnd)
+{
+    RECT rect{};
+    ::GetWindowRect(hwnd, &rect);
+
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+    DbgProfile("CaptureWindow %d %d: ", width, height);
+
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(info.bmiHeader);
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    info.bmiHeader.biSizeImage = width * height * 4;
+    info.bmiHeader.biClrUsed = 0;
+    info.bmiHeader.biClrImportant = 0;
+
+    cv::Mat ret(height, width, CV_8UC3);
+    byte* data;
+
+    HDC hscreen = ::GetDC(hwnd);
+    HDC hdc = ::CreateCompatibleDC(hscreen);
+    if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
+        ::SelectObject(hdc, hbmp);
+
+        // BitBlt() can't capture Chrome, Edge, etc. PrintWindow() with PW_RENDERFULLCONTENT can do it.
+        //::BitBlt(hdc, 0, 0, width, height, hscreen, 0, 0, SRCCOPY);
+        ::PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT);
+
+        auto* dst = ret.ptr();
+        for (int i = 0; i < height; ++i) {
+            auto* src = &data[4 * width * (height - i - 1)];
+            for (int j = 0; j < width; ++j) {
+                dst[0] = src[0];
+                dst[1] = src[1];
+                dst[2] = src[2];
+                dst += 3;
+                src += 4;
+            }
+        }
+
+        ::DeleteObject(hbmp);
+    }
+    ::DeleteDC(hdc);
+    ::ReleaseDC(nullptr, hscreen);
+    return ret;
+}
+
+cv::Mat CaptureScreen()
 {
     int x = ::GetSystemMetrics(SM_XVIRTUALSCREEN);
     int y = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
     int width = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
     int height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    return CaptureScreenshot({ x, y, width + x, height + y });
+    return CaptureScreen({ x, y, width + x, height + y });
 }
 
 struct ScreenData
@@ -119,7 +170,10 @@ void ScreenData::match(const MatchImageParams& args)
         if (args.care_scale_factor)
             scale /= scale_factor;
 
-        image = CaptureScreenshot(screen_rect);
+        if (args.target_window)
+            image = CaptureWindow(args.target_window);
+        else
+            image = CaptureScreen(screen_rect);
         cv::resize(image, image, {}, scale, scale, cv::INTER_AREA);
 #ifdef mrDbgScreenshots
         cv::imwrite(file_screenshot, image);
@@ -196,6 +250,27 @@ static BOOL MatchImageCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
     return TRUE;
 }
 
+static bool MatchImageWindow(MatchImageCtx* ctx)
+{
+    HWND hwnd = ctx->args->target_window;
+    HMONITOR hmon = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
+    if (!hwnd || !hmon)
+        return false;
+
+    UINT dpix, dpiy;
+    ::GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &dpix, &dpiy);
+
+    auto sdata = std::make_shared<ScreenData>();
+    ::GetWindowRect(hwnd, &sdata->screen_rect);
+    sdata->index = ctx->screen_index++;
+    sdata->scale_factor = dpix / 96.0;
+    ctx->screens.push_back(sdata);
+
+    sdata->task = std::async(std::launch::async, [ctx, sdata]() {
+        sdata->match(*ctx->args);
+        });
+    return true;
+}
 
 float MatchImage(MatchImageParams& args)
 {
@@ -204,7 +279,18 @@ float MatchImage(MatchImageParams& args)
     MatchImageCtx ctx;
     ctx.args = &args;
 
-    ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
+    if (args.match_target == MatchTarget::EntireScreen) {
+        ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
+    }
+    else if (args.match_target == MatchTarget::ForegroundWindow) {
+        auto fgw = ::GetForegroundWindow();
+        if (!fgw || fgw == ::GetDesktopWindow() || fgw == GetShellWindow())
+            ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
+        else {
+            args.target_window = GetTopWindow(fgw);
+            MatchImageWindow(&ctx);
+        }
+    }
 
     ScreenDataPtr sdata;
     double highest_score = 0.0;
@@ -234,7 +320,7 @@ void TestCaptureScreenshot()
     RECT rect{};
     ::GetWindowRect(::GetForegroundWindow(), &rect);
 
-    auto mat = CaptureScreenshot(rect);
+    auto mat = CaptureScreen(rect);
     cv::imwrite("out.png", mat);
 }
 

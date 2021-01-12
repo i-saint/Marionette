@@ -34,6 +34,7 @@ public:
     bool isPlaying() const override;
     bool update() override;
     bool load(const char* path) override;
+    void setMatchTarget(MatchTarget v) override;
 
     void execRecord(const OpRecord& rec);
 
@@ -42,6 +43,7 @@ private:
     millisec m_time_start = 0;
     uint32_t m_record_index = 0;
     uint32_t m_loop_required = 0, m_loop_count = 0;
+    MatchTarget m_match_target = MatchTarget::EntireScreen;
     std::vector<OpRecord> m_records;
 
     struct State
@@ -260,6 +262,7 @@ void Player::execRecord(const OpRecord& rec)
             auto image = ImageManager::instance().get(rec.data.mouse.image_handle);
             if (image) {
                 MatchImageParams params;
+                params.match_target = m_match_target;
                 params.tmplate_imgage = image;
                 float score = MatchImage(params);
                 if (score >= 0.1f) {
@@ -324,6 +327,11 @@ bool Player::load(const char* path)
         [](auto& a, auto& b) { return a.time < b.time; });
 
     return !m_records.empty();
+}
+
+void Player::setMatchTarget(MatchTarget v)
+{
+    m_match_target = v;
 }
 
 mrAPI IPlayer* CreatePlayer()

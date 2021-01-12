@@ -305,8 +305,10 @@ void MouseReplayerApp::start()
 {
     LoadKeymap("keymap.txt", [this](Key k, std::string path) {
         auto player = mr::CreatePlayerShared();
-        if (player->load(path.c_str()))
+        if (player->load(path.c_str())) {
+            player->setMatchTarget(mr::MatchTarget::ForegroundWindow);
             m_keymap[k] = player;
+        }
         DbgPrint("%d %s\n", k.code, path.c_str());
         });
 

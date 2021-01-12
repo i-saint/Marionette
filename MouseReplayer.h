@@ -63,8 +63,14 @@ struct OpRecord
     std::string toText() const;
     bool fromText(const std::string& v);
 };
-
 using OpRecordHandler = std::function<bool (OpRecord& rec)>;
+
+enum class MatchTarget
+{
+    EntireScreen,
+    ForegroundWindow,
+};
+
 
 
 class IRecorder
@@ -91,6 +97,7 @@ public:
     virtual bool isPlaying() const = 0;
     virtual bool update() = 0;
     virtual bool load(const char* path) = 0;
+    virtual void setMatchTarget(MatchTarget v) = 0;
 };
 
 mrAPI IRecorder* CreateRecorder();
@@ -165,8 +172,10 @@ struct MatchImageParams
     int block_size = 11;
     float color_offset = -10.0;
     bool care_scale_factor = true;
+    MatchTarget match_target = MatchTarget::EntireScreen;
 
     // outputs
+    HWND target_window = nullptr;
     float score = 0.0f;
     cv::Point position{};
 };
