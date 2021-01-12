@@ -51,7 +51,7 @@ private:
         int x = 0, y = 0;
     };
     State m_state;
-    std::vector<State> m_state_stack;
+    std::map<int, State> m_mouse_state_slots;
 };
 
 
@@ -197,29 +197,6 @@ void Player::execRecord(const OpRecord& rec)
 
     switch (rec.type)
     {
-    case OpType::PushState:
-    {
-        m_state_stack.push_back(m_state);
-        break;
-    }
-
-    case OpType::PopState:
-    {
-        if (!m_state_stack.empty()) {
-            m_state = m_state_stack.back();
-            m_state_stack.pop_back();
-
-            INPUT input{};
-            input.type = INPUT_MOUSE;
-            MakeMouseMove(input, m_state.x, m_state.y);
-
-            // it seems single mouse move can't step over display boundary. so SendInput twice.
-            ::SendInput(1, &input, sizeof(INPUT));
-            ::SendInput(1, &input, sizeof(INPUT));
-        }
-        break;
-    }
-
     case OpType::MouseDown:
     case OpType::MouseUp:
     case OpType::MouseMoveAbs:
@@ -258,14 +235,15 @@ void Player::execRecord(const OpRecord& rec)
         }
         else if (rec.type == OpType::MouseMoveMatch) {
 #ifdef mrWithOpenCV
+            const float score_threshold = 0.3f;
             bool matched = false;
             auto image = ImageManager::instance().get(rec.data.mouse.image_handle);
             if (image) {
                 MatchImageParams params;
                 params.match_target = m_match_target;
-                params.tmplate_imgage = image;
+                params.template_images.push_back(*image);
                 float score = MatchImage(params);
-                if (score >= 0.1f) {
+                if (score >= score_threshold) {
                     m_state.x = params.position.x;
                     m_state.y = params.position.y;
                     MakeMouseMove(input, m_state.x, m_state.y);
@@ -281,6 +259,29 @@ void Player::execRecord(const OpRecord& rec)
 #endif
         }
         ::SendInput(1, &input, sizeof(INPUT));
+        break;
+    }
+
+    case OpType::SaveMousePos:
+    {
+        m_mouse_state_slots[rec.data.mouse.slot] = m_state;
+        break;
+    }
+
+    case OpType::LoadMousePos:
+    {
+        auto i = m_mouse_state_slots.find(rec.data.mouse.slot);
+        if (i != m_mouse_state_slots.end()) {
+            m_state = i->second;
+
+            INPUT input{};
+            input.type = INPUT_MOUSE;
+            MakeMouseMove(input, m_state.x, m_state.y);
+
+            // it seems single mouse move can't step over display boundary. so SendInput twice.
+            ::SendInput(1, &input, sizeof(INPUT));
+            ::SendInput(1, &input, sizeof(INPUT));
+        }
         break;
     }
 

@@ -81,11 +81,11 @@ std::string OpRecord::toText() const
         snprintf(buf, sizeof(buf), "%lld: Wait", time);
         break;
 
-    case OpType::PushState:
+    case OpType::SaveMousePos:
         snprintf(buf, sizeof(buf), "%lld: PushState", time);
         break;
 
-    case OpType::PopState:
+    case OpType::LoadMousePos:
         snprintf(buf, sizeof(buf), "%lld: PopState", time);
         break;
 
@@ -132,9 +132,9 @@ bool OpRecord::fromText(const std::string& v)
     if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1)
         type = OpType::Wait;
     else if (std::strstr(src, "PushState") && sscanf(src, "%lld: ", &time) == 1)
-        type = OpType::PushState;
+        type = OpType::SaveMousePos;
     else if (std::strstr(src, "PopState") && sscanf(src, "%lld: ", &time) == 1)
-        type = OpType::PopState;
+        type = OpType::LoadMousePos;
     else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
     else if (sscanf(src, "%lld: KeyUp %d", &time, &data.key.code) == 2)

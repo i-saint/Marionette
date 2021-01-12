@@ -140,61 +140,54 @@ void ScreenData::match(const MatchImageParams& args)
 
         // resize images to half for faster matching
 
-        float scale = 0.5f;
+        float scale_half = 0.5f;
+        float scale_screen = 0.5f;
         if (args.care_scale_factor)
-            scale /= scale_factor;
+            scale_screen /= scale_factor;
 
         if (args.target_window)
             image = CaptureWindow(args.target_window);
         else
             image = CaptureScreen(screen_rect);
-        cv::resize(image, image, {}, scale, scale, cv::INTER_AREA);
+
+        // resize images to half and convert to binary
 #ifdef mrDbgScreenshots
         cv::imwrite(file_screenshot, image);
 #endif // mrDbgScreenshots
-
-        // to gray scale
+        cv::resize(image, image, {}, scale_screen, scale_screen, cv::INTER_AREA);
         cv::cvtColor(image, image, cv::COLOR_BGRA2GRAY);
-
-        int blocksize = args.block_size;
-        double C = args.color_offset;
-        cv::adaptiveThreshold(image, image, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, blocksize, C);
+        cv::adaptiveThreshold(image, image, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, args.block_size, args.color_offset);
 #ifdef mrDbgScreenshots
         cv::imwrite(file_binary, image);
 #endif // mrDbgScreenshots
 
-        cv::Mat tmp_img;
-        cv::resize(*args.tmplate_imgage, tmp_img, {}, 0.5, 0.5, cv::INTER_AREA);
-        cv::adaptiveThreshold(tmp_img, tmp_img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, blocksize, C);
+        cv::Rect match_rect;
+        for (auto& ti : args.template_images) {
+            cv::Mat tmp_img;
+            cv::resize(ti, tmp_img, {}, scale_half, scale_half, cv::INTER_AREA);
+            cv::adaptiveThreshold(tmp_img, tmp_img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, args.block_size, args.color_offset);
 
-        cv::Mat dst_img;
-        cv::Point match_pos;
+            // match!
+            cv::Mat dst_img;
+            cv::Point tpos;
+            double tscore;
+            cv::matchTemplate(image, tmp_img, dst_img, cv::TM_SQDIFF_NORMED);
+            cv::minMaxLoc(dst_img, &tscore, nullptr, &tpos, nullptr);
+            tscore = 1.0 - tscore;
 
-        //// CCOEFF
-        //cv::matchTemplate(image, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
-        //cv::minMaxLoc(dst_img, nullptr, &score, nullptr, &match_pos);
+            if (tscore > score) {
+                score = tscore;
+                match_rect = cv::Rect(tpos.x, tpos.y, tmp_img.cols, tmp_img.rows);
 
-        // SQDIFF
-        cv::matchTemplate(image, tmp_img, dst_img, cv::TM_SQDIFF_NORMED);
-        cv::minMaxLoc(dst_img, &score, nullptr, &match_pos, nullptr);
-        score = 1.0 - score;
-
-        // cuda + SQDIFF
-        //cv::cuda::getCudaEnabledDeviceCount();
-        //cv::cuda::GpuMat gsrc(image);
-        //cv::cuda::GpuMat gtmp(tmp_img);
-        //cv::cuda::GpuMat gdst(tmp_img);
-        //cv::matchTemplate(gsrc, gtmp, gdst, cv::TM_SQDIFF_NORMED);
-        //cv::minMaxLoc(dst_img, &score, nullptr, &match_pos, nullptr);
-        //score = 1.0 - score;
-
-        // half-sized screen position to actual screen position
-        position.x = (match_pos.x + (tmp_img.cols / 2)) / scale;
-        position.y = (match_pos.y + (tmp_img.rows / 2)) / scale;
+                // half-sized screen position to actual screen position
+                position.x = (tpos.x + (tmp_img.cols / 2)) / scale_screen;
+                position.y = (tpos.y + (tmp_img.rows / 2)) / scale_screen;
+            }
+        }
 
 #ifdef mrDbgScreenshots
         cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-        cv::rectangle(image, cv::Rect(match_pos.x, match_pos.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
+        cv::rectangle(image, match_rect, CV_RGB(255, 0, 0), 2);
         cv::imwrite(file_result, image);
         cv::imwrite(file_score, dst_img);
 #endif // mrDbgScreenshots
@@ -285,38 +278,6 @@ float MatchImage(MatchImageParams& args)
         };
     }
     return highest_score;
-}
-
-void TestCaptureScreenshot()
-{
-    ::Sleep(1000);
-
-    RECT rect{};
-    ::GetWindowRect(::GetForegroundWindow(), &rect);
-
-    auto mat = CaptureScreen(rect);
-    cv::imwrite("out.png", mat);
-}
-
-void TestMatchTemplate()
-{
-    cv::Mat src_img = cv::imread("src.png", cv::IMREAD_GRAYSCALE);
-    cv::Mat tmp_img = cv::imread("template.png", cv::IMREAD_GRAYSCALE);
-    cv::resize(tmp_img, tmp_img, cv::Size(), 2, 2);
-
-    int d1 = src_img.type();
-    int d2 = tmp_img.type();
-
-    cv::Mat dst_img;
-    cv::matchTemplate(src_img, tmp_img, dst_img, cv::TM_CCOEFF_NORMED);
-
-    double min_val, max_val;
-    cv::Point pos1, pos2;
-    cv::minMaxLoc(dst_img, &min_val, &max_val, &pos1, &pos2);
-
-    cv::rectangle(src_img, cv::Rect(pos2.x, pos2.y, tmp_img.cols, tmp_img.rows), CV_RGB(255, 0, 0), 2);
-    cv::imwrite("result.png", src_img);
-    cv::imwrite("match.exr", dst_img);
 }
 
 } // namespace mr

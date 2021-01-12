@@ -31,8 +31,6 @@ enum class OpType : int
 {
     Unknown,
     Wait,
-    PushState,
-    PopState,
     KeyDown,
     KeyUp,
     MouseDown,
@@ -40,6 +38,8 @@ enum class OpType : int
     MouseMoveAbs,
     MouseMoveRel,
     MouseMoveMatch,
+    SaveMousePos,
+    LoadMousePos,
 };
 
 struct OpRecord
@@ -51,6 +51,7 @@ struct OpRecord
         struct
         {
             int x, y, button;
+            int slot;
             int image_handle;
             std::string image_path;
         } mouse;
@@ -168,7 +169,7 @@ private:
 struct MatchImageParams
 {
     // inputs
-    cv::Mat* tmplate_imgage = nullptr;
+    std::vector<cv::Mat> template_images;
     int block_size = 11;
     float color_offset = -10.0;
     bool care_scale_factor = true;
