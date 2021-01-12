@@ -151,6 +151,8 @@ bool Player::update()
         millisec time_rec = time_now - m_time_start;
         if (time_rec >= rec.time) {
             execRecord(rec);
+            if (!m_playing)
+                break;
             ++m_record_index;
 
             // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
@@ -237,11 +239,14 @@ void Player::execRecord(const OpRecord& rec)
 #ifdef mrWithOpenCV
             const float score_threshold = 0.3f;
             bool matched = false;
-            auto image = ImageManager::instance().get(rec.data.mouse.image_handle);
-            if (image) {
-                MatchImageParams params;
-                params.match_target = m_match_target;
-                params.template_images.push_back(*image);
+
+            MatchImageParams params;
+            params.match_target = m_match_target;
+            for (auto& id : rec.exdata.images) {
+                if (auto image = ImageManager::instance().get(id.handle))
+                    params.template_images.push_back(*image);
+            }
+            if (!params.template_images.empty()) {
                 float score = MatchImage(params);
                 if (score >= score_threshold) {
                     m_state.x = params.position.x;
@@ -264,12 +269,12 @@ void Player::execRecord(const OpRecord& rec)
 
     case OpType::SaveMousePos:
     {
-        m_mouse_state_slots[rec.data.mouse.slot] = m_state;
+        m_mouse_state_slots[rec.exdata.save_slot] = m_state;
         break;
     }
     case OpType::LoadMousePos:
     {
-        auto i = m_mouse_state_slots.find(rec.data.mouse.slot);
+        auto i = m_mouse_state_slots.find(rec.exdata.save_slot);
         if (i != m_mouse_state_slots.end()) {
             m_state = i->second;
 
@@ -317,7 +322,8 @@ bool Player::load(const char* path)
         if (rec.fromText(l)) {
 #ifdef mrWithOpenCV
             if (rec.type == OpType::MouseMoveMatch) {
-                rec.data.mouse.image_handle = ImageManager::instance().fetch(rec.data.mouse.image_path);
+                for (auto& id : rec.exdata.images)
+                    id.handle = ImageManager::instance().fetch(id.path);
             }
 #endif
             m_records.push_back(rec);

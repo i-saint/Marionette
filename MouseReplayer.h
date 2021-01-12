@@ -44,22 +44,31 @@ enum class OpType : int
 
 struct OpRecord
 {
+    struct ImageData
+    {
+        int handle = 0;
+        std::string path;
+    };
+
     OpType type = OpType::Unknown;
     millisec time = -1;
-    struct
+    union
     {
         struct
         {
             int x, y, button;
-            int slot;
-            int image_handle;
-            std::string image_path;
         } mouse;
         struct
         {
             int code;
         } key;
     } data{};
+
+    struct
+    {
+        int save_slot = 0;
+        std::vector<ImageData> images;
+    } exdata;
 
     std::string toText() const;
     bool fromText(const std::string& v);
@@ -154,6 +163,8 @@ inline bool operator>(const Key& a, const Key& b) { return (uint32_t&)a > (uint3
 inline bool operator==(const Key& a, const Key& b) { return (uint32_t&)a == (uint32_t&)b; }
 
 std::map<Key, std::string> LoadKeymap(const char* path, const std::function<void(Key key, std::string path)>& body);
+void Split(const std::string& str, const std::string& separator, const std::function<void(std::string sub)>& body);
+void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body);
 
 
 class Timer

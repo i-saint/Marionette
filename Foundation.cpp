@@ -37,6 +37,36 @@ void SleepMS(millisec v)
     std::this_thread::sleep_for(std::chrono::milliseconds(v));
 }
 
+void Split(const std::string& str, const std::string& separator, const std::function<void(std::string sub)>& body)
+{
+    size_t offset = 0;
+    for (;;) {
+        size_t pos = str.find(separator, offset);
+        body(str.substr(offset, pos - offset));
+        if (pos == std::string::npos)
+            break;
+        else
+            offset = pos + separator.size();
+    }
+};
+
+void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body)
+{
+    std::cmatch match;
+    const char* s = str.c_str();
+    for (;;) {
+        std::regex_search(s, match, exp);
+        if (!match.empty()) {
+            body(match.str(1));
+            s += match.position() + match.length();
+        }
+        else {
+            break;
+        }
+    }
+
+}
+
 Timer::Timer()
 {
     reset();
@@ -106,15 +136,23 @@ std::string OpRecord::toText() const
         break;
 
     case OpType::MouseMoveMatch:
-        snprintf(buf, sizeof(buf), "%lld: MouseMoveMatch %s", time, data.mouse.image_path.c_str());
-        break;
+    {
+        std::string ret;
+        snprintf(buf, sizeof(buf), "%lld: MouseMoveMatch", time);
+        ret += buf;
+        for (auto& id : exdata.images) {
+            snprintf(buf, sizeof(buf), " \"%s\"", id.path.c_str());
+            ret += buf;
+        }
+        return ret;
+    }
 
     case OpType::SaveMousePos:
-        snprintf(buf, sizeof(buf), "%lld: SaveMousePos %d", time, data.mouse.slot);
+        snprintf(buf, sizeof(buf), "%lld: SaveMousePos %d", time, exdata.save_slot);
         break;
 
     case OpType::LoadMousePos:
-        snprintf(buf, sizeof(buf), "%lld: LoadMousePos %d", time, data.mouse.slot);
+        snprintf(buf, sizeof(buf), "%lld: LoadMousePos %d", time, exdata.save_slot);
         break;
 
     default:
@@ -143,13 +181,15 @@ bool OpRecord::fromText(const std::string& v)
         type = OpType::MouseMoveAbs;
     else if (sscanf(src, "%lld: MouseMoveRel %d %d", &time, &data.mouse.x, &data.mouse.y) == 3)
         type = OpType::MouseMoveRel;
-    else if (sscanf(src, "%lld: MouseMoveMatch \"%[^\"]\"", &time, buf) == 2) {
-        data.mouse.image_path = buf;
+    else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%lld: ", &time) == 1) {
         type = OpType::MouseMoveMatch;
+        Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
+            exdata.images.push_back({0, path});
+            });
     }
-    else if (sscanf(src, "%lld: SaveMousePos %d", &time, &data.mouse.slot) == 2)
+    else if (sscanf(src, "%lld: SaveMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::SaveMousePos;
-    else if (sscanf(src, "%lld: LoadMousePos %d", &time, &data.mouse.slot) == 2)
+    else if (sscanf(src, "%lld: LoadMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::LoadMousePos;
     return type != OpType::Unknown;
 }
@@ -201,20 +241,8 @@ std::map<Key, std::string> LoadKeymap(const char* path, const std::function<void
                 return !mkeys.empty();
             };
 
-            auto split = [](std::string str, std::string separator, const auto& body) {
-                size_t offset = 0;
-                for (;;) {
-                    size_t pos = str.find(separator, offset);
-                    body(str.substr(offset, pos - offset));
-                    if (pos == std::string::npos)
-                        break;
-                    else
-                        offset = pos + separator.size();
-                }
-            };
-
             Key key{};
-            split(keys, "+", [&](std::string k) {
+            Split(keys, "+", [&](std::string k) {
                 if (k == "ctrl")
                     key.ctrl = 1;
                 else if (k == "alt")
