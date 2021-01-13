@@ -7,11 +7,12 @@ namespace mr {
 using millisec = uint64_t;
 using nanosec = uint64_t;
 
-#define mrEnableProfile
 
 #ifdef mrDebug
+    #define mrEnableProfile
     #define DbgPrint(...) ::mr::Print(__VA_ARGS__)
 #else
+    //#define mrEnableProfile
     #define DbgPrint(...)
 #endif
 
