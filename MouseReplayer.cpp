@@ -407,5 +407,8 @@ void mrStart()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    auto bin_path = mr::GetCurrentModuleDirectory() + "\\bin";
+    ::SetDllDirectoryA(bin_path.c_str());
+
     mrStart();
 }

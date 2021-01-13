@@ -74,7 +74,12 @@ int ImageManager::fetch(const std::string& path)
     auto p = rec.get();
     rec->path = path;
     rec->load = std::async(std::launch::async, [p]() {
-        p->image = cv::imread(p->path, cv::IMREAD_GRAYSCALE);
+        try {
+            p->image = cv::imread(p->path, cv::IMREAD_GRAYSCALE);
+        }
+        catch (const cv::Exception& e) {
+            DbgPrint("*** cv::imread() failed: %s ***\n", e.what());
+        }
         });
 
     int handle = ++m_seed;
@@ -86,11 +91,16 @@ cv::Mat* ImageManager::get(int handle)
 {
     auto& i = m_records.find(handle);
     if (i != m_records.end()) {
-        if (i->second->load.valid()) {
-            i->second->load.get();
-            i->second->load = {};
+        auto& rec = *i->second;
+        if (rec.load.valid()) {
+            rec.load.get();
+            rec.load = {};
+            if (rec.image.empty()) {
+                m_records.erase(i);
+                return nullptr;
+            }
         }
-        return &i->second->image;
+        return &rec.image;
     }
     return nullptr;
 }

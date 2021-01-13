@@ -25,6 +25,7 @@ void Print(const char* fmt, ...);
 millisec NowMS();
 nanosec NowNS();
 void SleepMS(millisec v);
+std::string GetCurrentModuleDirectory();
 
 
 enum class OpType : int
