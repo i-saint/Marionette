@@ -45,16 +45,16 @@ private:
 InputReceiver::InputReceiver()
 {
     // create invisible window to receive input messages
-    WNDCLASS wx = {};
-    wx.lpfnWndProc = &receiverProc;
-    wx.hInstance = ::GetModuleHandle(nullptr);
-    wx.lpszClassName = TEXT("mrInputReceiverClass");
-    if (!::RegisterClass(&wx)) {
+    WNDCLASS wc{};
+    wc.lpfnWndProc = &receiverProc;
+    wc.hInstance = ::GetModuleHandle(nullptr);
+    wc.lpszClassName = TEXT("mrInputReceiverClass");
+    if (!::RegisterClass(&wc)) {
         DbgPrint("*** RegisterClassEx() failed ***\n");
         return;
     }
 
-    m_hwnd = ::CreateWindow(wx.lpszClassName, nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, wx.hInstance, nullptr);
+    m_hwnd = ::CreateWindow(wc.lpszClassName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
     if (!m_hwnd) {
         DbgPrint("*** CreateWindowEx() failed ***\n");
         return;
@@ -73,7 +73,7 @@ InputReceiver::InputReceiver()
     rid[1].usUsage = 0x06;
     rid[1].dwFlags = RIDEV_INPUTSINK;
     rid[1].hwndTarget = m_hwnd;
-    if (!::RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
+    if (!::RegisterRawInputDevices(rid, std::size(rid), sizeof(RAWINPUTDEVICE))) {
         DbgPrint("*** RegisterRawInputDevices() failed ***\n");
         ::DestroyWindow(m_hwnd);
         m_hwnd = nullptr;

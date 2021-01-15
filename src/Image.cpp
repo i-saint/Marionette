@@ -14,6 +14,7 @@ namespace mr {
 // todo: try WindowsGraphicsCapture
 // https://blogs.windows.com/windowsdeveloper/2019/09/16/new-ways-to-do-screen-capture/
 
+// Blt: [](HDC hscreen, HDC hdc) -> void
 template<class Blt>
 static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
 {
@@ -251,16 +252,19 @@ float MatchImage(MatchImageParams& args)
     }
     else if (args.match_target == MatchTarget::ForegroundWindow) {
         auto fgw = ::GetForegroundWindow();
-        if (!fgw || fgw == ::GetDesktopWindow() || fgw == GetShellWindow())
+        if (!fgw || fgw == ::GetDesktopWindow() || fgw == GetShellWindow()) {
+            // foreground window is desktop. capture entire screen.
             ::EnumDisplayMonitors(nullptr, nullptr, MatchImageCB, (LPARAM)&ctx);
+        }
         else {
-            args.target_window = GetTopWindow(fgw);
+            args.target_window = ::GetTopWindow(fgw);
             MatchImageWindow(&ctx);
         }
     }
 
     ScreenDataPtr sdata;
     double highest_score = 0.0;
+    // pick the screen with highest score
     for (auto& s : ctx.screens) {
         s->task.get();
         if (s->score > highest_score) {

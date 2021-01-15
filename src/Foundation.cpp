@@ -40,9 +40,9 @@ void SleepMS(millisec v)
 std::string GetCurrentModuleDirectory()
 {
     HMODULE mod = 0;
-    char buf[1024]{};
+    char buf[MAX_PATH]{};
     ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)&GetCurrentModuleDirectory, &mod);
-    ::GetModuleFileNameA(mod, buf, _countof(buf));
+    ::GetModuleFileNameA(mod, buf, std::size(buf));
 
     int sep = 0;
     for (int i = 0; buf[i] != '\0'; ++i) {
