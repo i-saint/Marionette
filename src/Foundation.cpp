@@ -39,17 +39,11 @@ void SleepMS(millisec v)
 
 std::string GetCurrentModuleDirectory()
 {
-    HMODULE mod = 0;
+    HMODULE mod{};
     char buf[MAX_PATH]{};
     ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)&GetCurrentModuleDirectory, &mod);
     ::GetModuleFileNameA(mod, buf, std::size(buf));
-
-    int sep = 0;
-    for (int i = 0; buf[i] != '\0'; ++i) {
-        if (buf[i] == '\\')
-            sep = i;
-    }
-    return std::string(buf, sep);
+    return std::string(buf, std::strrchr(buf, '\\'));
 }
 
 void Split(const std::string& str, const std::string& separator, const std::function<void(std::string sub)>& body)
