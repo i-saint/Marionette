@@ -211,4 +211,24 @@ struct MatchImageParams
 float MatchImage(MatchImageParams& params);
 #endif // mrWithOpenCV
 
+
+
+#ifdef mrWithGraphicsCapture
+
+class ICaptureWindow
+{
+public:
+    virtual ~ICaptureWindow() {};
+    virtual void release() = 0;
+
+    virtual ID3D11Device* getDevice() = 0;
+    virtual ID3D11DeviceContext* getDeviceContext() = 0;
+};
+
+using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
+mrAPI ICaptureWindow* CreateCaptureWindow(HWND hwnd, const CaptureHandler& handler);
+mrAPI ICaptureWindow* CreateCaptureMonitor(HMONITOR hmon, const CaptureHandler& handler);
+
+#endif // mrWithGraphicsCapture
+
 } // namespace mr
