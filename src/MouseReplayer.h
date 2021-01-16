@@ -23,6 +23,7 @@ using nanosec = uint64_t;
 #endif
 
 void Print(const char* fmt, ...);
+void Print(const wchar_t* fmt, ...);
 millisec NowMS();
 nanosec NowNS();
 void SleepMS(millisec v);
@@ -118,24 +119,41 @@ mrAPI IPlayer* CreatePlayer();
 
 // utils
 
-using IRecorderPtr = std::shared_ptr<IRecorder>;
-using IPlayerPtr = std::shared_ptr<IPlayer>;
-
 template<class T>
 struct releaser
 {
     void operator()(T* p) { p->release(); }
 };
 
-inline IRecorderPtr CreateRecorderShared()
-{
-    return IRecorderPtr(CreateRecorder(), releaser<IRecorder>());
-}
+#define mrDeclPtr(T) using T##Ptr = std::shared_ptr<T>;
 
-inline IPlayerPtr CreatePlayerShared()
-{
-    return IPlayerPtr(CreatePlayer(), releaser<IPlayer>());
-}
+#define mrDefShared(F)\
+    inline auto F##Shared()\
+    {\
+        using T = std::remove_pointer_t<decltype(F())>;\
+        return std::shared_ptr<T>(F(), releaser<T>());\
+    }
+
+#define mrDefShared1(F, T1, A1)\
+    inline auto F##Shared(T1 A1)\
+    {\
+        using T = std::remove_pointer_t<decltype(F(A1))>;\
+        return std::shared_ptr<T>(F(A1), releaser<T>());\
+    }
+
+#define mrDefShared2(F, T1, A1, T2, A2)\
+    inline auto F##Shared(T1 A1, T2 A2)\
+    {\
+        using T = std::remove_pointer_t<decltype(F(A1, A2))>;\
+        return std::shared_ptr<T>(F(A1, A2), releaser<T>());\
+    }
+
+
+mrDeclPtr(IRecorder);
+mrDeclPtr(IPlayer);
+
+mrDefShared(CreateRecorder);
+mrDefShared(CreatePlayer);
 
 
 // internal
@@ -207,14 +225,12 @@ struct MatchImageParams
     float score = 0.0f;
     cv::Point position{};
 };
-
-float MatchImage(MatchImageParams& params);
+mrAPI float MatchImage(MatchImageParams& params);
 #endif // mrWithOpenCV
 
 
 
 #ifdef mrWithGraphicsCapture
-
 class ICaptureWindow
 {
 public:
@@ -226,9 +242,14 @@ public:
 };
 
 using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
+mrAPI bool IsGraphicsCaptureSupported();
+mrAPI void InitializeCaptureWindow();
 mrAPI ICaptureWindow* CreateCaptureWindow(HWND hwnd, const CaptureHandler& handler);
 mrAPI ICaptureWindow* CreateCaptureMonitor(HMONITOR hmon, const CaptureHandler& handler);
 
+mrDeclPtr(ICaptureWindow);
+mrDefShared2(CreateCaptureWindow, HWND, hwnd, const CaptureHandler&, handler);
+mrDefShared2(CreateCaptureMonitor, HMONITOR, hmon, const CaptureHandler&, handler);
 #endif // mrWithGraphicsCapture
 
 } // namespace mr

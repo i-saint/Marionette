@@ -18,6 +18,7 @@
 #include <future>
 #include <tuple>
 #include <regex>
+#include <type_traits>
 
 
 #define mrWithOpenCV

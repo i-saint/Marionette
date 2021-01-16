@@ -6,19 +6,24 @@ namespace mr {
 
 void Print(const char* fmt, ...)
 {
-    char buf[1024*2];
-
+    char buf[1024 * 2];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
+    vsnprintf(buf, std::size(buf), fmt, args);
     va_end(args);
-
-#ifdef _WIN32
     ::OutputDebugStringA(buf);
-#else
-    printf("%s", buf);
-#endif
 }
+
+void Print(const wchar_t* fmt, ...)
+{
+    wchar_t buf[1024 * 2];
+    va_list args;
+    va_start(args, fmt);
+    _vsnwprintf(buf, std::size(buf), fmt, args);
+    va_end(args);
+    ::OutputDebugStringW(buf);
+}
+
 
 millisec NowMS()
 {
