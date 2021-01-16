@@ -15,7 +15,6 @@
     <ClCompile Include="Test\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Test\TestV8.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Test\Test.h" />
