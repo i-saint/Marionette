@@ -221,7 +221,7 @@ void MouseReplayerApp::start()
 
     MSG msg;
     for (;;) {
-        while (::PeekMessage(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
+        while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             ::TranslateMessage(&msg);
             ::DispatchMessage(&msg);
         }
