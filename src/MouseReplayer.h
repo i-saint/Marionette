@@ -231,25 +231,29 @@ mrAPI float MatchImage(MatchImageParams& params);
 
 
 #ifdef mrWithGraphicsCapture
+using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
+using PixelHandler = std::function<void(const byte* data, int width, int height, int pitch)>;
+
 class ICaptureWindow
 {
 public:
     virtual ~ICaptureWindow() {};
     virtual void release() = 0;
+    virtual bool start(HWND hwnd, const CaptureHandler& handler) = 0;
+    virtual bool start(HMONITOR hmon, const CaptureHandler& handler) = 0;
+    virtual void stop() = 0;
 
     virtual ID3D11Device* getDevice() = 0;
     virtual ID3D11DeviceContext* getDeviceContext() = 0;
+    virtual bool getPixels(ID3D11Texture2D* tex, const PixelHandler& handler) = 0;
 };
 
-using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
 mrAPI bool IsGraphicsCaptureSupported();
 mrAPI void InitializeCaptureWindow();
-mrAPI ICaptureWindow* CreateCaptureWindow(HWND hwnd, const CaptureHandler& handler);
-mrAPI ICaptureWindow* CreateCaptureMonitor(HMONITOR hmon, const CaptureHandler& handler);
+mrAPI ICaptureWindow* CreateCaptureWindow();
 
 mrDeclPtr(ICaptureWindow);
-mrDefShared2(CreateCaptureWindow, HWND, hwnd, const CaptureHandler&, handler);
-mrDefShared2(CreateCaptureMonitor, HMONITOR, hmon, const CaptureHandler&, handler);
+mrDefShared(CreateCaptureWindow);
 #endif // mrWithGraphicsCapture
 
 } // namespace mr
