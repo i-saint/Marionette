@@ -263,34 +263,39 @@ ID3D11DeviceContext* GraphicsCapture::getDeviceContext()
     return m_context.get();
 }
 
-static int s_width = 0;
-static int s_height = 0;
-
 bool GraphicsCapture::getPixels(ID3D11Texture2D* tex, const PixelHandler& handler)
 {
     if (!tex)
         return false;
 
-    // dispatch copy
-    m_context->CopyResource(m_buffer.get(), tex);
+    {
+        mrProfile("GraphicsCapture: copy texture");
 
-    // wait for completion of copy
-    uint64_t fv = ++m_fence_value;
-    m_context->Signal(m_fence.get(), fv);
-    m_context->Flush();
-    m_fence->SetEventOnCompletion(fv, m_fence_event);
-    ::WaitForSingleObject(m_fence_event, kTimeoutMS);
+        // dispatch copy
+        m_context->CopyResource(m_buffer.get(), tex);
 
-    D3D11_TEXTURE2D_DESC desc{};
-    tex->GetDesc(&desc);
+        // wait for completion
+        uint64_t fv = ++m_fence_value;
+        m_context->Signal(m_fence.get(), fv);
+        m_context->Flush();
+        m_fence->SetEventOnCompletion(fv, m_fence_event);
+        ::WaitForSingleObject(m_fence_event, kTimeoutMS);
+    }
 
-    // map & unmap
-    D3D11_MAPPED_SUBRESOURCE mapped{};
-    HRESULT hr = m_context->Map(m_buffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
-    if (SUCCEEDED(hr)) {
-        handler((const byte*)mapped.pData, s_width, s_height, mapped.RowPitch);
-        m_context->Unmap(m_buffer.get(), 0);
-        return true;
+    {
+        mrProfile("GraphicsCapture: map texture");
+
+        // map & unmap
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        HRESULT hr = m_context->Map(m_buffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
+        if (SUCCEEDED(hr)) {
+            D3D11_TEXTURE2D_DESC desc{};
+            tex->GetDesc(&desc);
+
+            handler((const byte*)mapped.pData, desc.Width, desc.Height, mapped.RowPitch);
+            m_context->Unmap(m_buffer.get(), 0);
+            return true;
+        }
     }
     return false;
 }
