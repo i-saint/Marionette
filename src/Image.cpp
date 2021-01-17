@@ -11,8 +11,28 @@
 
 namespace mr {
 
-// todo: try WindowsGraphicsCapture
-// https://blogs.windows.com/windowsdeveloper/2019/09/16/new-ways-to-do-screen-capture/
+cv::Mat MakeCVImage(const void* data_, int width, int height, int src_pitch, bool flip_y)
+{
+    cv::Mat ret(height, width, CV_8UC4);
+    auto data = (byte*)data_;
+
+    int dst_pitch = width * 4;
+    if (flip_y) {
+        for (int i = 0; i < height; ++i) {
+            auto* src = &data[src_pitch * (height - i - 1)];
+            auto* dst = ret.ptr() + (dst_pitch * i);
+            memcpy(dst, src, dst_pitch);
+        }
+    }
+    else {
+        for (int i = 0; i < height; ++i) {
+            auto* src = &data[src_pitch * i];
+            auto* dst = ret.ptr() + (dst_pitch * i);
+            memcpy(dst, src, dst_pitch);
+        }
+    }
+    return ret;
+}
 
 // Blt: [](HDC hscreen, HDC hdc) -> void
 template<class Blt>
@@ -32,21 +52,15 @@ static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
     info.bmiHeader.biClrUsed = 0;
     info.bmiHeader.biClrImportant = 0;
 
-    cv::Mat ret(height, width, CV_8UC4);
-    byte* data;
 
     HDC hscreen = ::GetDC(hwnd);
     HDC hdc = ::CreateCompatibleDC(hscreen);
+    byte* data = nullptr;
+    cv::Mat ret;
     if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
         ::SelectObject(hdc, hbmp);
         blt(hscreen, hdc);
-
-        int pitch = width * 4;
-        for (int i = 0; i < height; ++i) {
-            auto* src = &data[pitch * (height - i - 1)];
-            auto* dst = ret.ptr() + (pitch * i);
-            memcpy(dst, src, pitch);
-        }
+        ret = MakeCVImage(data, width, height, width * 4, true);
 
         ::DeleteObject(hbmp);
     }
@@ -62,7 +76,7 @@ cv::Mat CaptureScreen(RECT rect)
     int y = rect.top;
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    DbgProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
+    mrProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
 
     return CaptureImpl(rect, nullptr, [&](HDC hscreen, HDC hdc) {
         ::StretchBlt(hdc, 0, 0, width, height, hscreen, x, y, width, height, SRCCOPY);
@@ -75,7 +89,7 @@ cv::Mat CaptureEntireScreen()
     int y = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
     int width = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
     int height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    DbgProfile("CaptureEntireScreen %dx%d at %d,%d: ", width, height, x, y);
+    mrProfile("CaptureEntireScreen %dx%d at %d,%d: ", width, height, x, y);
 
     return CaptureScreen({ x, y, width + x, height + y });
 }
@@ -87,7 +101,7 @@ cv::Mat CaptureWindow(HWND hwnd)
 
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    DbgProfile("CaptureWindow %d %d: ", width, height);
+    mrProfile("CaptureWindow %d %d: ", width, height);
 
     return CaptureImpl(rect, hwnd, [&](HDC hscreen, HDC hdc) {
         // BitBlt() can't capture Chrome, Edge, etc. PrintWindow() with PW_RENDERFULLCONTENT can do it.
@@ -242,7 +256,7 @@ static bool MatchImageWindow(MatchImageCtx* ctx)
 
 float MatchImage(MatchImageParams& args)
 {
-    DbgProfile("MatchImage(): ");
+    mrProfile("MatchImage(): ");
 
     MatchImageCtx ctx;
     ctx.args = &args;

@@ -17,9 +17,9 @@ using nanosec = uint64_t;
 #endif
 
 #ifdef mrEnableProfile
-    #define DbgProfile(...) ::mr::ProfileTimer _dbg_pftimer(__VA_ARGS__)
+    #define mrProfile(...) ::mr::ProfileTimer _dbg_pftimer(__VA_ARGS__)
 #else
-    #define DbgProfile(...)
+    #define mrProfile(...)
 #endif
 
 void Print(const char* fmt, ...);
@@ -134,20 +134,6 @@ struct releaser
         return std::shared_ptr<T>(F(), releaser<T>());\
     }
 
-#define mrDefShared1(F, T1, A1)\
-    inline auto F##Shared(T1 A1)\
-    {\
-        using T = std::remove_pointer_t<decltype(F(A1))>;\
-        return std::shared_ptr<T>(F(A1), releaser<T>());\
-    }
-
-#define mrDefShared2(F, T1, A1, T2, A2)\
-    inline auto F##Shared(T1 A1, T2 A2)\
-    {\
-        using T = std::remove_pointer_t<decltype(F(A1, A2))>;\
-        return std::shared_ptr<T>(F(A1, A2), releaser<T>());\
-    }
-
 
 mrDeclPtr(IRecorder);
 mrDeclPtr(IPlayer);
@@ -226,19 +212,33 @@ struct MatchImageParams
     cv::Point position{};
 };
 mrAPI float MatchImage(MatchImageParams& params);
+cv::Mat MakeCVImage(const void* data, int width, int height, int pitch, bool flip_y = false);
+cv::Mat CaptureScreen(RECT rect);
+cv::Mat CaptureEntireScreen();
+cv::Mat CaptureWindow(HWND hwnd);
 #endif // mrWithOpenCV
 
 
 
 #ifdef mrWithGraphicsCapture
-using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
+using CaptureHandler = std::function<void(ID3D11Texture2D*, int width, int height)>;
 using PixelHandler = std::function<void(const byte* data, int width, int height, int pitch)>;
 
-class ICaptureWindow
+class IGraphicsCapture
 {
 public:
-    virtual ~ICaptureWindow() {};
+    struct Options
+    {
+        bool free_threaded = false;
+        bool create_backbuffer = true;
+        bool cpu_readable = true; // require create_backbuffer
+        float scale_factor = 1.0f; // require create_backbuffer
+        int buffer_count = 1;
+    };
+
+    virtual ~IGraphicsCapture() {};
     virtual void release() = 0;
+    virtual void setOptions(const Options& opt) = 0;
     virtual bool start(HWND hwnd, const CaptureHandler& handler) = 0;
     virtual bool start(HMONITOR hmon, const CaptureHandler& handler) = 0;
     virtual void stop() = 0;
@@ -249,11 +249,11 @@ public:
 };
 
 mrAPI bool IsGraphicsCaptureSupported();
-mrAPI void InitializeCaptureWindow();
-mrAPI ICaptureWindow* CreateCaptureWindow();
+mrAPI void InitializeGraphicsCapture();
+mrAPI IGraphicsCapture* CreateGraphicsCapture();
 
-mrDeclPtr(ICaptureWindow);
-mrDefShared(CreateCaptureWindow);
+mrDeclPtr(IGraphicsCapture);
+mrDefShared(CreateGraphicsCapture);
 #endif // mrWithGraphicsCapture
 
 } // namespace mr

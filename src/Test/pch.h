@@ -22,6 +22,7 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
+#include <condition_variable>
 #include <future>
 #include <random>
 #include <regex>
@@ -31,7 +32,3 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
-
-// v8
-#include <libplatform/libplatform.h>
-#include <v8.h>

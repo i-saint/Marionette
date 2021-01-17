@@ -40,14 +40,15 @@ private:
     HANDLE m_handle = nullptr;
 };
 
-class CaptureWindow : public ICaptureWindow
+class GraphicsCapture : public IGraphicsCapture
 {
 public:
-    CaptureWindow();
-    ~CaptureWindow() override;
+    GraphicsCapture();
+    ~GraphicsCapture() override;
 
     bool valid() const;
     void release() override;
+    void setOptions(const Options& opt) override;
     bool start(HWND hwnd, const CaptureHandler& handler) override;
     bool start(HMONITOR hmon, const CaptureHandler& handler) override;
     void stop() override;
@@ -58,13 +59,15 @@ public:
     bool getPixels(ID3D11Texture2D* tex, const PixelHandler& handler) override;
 
     template<class CreateCaptureItem>
-    bool initialize(const CreateCaptureItem& body);
+    bool startImpl(const CreateCaptureItem& body);
 
     void onFrameArrived(
         winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& sender,
         winrt::Windows::Foundation::IInspectable const& args);
 
 private:
+    Options m_options;
+
     com_ptr<ID3D11Device5> m_device;
     com_ptr<ID3D11DeviceContext4> m_context;
     com_ptr<ID3D11Fence> m_fence;
@@ -109,7 +112,7 @@ FenceEvent::operator HANDLE() const
 }
 
 
-mrAPI void InitializeCaptureWindow()
+mrAPI void InitializeGraphicsCapture()
 {
     static std::once_flag s_once;
     std::call_once(s_once, []() {
@@ -127,14 +130,42 @@ inline auto GetDXGIInterfaceFromObject(winrt::Windows::Foundation::IInspectable 
     return result;
 }
 
+GraphicsCapture::GraphicsCapture()
+{
+    InitializeGraphicsCapture();
+}
+
+GraphicsCapture::~GraphicsCapture()
+{
+    stop();
+}
+
+bool GraphicsCapture::valid() const
+{
+    return m_capture_session != nullptr;
+}
+
+void GraphicsCapture::release()
+{
+    delete this;
+}
+
+void GraphicsCapture::setOptions(const Options& opt)
+{
+    m_options = opt;
+}
+
 template<class CreateCaptureItem>
-bool CaptureWindow::initialize(const CreateCaptureItem& cci)
+bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 {
     auto createStagingTexture = [this](UINT width, UINT height) {
         D3D11_TEXTURE2D_DESC desc = {
             width, height, 1, 1, DXGI_FORMAT_B8G8R8A8_TYPELESS, { 1, 0 },
-            D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_READ, 0
+            D3D11_USAGE_STAGING, 0, 0, 0
         };
+        if (m_options.cpu_readable)
+            desc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
+
         com_ptr<ID3D11Texture2D> ret;
         check_hresult(m_device->CreateTexture2D(&desc, nullptr, ret.put()));
         return ret;
@@ -170,8 +201,13 @@ bool CaptureWindow::initialize(const CreateCaptureItem& cci)
             if (m_capture_item) {
                 auto size = m_capture_item.Size();
                 m_buffer = createStagingTexture(size.Width, size.Height);
-                m_frame_pool = Direct3D11CaptureFramePool::Create(m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, 1, size);
-                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &CaptureWindow::onFrameArrived });
+                if (m_options.free_threaded)
+                    m_frame_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
+                        m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
+                else
+                    m_frame_pool = Direct3D11CaptureFramePool::Create(
+                        m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
+                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &GraphicsCapture::onFrameArrived });
                 m_capture_session = m_frame_pool.CreateCaptureSession(m_capture_item);
                 m_capture_session.StartCapture();
                 return true;
@@ -179,58 +215,34 @@ bool CaptureWindow::initialize(const CreateCaptureItem& cci)
         }
     }
     catch (const hresult_error& e) {
-        DbgPrint(L"*** CaptureWindow raised exception: %s ***\n", e.message().c_str());
+        DbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
     }
     return false;
 }
 
-CaptureWindow::CaptureWindow()
-{
-    InitializeCaptureWindow();
-}
-
-CaptureWindow::~CaptureWindow()
-{
-    stop();
-}
-
-bool CaptureWindow::valid() const
-{
-    return m_capture_session != nullptr;
-}
-
-void CaptureWindow::release()
-{
-    delete this;
-}
-
-bool CaptureWindow::start(HWND hwnd, const CaptureHandler& handler)
+bool GraphicsCapture::start(HWND hwnd, const CaptureHandler& handler)
 {
     stop();
 
     m_handler = handler;
-    initialize([this, hwnd](auto& interop) {
-        check_hresult(interop->CreateForWindow(hwnd,
-            guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(),
-            reinterpret_cast<void**>(put_abi(m_capture_item))));
+    startImpl([this, hwnd](auto& interop) {
+        check_hresult(interop->CreateForWindow(hwnd, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
     return valid();
 }
 
-bool CaptureWindow::start(HMONITOR hmon, const CaptureHandler& handler)
+bool GraphicsCapture::start(HMONITOR hmon, const CaptureHandler& handler)
 {
     stop();
 
     m_handler = handler;
-    initialize([this, hmon](auto& interop) {
-        check_hresult(interop->CreateForMonitor(hmon,
-            guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(),
-            reinterpret_cast<void**>(put_abi(m_capture_item))));
+    startImpl([this, hmon](auto& interop) {
+        check_hresult(interop->CreateForMonitor(hmon, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
     return valid();
 }
 
-void CaptureWindow::stop()
+void GraphicsCapture::stop()
 {
     m_frame_arrived.revoke();
     m_capture_session = nullptr;
@@ -241,17 +253,20 @@ void CaptureWindow::stop()
     }
 }
 
-ID3D11Device* CaptureWindow::getDevice()
+ID3D11Device* GraphicsCapture::getDevice()
 {
     return m_device.get();
 }
 
-ID3D11DeviceContext* CaptureWindow::getDeviceContext()
+ID3D11DeviceContext* GraphicsCapture::getDeviceContext()
 {
     return m_context.get();
 }
 
-bool CaptureWindow::getPixels(ID3D11Texture2D* tex, const PixelHandler& handler)
+static int s_width = 0;
+static int s_height = 0;
+
+bool GraphicsCapture::getPixels(ID3D11Texture2D* tex, const PixelHandler& handler)
 {
     if (!tex)
         return false;
@@ -273,23 +288,25 @@ bool CaptureWindow::getPixels(ID3D11Texture2D* tex, const PixelHandler& handler)
     D3D11_MAPPED_SUBRESOURCE mapped{};
     HRESULT hr = m_context->Map(m_buffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
     if (SUCCEEDED(hr)) {
-        handler((const byte*)mapped.pData, desc.Width, desc.Height, mapped.RowPitch);
+        handler((const byte*)mapped.pData, s_width, s_height, mapped.RowPitch);
         m_context->Unmap(m_buffer.get(), 0);
         return true;
     }
     return false;
 }
 
-void CaptureWindow::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
+void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
         auto frame = sender.TryGetNextFrame();
+        auto size = frame.ContentSize();
+
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
-        m_handler(surface.get());
+        m_handler(surface.get(), size.Width, size.Height);
         frame.Close();
     }
     catch (const hresult_error& e) {
-        DbgPrint(L"*** CaptureWindow raised exception: %s ***\n", e.message().c_str());
+        DbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
     }
 }
 
@@ -298,11 +315,11 @@ mrAPI bool IsGraphicsCaptureSupported()
     return GraphicsCaptureSession::IsSupported();
 }
 
-mrAPI ICaptureWindow* CreateCaptureWindow()
+mrAPI IGraphicsCapture* CreateGraphicsCapture()
 {
     if (!IsGraphicsCaptureSupported())
         return nullptr;
-    return new CaptureWindow();
+    return new GraphicsCapture();
 }
 
 } // namespace mr

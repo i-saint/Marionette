@@ -102,11 +102,11 @@ void RegisterTestEntryImpl(const char *name, const std::function<void()>& body)
 
 static void RunTestImpl(const TestEntry& v)
 {
-    Print("%s begin\n", v.name.c_str());
+    testPrint("%s begin\n", v.name.c_str());
     auto begin = Now();
     v.body();
     auto end = Now();
-    Print("%s end (%.2fms)\n\n", v.name.c_str(), NS2MS(end - begin));
+    testPrint("%s end (%.2fms)\n\n", v.name.c_str(), NS2MS(end - begin));
 }
 
 } // namespace test

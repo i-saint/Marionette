@@ -6,14 +6,14 @@
     #define testExport extern "C"
 #endif
 
-#define Print(...) ::test::PrintImpl(__VA_ARGS__)
+#define testPrint(...) ::test::PrintImpl(__VA_ARGS__)
 
-#define RegisterTestEntry(Name)\
+#define testRegisterTestEntry(Name)\
     struct Register##Name {\
         Register##Name() { ::test::RegisterTestEntryImpl(#Name, Name); }\
     } g_Register##Name;
 
-#define TestCase(Name) testExport void Name(); RegisterTestEntry(Name); testExport void Name()
+#define TestCase(Name) testExport void Name(); testRegisterTestEntry(Name); testExport void Name()
 #define Expect(Body) if(!(Body)) { Print("%s(%d): failed - " #Body "\n", __FILE__, __LINE__); }
 
 
@@ -36,11 +36,11 @@ inline void TestScope(const char *name, const Body& body, int num_try = 1)
     auto end = Now();
 
     float elapsed = NS2MS(end - begin);
-    Print("    %s: %.2fms", name, elapsed / num_try);
+    testPrint("    %s: %.2fms", name, elapsed / num_try);
     if (num_try > 1) {
-        Print(" (%.2fms in total)", elapsed);
+        testPrint(" (%.2fms in total)", elapsed);
     }
-    Print("\n");
+    testPrint("\n");
 }
 
 } // namespace test
