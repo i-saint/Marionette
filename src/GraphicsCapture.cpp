@@ -56,7 +56,7 @@ public:
 
     ID3D11Device* getDevice() override;
     ID3D11DeviceContext* getDeviceContext() override;
-    bool getPixels(ID3D11Texture2D* tex, const PixelHandler& handler) override;
+    bool getPixels(const PixelHandler& handler) override;
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -158,19 +158,6 @@ void GraphicsCapture::setOptions(const Options& opt)
 template<class CreateCaptureItem>
 bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 {
-    auto createStagingTexture = [this](UINT width, UINT height) {
-        D3D11_TEXTURE2D_DESC desc = {
-            width, height, 1, 1, DXGI_FORMAT_B8G8R8A8_TYPELESS, { 1, 0 },
-            D3D11_USAGE_STAGING, 0, 0, 0
-        };
-        if (m_options.cpu_readable)
-            desc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
-
-        com_ptr<ID3D11Texture2D> ret;
-        check_hresult(m_device->CreateTexture2D(&desc, nullptr, ret.put()));
-        return ret;
-    };
-
     try {
         {
             UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
@@ -200,7 +187,6 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
             cci(interop);
             if (m_capture_item) {
                 auto size = m_capture_item.Size();
-                m_buffer = createStagingTexture(size.Width, size.Height);
                 if (m_options.free_threaded)
                     m_frame_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
                         m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
@@ -215,7 +201,7 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
         }
     }
     catch (const hresult_error& e) {
-        DbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
+        mrDbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
     }
     return false;
 }
@@ -246,11 +232,11 @@ void GraphicsCapture::stop()
 {
     m_frame_arrived.revoke();
     m_capture_session = nullptr;
-
     if (m_frame_pool) {
         m_frame_pool.Close();
         m_frame_pool = nullptr;
     }
+    m_buffer = nullptr;
 }
 
 ID3D11Device* GraphicsCapture::getDevice()
@@ -263,16 +249,15 @@ ID3D11DeviceContext* GraphicsCapture::getDeviceContext()
     return m_context.get();
 }
 
-bool GraphicsCapture::getPixels(ID3D11Texture2D* tex, const PixelHandler& handler)
+bool GraphicsCapture::getPixels(const PixelHandler& handler)
 {
-    if (!tex)
+    if (!m_buffer || !m_options.cpu_readable) {
+        mrDbgPrint("GraphicsCapture::getPixels() require create_backbuffer and cpu_read option\n");
         return false;
+    }
 
     {
-        mrProfile("GraphicsCapture: copy texture");
-
-        // dispatch copy
-        m_context->CopyResource(m_buffer.get(), tex);
+        mrProfile("GraphicsCapture: copy texture (wait)");
 
         // wait for completion
         uint64_t fv = ++m_fence_value;
@@ -290,7 +275,7 @@ bool GraphicsCapture::getPixels(ID3D11Texture2D* tex, const PixelHandler& handle
         HRESULT hr = m_context->Map(m_buffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
         if (SUCCEEDED(hr)) {
             D3D11_TEXTURE2D_DESC desc{};
-            tex->GetDesc(&desc);
+            m_buffer->GetDesc(&desc);
 
             handler((const byte*)mapped.pData, desc.Width, desc.Height, mapped.RowPitch);
             m_context->Unmap(m_buffer.get(), 0);
@@ -302,16 +287,57 @@ bool GraphicsCapture::getPixels(ID3D11Texture2D* tex, const PixelHandler& handle
 
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
+    auto createStagingTexture = [this](UINT width, UINT height) {
+        D3D11_TEXTURE2D_DESC desc = {
+            width, height, 1, 1, DXGI_FORMAT_B8G8R8A8_TYPELESS, { 1, 0 },
+            D3D11_USAGE_STAGING, 0, 0, 0
+        };
+        if (m_options.cpu_readable)
+            desc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
+
+        com_ptr<ID3D11Texture2D> ret;
+        check_hresult(m_device->CreateTexture2D(&desc, nullptr, ret.put()));
+        return ret;
+    };
+
     try {
         auto frame = sender.TryGetNextFrame();
         auto size = frame.ContentSize();
-
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
-        m_handler(surface.get(), size.Width, size.Height);
+
+        if (m_options.create_backbuffer) {
+            // create staging texture if needed
+            if (m_buffer) {
+                D3D11_TEXTURE2D_DESC desc{};
+                m_buffer->GetDesc(&desc);
+                if (desc.Width != size.Width || desc.Height != size.Height)
+                    m_buffer = {};
+            }
+            if (!m_buffer) {
+                m_buffer = createStagingTexture(size.Width, size.Height);
+            }
+
+            // dispatch copy
+            // size of frame.Surface() and frame.ContentSize() may mismatch. so CopySubresourceRegion() to partial copy.
+            {
+                D3D11_BOX box{};
+                box.right = size.Width;
+                box.bottom = size.Height;
+                box.back = 1;
+                m_context->CopySubresourceRegion(m_buffer.get(), 0, 0, 0, 0, surface.get(), 0, &box);
+            }
+
+            // call handler
+            m_handler(m_buffer.get());
+        }
+        else {
+            m_handler(surface.get());
+        }
+
         frame.Close();
     }
     catch (const hresult_error& e) {
-        DbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
+        mrDbgPrint(L"*** GraphicsCapture raised exception: %s ***\n", e.message().c_str());
     }
 }
 

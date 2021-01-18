@@ -208,7 +208,7 @@ void ScreenData::match(const MatchImageParams& args)
 #endif // mrDbgScreenshots
     }
     catch (const cv::Exception& e) {
-        DbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
+        mrDbgPrint("*** MatchImage() raised exception: %s ***\n", e.what());
     }
 }
 
@@ -287,7 +287,7 @@ float MatchImage(MatchImageParams& args)
         }
     }
 
-    DbgPrint("match score: %lf\n", highest_score);
+    mrDbgPrint("match score: %lf\n", highest_score);
     if (sdata) {
         args.score = highest_score;
         args.position = {

@@ -209,7 +209,7 @@ void MouseReplayerApp::start()
             player->setMatchTarget(mr::MatchTarget::ForegroundWindow);
             m_keymap[k] = player;
         }
-        DbgPrint("%d %s\n", k.code, path.c_str());
+        mrDbgPrint("%d %s\n", k.code, path.c_str());
         });
 
     auto receiver = mr::GetReceiver();

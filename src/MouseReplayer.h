@@ -10,10 +10,10 @@ using nanosec = uint64_t;
 
 #ifdef mrDebug
     #define mrEnableProfile
-    #define DbgPrint(...) ::mr::Print(__VA_ARGS__)
+    #define mrDbgPrint(...) ::mr::Print(__VA_ARGS__)
 #else
     //#define mrEnableProfile
-    #define DbgPrint(...)
+    #define mrDbgPrint(...)
 #endif
 
 #ifdef mrEnableProfile
@@ -221,7 +221,7 @@ cv::Mat CaptureWindow(HWND hwnd);
 
 
 #ifdef mrWithGraphicsCapture
-using CaptureHandler = std::function<void(ID3D11Texture2D*, int width, int height)>;
+using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
 using PixelHandler = std::function<void(const byte* data, int width, int height, int pitch)>;
 
 class IGraphicsCapture
@@ -245,7 +245,7 @@ public:
 
     virtual ID3D11Device* getDevice() = 0;
     virtual ID3D11DeviceContext* getDeviceContext() = 0;
-    virtual bool getPixels(ID3D11Texture2D* tex, const PixelHandler& handler) = 0;
+    virtual bool getPixels(const PixelHandler& handler) = 0;
 };
 
 mrAPI bool IsGraphicsCaptureSupported();

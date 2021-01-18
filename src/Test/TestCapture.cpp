@@ -33,9 +33,9 @@ TestCase(GraphicsCapture)
     std::mutex mutex;
     std::condition_variable cond;
 
-    auto task = [&capture, &cond](ID3D11Texture2D* surface, int width, int height) {
+    auto task = [&capture, &cond](ID3D11Texture2D* surface) {
         mrProfile("GraphicsCapture");
-        capture->getPixels(surface, [capture, width, height](const byte* data, int, int, int pitch) {
+        capture->getPixels([capture](const byte* data, int width, int height, int pitch) {
             auto image = mr::MakeCVImage(data, width, height, pitch);
             cv::imwrite("fg.png", image);
         });

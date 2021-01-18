@@ -88,7 +88,7 @@ void Recorder::addRecord(const OpRecord& rec_)
         rec.time = NowMS() - m_time_start;
     }
     m_records.push_back(rec);
-    DbgPrint("record added: %s\n", rec.toText().c_str());
+    mrDbgPrint("record added: %s\n", rec.toText().c_str());
 }
 
 bool Recorder::save(const char* path) const

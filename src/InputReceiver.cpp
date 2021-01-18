@@ -50,13 +50,13 @@ InputReceiver::InputReceiver()
     wc.hInstance = ::GetModuleHandle(nullptr);
     wc.lpszClassName = TEXT("mrInputReceiverClass");
     if (!::RegisterClass(&wc)) {
-        DbgPrint("*** RegisterClassEx() failed ***\n");
+        mrDbgPrint("*** RegisterClassEx() failed ***\n");
         return;
     }
 
     m_hwnd = ::CreateWindow(wc.lpszClassName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
     if (!m_hwnd) {
-        DbgPrint("*** CreateWindowEx() failed ***\n");
+        mrDbgPrint("*** CreateWindowEx() failed ***\n");
         return;
     }
     ::SetWindowLongPtr(m_hwnd, GWLP_USERDATA, (LONG_PTR)this);
@@ -74,7 +74,7 @@ InputReceiver::InputReceiver()
     rid[1].dwFlags = RIDEV_INPUTSINK;
     rid[1].hwndTarget = m_hwnd;
     if (!::RegisterRawInputDevices(rid, std::size(rid), sizeof(RAWINPUTDEVICE))) {
-        DbgPrint("*** RegisterRawInputDevices() failed ***\n");
+        mrDbgPrint("*** RegisterRawInputDevices() failed ***\n");
         ::DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }

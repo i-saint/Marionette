@@ -78,7 +78,7 @@ int ImageManager::fetch(const std::string& path)
             p->image = cv::imread(p->path, cv::IMREAD_GRAYSCALE);
         }
         catch (const cv::Exception& e) {
-            DbgPrint("*** cv::imread() failed: %s ***\n", e.what());
+            mrDbgPrint("*** cv::imread() failed: %s ***\n", e.what());
         }
         });
 
@@ -169,7 +169,7 @@ bool Player::update()
             millisec elapsed = NowMS() - time_now;
             if (rec.type == OpType::MouseMoveMatch)
                 m_time_start += elapsed;
-            DbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
+            mrDbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
 
             if (m_record_index == m_records.size()) {
                 // go next loop or stop
