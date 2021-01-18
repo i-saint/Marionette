@@ -10,6 +10,9 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Windows.Graphics.Capture.Interop.h>
 
+// shader binaries
+#include "copy.hlsl.h"
+
 #pragma comment(lib, "windowsapp.lib")
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -71,9 +74,19 @@ private:
     com_ptr<ID3D11Device5> m_device;
     com_ptr<ID3D11DeviceContext4> m_context;
     com_ptr<ID3D11Fence> m_fence;
-    com_ptr<ID3D11Texture2D> m_buffer;
+    com_ptr<ID3D11Buffer> m_constants;
+    com_ptr<ID3D11Texture2D> m_framebuffer;
+    com_ptr<ID3D11Texture2D> m_stagingbuffer;
+
+    com_ptr<ID3D11ShaderResourceView> m_srv_surface;
+    com_ptr<ID3D11UnorderedAccessView> m_uav_framebuffer;
+    com_ptr<ID3D11SamplerState> m_sampler;
+    com_ptr<ID3D11ComputeShader> m_cs_copy;
+
     FenceEvent m_fence_event;
     uint64_t m_fence_value = 0;
+    int m_fb_width = 0;
+    int m_fb_height = 0;
 
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
@@ -236,7 +249,13 @@ void GraphicsCapture::stop()
         m_frame_pool.Close();
         m_frame_pool = nullptr;
     }
-    m_buffer = nullptr;
+
+    m_srv_surface = nullptr;
+    m_uav_framebuffer = nullptr;
+
+    m_framebuffer = nullptr;
+    m_stagingbuffer = nullptr;
+    m_constants = nullptr;
 }
 
 ID3D11Device* GraphicsCapture::getDevice()
@@ -251,7 +270,7 @@ ID3D11DeviceContext* GraphicsCapture::getDeviceContext()
 
 bool GraphicsCapture::getPixels(const PixelHandler& handler)
 {
-    if (!m_buffer || !m_options.cpu_readable) {
+    if (!m_stagingbuffer) {
         mrDbgPrint("GraphicsCapture::getPixels() require create_backbuffer and cpu_read option\n");
         return false;
     }
@@ -272,13 +291,13 @@ bool GraphicsCapture::getPixels(const PixelHandler& handler)
 
         // map & unmap
         D3D11_MAPPED_SUBRESOURCE mapped{};
-        HRESULT hr = m_context->Map(m_buffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
+        HRESULT hr = m_context->Map(m_stagingbuffer.get(), 0, D3D11_MAP_READ, 0, &mapped);
         if (SUCCEEDED(hr)) {
             D3D11_TEXTURE2D_DESC desc{};
-            m_buffer->GetDesc(&desc);
+            m_stagingbuffer->GetDesc(&desc);
 
             handler((const byte*)mapped.pData, desc.Width, desc.Height, mapped.RowPitch);
-            m_context->Unmap(m_buffer.get(), 0);
+            m_context->Unmap(m_stagingbuffer.get(), 0);
             return true;
         }
     }
@@ -287,17 +306,64 @@ bool GraphicsCapture::getPixels(const PixelHandler& handler)
 
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
-    auto createStagingTexture = [this](UINT width, UINT height) {
-        D3D11_TEXTURE2D_DESC desc = {
-            width, height, 1, 1, DXGI_FORMAT_B8G8R8A8_TYPELESS, { 1, 0 },
-            D3D11_USAGE_STAGING, 0, 0, 0
-        };
-        if (m_options.cpu_readable)
-            desc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
+    struct CopyParams
+    {
+        float pixel_width;
+        float pixel_height;
+        int grayscale;
+        int pad;
+    };
 
-        com_ptr<ID3D11Texture2D> ret;
-        check_hresult(m_device->CreateTexture2D(&desc, nullptr, ret.put()));
-        return ret;
+    auto createFrameBuffer = [this](UINT width, UINT height) {
+        DXGI_FORMAT format = m_options.grayscale ? DXGI_FORMAT_R8_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
+        {
+            D3D11_TEXTURE2D_DESC desc{ width, height, 1, 1, format, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
+            desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+            check_hresult(m_device->CreateTexture2D(&desc, nullptr, m_framebuffer.put()));
+        }
+        if (m_options.cpu_readable) {
+            D3D11_TEXTURE2D_DESC desc{ width, height, 1, 1, format, { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
+            desc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
+            check_hresult(m_device->CreateTexture2D(&desc, nullptr, m_stagingbuffer.put()));
+        }
+        {
+            D3D11_UNORDERED_ACCESS_VIEW_DESC desc{};
+            desc.Format = format;
+            desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+            desc.Texture2D.MipSlice = 0;
+            check_hresult(m_device->CreateUnorderedAccessView(m_framebuffer.get(), &desc, m_uav_framebuffer.put()));
+        }
+    };
+
+    auto createConstantBuffer = [this](const CopyParams& p) {
+        {
+            D3D11_BUFFER_DESC desc{ sizeof(p), D3D11_USAGE_DEFAULT, D3D11_BIND_CONSTANT_BUFFER, 0, 0, sizeof(p) };
+            D3D11_SUBRESOURCE_DATA data{ &p, sizeof(p), sizeof(p) };
+            check_hresult(m_device->CreateBuffer(&desc, &data, m_constants.put()));
+        }
+    };
+
+    auto createSurfaceSRV = [this](ID3D11Texture2D* surf) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC desc{};
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        desc.Texture2D.MipLevels = 1;
+        check_hresult(m_device->CreateShaderResourceView(surf, &desc, m_srv_surface.put()));
+    };
+
+    auto setup = [this]() {
+        {
+            D3D11_SAMPLER_DESC desc{};
+            desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+            desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+            check_hresult(m_device->CreateSamplerState(&desc, m_sampler.put()));
+        }
+        {
+            check_hresult(m_device->CreateComputeShader(g_copy, std::size(g_copy), nullptr, m_cs_copy.put()));
+        }
     };
 
     try {
@@ -306,29 +372,61 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
 
         if (m_options.create_backbuffer) {
-            // create staging texture if needed
-            if (m_buffer) {
-                D3D11_TEXTURE2D_DESC desc{};
-                m_buffer->GetDesc(&desc);
-                if (desc.Width != size.Width || desc.Height != size.Height)
-                    m_buffer = {};
+            if (!m_cs_copy) {
+                setup();
             }
-            if (!m_buffer) {
-                m_buffer = createStagingTexture(size.Width, size.Height);
+            createSurfaceSRV(surface.get());
+
+            // create staging texture if needed
+            if (!m_framebuffer) {
+                m_fb_width = int(float(size.Width) * m_options.scale_factor);
+                m_fb_height = int(float(size.Height) * m_options.scale_factor);
+                createFrameBuffer(m_fb_width, m_fb_height);
+
+                D3D11_TEXTURE2D_DESC desc{};
+                surface->GetDesc(&desc);
+
+                CopyParams params{};
+                params.pixel_width = (float(size.Width) / float(desc.Width)) / m_fb_width;
+                params.pixel_height = (float(size.Height) / float(desc.Height)) / m_fb_height;
+                params.grayscale = m_options.grayscale ? 1 : 0;
+                createConstantBuffer(params);
             }
 
             // dispatch copy
-            // size of frame.Surface() and frame.ContentSize() may mismatch. so CopySubresourceRegion() to partial copy.
             {
-                D3D11_BOX box{};
-                box.right = size.Width;
-                box.bottom = size.Height;
-                box.back = 1;
-                m_context->CopySubresourceRegion(m_buffer.get(), 0, 0, 0, 0, surface.get(), 0, &box);
+
+                auto* cb = m_constants.get();
+                auto* srv = m_srv_surface.get();
+                auto* uav = m_uav_framebuffer.get();
+                auto* smp = m_sampler.get();
+                m_context->CSSetConstantBuffers(0, 1, &cb);
+                m_context->CSSetShaderResources(0, 1, &srv);
+                m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+                m_context->CSSetSamplers(0, 1, &smp);
+                m_context->CSSetShader(m_cs_copy.get(), nullptr, 0);
+
+                m_context->Dispatch(m_fb_width, m_fb_height, 1);
             }
 
-            // call handler
-            m_handler(m_buffer.get());
+            if (m_options.cpu_readable) {
+                // copy to cpu-readably buffer
+                m_context->CopyResource(m_stagingbuffer.get(), m_framebuffer.get());
+
+                m_handler(m_stagingbuffer.get());
+            }
+            else {
+                m_handler(m_framebuffer.get());
+            }
+
+            //{
+            //    D3D11_BOX box{};
+            //    box.right = size.Width;
+            //    box.bottom = size.Height;
+            //    box.back = 1;
+            //    m_context->CopySubresourceRegion(m_stagingbuffer.get(), 0, 0, 0, 0, surface.get(), 0, &box);
+            //    m_handler(m_stagingbuffer.get());
+            //}
         }
         else {
             m_handler(surface.get());

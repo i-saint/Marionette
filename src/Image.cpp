@@ -11,12 +11,20 @@
 
 namespace mr {
 
-cv::Mat MakeCVImage(const void* data_, int width, int height, int src_pitch, bool flip_y)
+cv::Mat MakeCVImage(const void* data_, int width, int height, int src_pitch, int ch, bool flip_y)
 {
-    cv::Mat ret(height, width, CV_8UC4);
+    int format = 0;
+    switch (ch) {
+    case 1: format = CV_8UC1; break;
+    case 2: format = CV_8UC2; break;
+    case 3: format = CV_8UC3; break;
+    default: format = CV_8UC4; break;
+    }
+
+    cv::Mat ret(height, width, format);
     auto data = (byte*)data_;
 
-    int dst_pitch = width * 4;
+    int dst_pitch = width * ch;
     if (flip_y) {
         for (int i = 0; i < height; ++i) {
             auto* src = &data[src_pitch * (height - i - 1)];
@@ -60,7 +68,7 @@ static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
     if (HBITMAP hbmp = ::CreateDIBSection(hdc, &info, DIB_RGB_COLORS, (void**)(&data), NULL, NULL)) {
         ::SelectObject(hdc, hbmp);
         blt(hscreen, hdc);
-        ret = MakeCVImage(data, width, height, width * 4, true);
+        ret = MakeCVImage(data, width, height, width * 4, 4, true);
 
         ::DeleteObject(hbmp);
     }

@@ -212,7 +212,7 @@ struct MatchImageParams
     cv::Point position{};
 };
 mrAPI float MatchImage(MatchImageParams& params);
-cv::Mat MakeCVImage(const void* data, int width, int height, int pitch, bool flip_y = false);
+cv::Mat MakeCVImage(const void* data, int width, int height, int pitch, int ch = 4, bool flip_y = false);
 cv::Mat CaptureScreen(RECT rect);
 cv::Mat CaptureEntireScreen();
 cv::Mat CaptureWindow(HWND hwnd);
@@ -231,6 +231,7 @@ public:
     {
         bool free_threaded = false;
         bool create_backbuffer = true;
+        bool grayscale = false;
         bool cpu_readable = true; // require create_backbuffer
         float scale_factor = 1.0f; // require create_backbuffer
         int buffer_count = 1;

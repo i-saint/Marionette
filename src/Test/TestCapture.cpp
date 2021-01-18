@@ -28,15 +28,18 @@ TestCase(GraphicsCapture)
 
     mr::IGraphicsCapture::Options opt;
     opt.free_threaded = true;
+    opt.grayscale = true;
+    opt.scale_factor = 0.5f;
     capture->setOptions(opt);
 
     std::mutex mutex;
     std::condition_variable cond;
 
-    auto task = [&capture, &cond](ID3D11Texture2D* surface) {
+    auto task = [&](ID3D11Texture2D* surface) {
         mrProfile("GraphicsCapture");
-        capture->getPixels([capture](const byte* data, int width, int height, int pitch) {
-            auto image = mr::MakeCVImage(data, width, height, pitch);
+        capture->getPixels([&](const byte* data, int width, int height, int pitch) {
+            int ch = opt.grayscale ? 1 : 4;
+            auto image = mr::MakeCVImage(data, width, height, pitch, ch);
             cv::imwrite("fg.png", image);
         });
         cond.notify_one();
