@@ -22,16 +22,28 @@
     <ClInclude Include="Internal.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Graphics\copy.hlsl">
-      <Filter>Graphics</Filter>
+    <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
+      <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\match_grayscale.hlsl">
-      <Filter>Graphics</Filter>
+    <FxCompile Include="Graphics\Shaders\Copy.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Contour.hlsl">
+      <Filter>Graphics\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
       <UniqueIdentifier>{cf3070b8-3440-48ce-8e51-4bef8e1ab038}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Shaders">
+      <UniqueIdentifier>{7a3881a4-5473-4dcc-a5ff-02ccb17e7431}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

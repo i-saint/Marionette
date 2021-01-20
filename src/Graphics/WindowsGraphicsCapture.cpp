@@ -12,7 +12,7 @@
 #include <Windows.Graphics.Capture.Interop.h>
 
 // shader binaries
-#include "copy.hlsl.h"
+#include "Copy.hlsl.h"
 
 #pragma comment(lib, "windowsapp.lib")
 #pragma comment(lib, "dwmapi.lib")
@@ -331,7 +331,7 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
             check_hresult(m_device->CreateSamplerState(&desc, m_sampler.put()));
         }
         {
-            check_hresult(m_device->CreateComputeShader(g_copy, std::size(g_copy), nullptr, m_cs_copy.put()));
+            check_hresult(m_device->CreateComputeShader(g_hlsl_Copy, std::size(g_hlsl_Copy), nullptr, m_cs_copy.put()));
         }
     };
 

@@ -33,16 +33,34 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Graphics\copy.hlsl">
+    <FxCompile Include="Graphics\Shaders\Contour.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
-      <VariableName>g_%(Filename)</VariableName>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
-    <FxCompile Include="Graphics\match_grayscale.hlsl">
+    <FxCompile Include="Graphics\Shaders\Copy.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
-      <VariableName>g_%(Filename)</VariableName>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
   </ItemGroup>
