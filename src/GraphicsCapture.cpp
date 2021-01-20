@@ -74,6 +74,7 @@ private:
     com_ptr<ID3D11Device5> m_device;
     com_ptr<ID3D11DeviceContext4> m_context;
     com_ptr<ID3D11Fence> m_fence;
+
     com_ptr<ID3D11Buffer> m_constants;
     com_ptr<ID3D11Texture2D> m_framebuffer;
     com_ptr<ID3D11Texture2D> m_stagingbuffer;
@@ -171,6 +172,7 @@ void GraphicsCapture::setOptions(const Options& opt)
 template<class CreateCaptureItem>
 bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 {
+    mrProfile("GraphicsCapture::start()");
     try {
         {
             UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
@@ -308,10 +310,12 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
 {
     struct CopyParams
     {
+        float pixel_offset_x;
+        float pixel_offset_y;
         float pixel_width;
         float pixel_height;
         int grayscale;
-        int pad;
+        int pad[3];
     };
 
     auto createFrameBuffer = [this](UINT width, UINT height) {
@@ -387,6 +391,8 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
                 surface->GetDesc(&desc);
 
                 CopyParams params{};
+                //params.pixel_offset_x = (1.0f / float(desc.Width)) * x;
+                //params.pixel_offset_y = (1.0f / float(desc.Height)) * y;
                 params.pixel_width = (float(size.Width) / float(desc.Width)) / m_fb_width;
                 params.pixel_height = (float(size.Height) / float(desc.Height)) / m_fb_height;
                 params.grayscale = m_options.grayscale ? 1 : 0;
