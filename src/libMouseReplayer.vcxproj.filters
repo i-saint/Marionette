@@ -6,16 +6,20 @@
     <ClCompile Include="Recorder.cpp" />
     <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
-    <ClCompile Include="Graphics\GraphicsCapture.cpp">
+    <ClCompile Include="Graphics\Image.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\Image.cpp">
+    <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="MouseReplayer.h" />
+    <ClInclude Include="Graphics\Compute.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Internal.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\copy.hlsl">

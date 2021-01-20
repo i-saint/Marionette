@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "Internal.h"
 #include "MouseReplayer.h"
 
 
@@ -281,5 +282,34 @@ std::map<Key, std::string> LoadKeymap(const char* path, const std::function<void
     }
     return ret;
 }
+
+
+
+FenceEvent::FenceEvent()
+{
+    m_handle = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+}
+
+FenceEvent::FenceEvent(const FenceEvent& v)
+{
+    *this = v;
+}
+
+FenceEvent& FenceEvent::operator=(const FenceEvent& v)
+{
+    ::DuplicateHandle(::GetCurrentProcess(), v.m_handle, ::GetCurrentProcess(), &m_handle, 0, TRUE, DUPLICATE_SAME_ACCESS);
+    return *this;
+}
+
+FenceEvent::~FenceEvent()
+{
+    ::CloseHandle(m_handle);
+}
+
+FenceEvent::operator HANDLE() const
+{
+    return m_handle;
+}
+
 
 } // namespace mr

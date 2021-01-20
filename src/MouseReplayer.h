@@ -224,7 +224,7 @@ cv::Mat CaptureWindow(HWND hwnd);
 using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
 using PixelHandler = std::function<void(const byte* data, int width, int height, int pitch)>;
 
-class IGraphicsCapture
+class IScreenCapture
 {
 public:
     struct Options
@@ -237,7 +237,7 @@ public:
         int buffer_count = 1;
     };
 
-    virtual ~IGraphicsCapture() {};
+    virtual ~IScreenCapture() {};
     virtual void release() = 0;
     virtual void setOptions(const Options& opt) = 0;
     virtual bool start(HWND hwnd, const CaptureHandler& handler) = 0;
@@ -251,10 +251,10 @@ public:
 
 mrAPI bool IsGraphicsCaptureSupported();
 mrAPI void InitializeGraphicsCapture();
-mrAPI IGraphicsCapture* CreateGraphicsCapture();
+mrAPI IScreenCapture* CreateScreenCapture();
 
-mrDeclPtr(IGraphicsCapture);
-mrDefShared(CreateGraphicsCapture);
+mrDeclPtr(IScreenCapture);
+mrDefShared(CreateScreenCapture);
 #endif // mrWithGraphicsCapture
 
 } // namespace mr

@@ -12,8 +12,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Foundation.cpp" />
-    <ClCompile Include="Graphics\GraphicsCapture.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
+    <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -22,6 +22,8 @@
     <ClCompile Include="Recorder.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Graphics\Compute.h" />
+    <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>

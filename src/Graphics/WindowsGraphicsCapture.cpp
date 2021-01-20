@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "Internal.h"
 #include "MouseReplayer.h"
 
 
@@ -29,25 +30,13 @@ namespace mr {
 
 static const DWORD kTimeoutMS = 3000;
 
-// thin wrapper for Windows' event
-class FenceEvent
+// ScreenCapture with Windows Graphics Capture
+
+class ScreenCaptureWGC : public IScreenCapture
 {
 public:
-    FenceEvent();
-    FenceEvent(const FenceEvent& v);
-    FenceEvent& operator=(const FenceEvent& v);
-    ~FenceEvent();
-    operator HANDLE() const;
-
-private:
-    HANDLE m_handle = nullptr;
-};
-
-class GraphicsCapture : public IGraphicsCapture
-{
-public:
-    GraphicsCapture();
-    ~GraphicsCapture() override;
+    ScreenCaptureWGC();
+    ~ScreenCaptureWGC() override;
 
     bool valid() const;
     void release() override;
@@ -99,33 +88,6 @@ private:
 };
 
 
-FenceEvent::FenceEvent()
-{
-    m_handle = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
-}
-
-FenceEvent::FenceEvent(const FenceEvent& v)
-{
-    *this = v;
-}
-
-FenceEvent& FenceEvent::operator=(const FenceEvent& v)
-{
-    ::DuplicateHandle(::GetCurrentProcess(), v.m_handle, ::GetCurrentProcess(), &m_handle, 0, TRUE, DUPLICATE_SAME_ACCESS);
-    return *this;
-}
-
-FenceEvent::~FenceEvent()
-{
-    ::CloseHandle(m_handle);
-}
-
-FenceEvent::operator HANDLE() const
-{
-    return m_handle;
-}
-
-
 mrAPI void InitializeGraphicsCapture()
 {
     static std::once_flag s_once;
@@ -144,33 +106,33 @@ inline auto GetDXGIInterfaceFromObject(winrt::Windows::Foundation::IInspectable 
     return result;
 }
 
-GraphicsCapture::GraphicsCapture()
+ScreenCaptureWGC::ScreenCaptureWGC()
 {
     InitializeGraphicsCapture();
 }
 
-GraphicsCapture::~GraphicsCapture()
+ScreenCaptureWGC::~ScreenCaptureWGC()
 {
     stop();
 }
 
-bool GraphicsCapture::valid() const
+bool ScreenCaptureWGC::valid() const
 {
     return m_capture_session != nullptr;
 }
 
-void GraphicsCapture::release()
+void ScreenCaptureWGC::release()
 {
     delete this;
 }
 
-void GraphicsCapture::setOptions(const Options& opt)
+void ScreenCaptureWGC::setOptions(const Options& opt)
 {
     m_options = opt;
 }
 
 template<class CreateCaptureItem>
-bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
+bool ScreenCaptureWGC::startImpl(const CreateCaptureItem& cci)
 {
     mrProfile("GraphicsCapture::start()");
     try {
@@ -208,7 +170,7 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
                 else
                     m_frame_pool = Direct3D11CaptureFramePool::Create(
                         m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
-                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &GraphicsCapture::onFrameArrived });
+                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &ScreenCaptureWGC::onFrameArrived });
                 m_capture_session = m_frame_pool.CreateCaptureSession(m_capture_item);
                 m_capture_session.StartCapture();
                 return true;
@@ -221,7 +183,7 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
     return false;
 }
 
-bool GraphicsCapture::start(HWND hwnd, const CaptureHandler& handler)
+bool ScreenCaptureWGC::start(HWND hwnd, const CaptureHandler& handler)
 {
     stop();
 
@@ -232,7 +194,7 @@ bool GraphicsCapture::start(HWND hwnd, const CaptureHandler& handler)
     return valid();
 }
 
-bool GraphicsCapture::start(HMONITOR hmon, const CaptureHandler& handler)
+bool ScreenCaptureWGC::start(HMONITOR hmon, const CaptureHandler& handler)
 {
     stop();
 
@@ -243,7 +205,7 @@ bool GraphicsCapture::start(HMONITOR hmon, const CaptureHandler& handler)
     return valid();
 }
 
-void GraphicsCapture::stop()
+void ScreenCaptureWGC::stop()
 {
     m_frame_arrived.revoke();
     m_capture_session = nullptr;
@@ -260,17 +222,17 @@ void GraphicsCapture::stop()
     m_constants = nullptr;
 }
 
-ID3D11Device* GraphicsCapture::getDevice()
+ID3D11Device* ScreenCaptureWGC::getDevice()
 {
     return m_device.get();
 }
 
-ID3D11DeviceContext* GraphicsCapture::getDeviceContext()
+ID3D11DeviceContext* ScreenCaptureWGC::getDeviceContext()
 {
     return m_context.get();
 }
 
-bool GraphicsCapture::getPixels(const PixelHandler& handler)
+bool ScreenCaptureWGC::getPixels(const PixelHandler& handler)
 {
     if (!m_stagingbuffer) {
         mrDbgPrint("GraphicsCapture::getPixels() require create_backbuffer and cpu_read option\n");
@@ -306,14 +268,16 @@ bool GraphicsCapture::getPixels(const PixelHandler& handler)
     return false;
 }
 
-void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
+void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     struct CopyParams
     {
+        float pixel_size_x;
+        float pixel_size_y;
         float pixel_offset_x;
         float pixel_offset_y;
-        float pixel_width;
-        float pixel_height;
+        float sample_step_x;
+        float sample_step_y;
         int grayscale;
         int pad[3];
     };
@@ -391,10 +355,12 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
                 surface->GetDesc(&desc);
 
                 CopyParams params{};
-                //params.pixel_offset_x = (1.0f / float(desc.Width)) * x;
-                //params.pixel_offset_y = (1.0f / float(desc.Height)) * y;
-                params.pixel_width = (float(size.Width) / float(desc.Width)) / m_fb_width;
-                params.pixel_height = (float(size.Height) / float(desc.Height)) / m_fb_height;
+                params.pixel_size_x = (1.0f / float(desc.Width));
+                params.pixel_size_y = (1.0f / float(desc.Height));
+                //params.pixel_offset_x = params.pixel_size_x * x;
+                //params.pixel_offset_y = params.pixel_size_y * y;
+                params.sample_step_x = (float(size.Width) / float(desc.Width)) / m_fb_width;
+                params.sample_step_y = (float(size.Height) / float(desc.Height)) / m_fb_height;
                 params.grayscale = m_options.grayscale ? 1 : 0;
                 createConstantBuffer(params);
             }
@@ -450,11 +416,11 @@ mrAPI bool IsGraphicsCaptureSupported()
     return GraphicsCaptureSession::IsSupported();
 }
 
-mrAPI IGraphicsCapture* CreateGraphicsCapture()
+mrAPI IScreenCapture* CreateScreenCapture()
 {
     if (!IsGraphicsCaptureSupported())
         return nullptr;
-    return new GraphicsCapture();
+    return new ScreenCaptureWGC();
 }
 
 } // namespace mr

@@ -22,11 +22,11 @@ TestCase(Image)
     cv::imwrite("screen.png", image);
 }
 
-TestCase(GraphicsCapture)
+TestCase(ScreenCapture)
 {
-    auto capture = mr::CreateGraphicsCaptureShared();
+    auto capture = mr::CreateScreenCaptureShared();
 
-    mr::IGraphicsCapture::Options opt;
+    mr::IScreenCapture::Options opt;
     opt.free_threaded = true;
     opt.grayscale = true;
     opt.scale_factor = 0.5f;
