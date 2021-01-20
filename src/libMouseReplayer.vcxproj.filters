@@ -6,14 +6,25 @@
     <ClCompile Include="Recorder.cpp" />
     <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
-    <ClCompile Include="Image.cpp" />
-    <ClCompile Include="GraphicsCapture.cpp" />
+    <ClCompile Include="Graphics\GraphicsCapture.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\Image.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="MouseReplayer.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="copy.hlsl" />
+    <FxCompile Include="Graphics\copy.hlsl">
+      <Filter>Graphics</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{cf3070b8-3440-48ce-8e51-4bef8e1ab038}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
