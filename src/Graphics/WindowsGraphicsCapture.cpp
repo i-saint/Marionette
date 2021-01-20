@@ -279,8 +279,9 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
         float sample_step_x;
         float sample_step_y;
         int grayscale;
-        int pad[3];
+        int pad[1];
     };
+    static_assert(sizeof(CopyParams) % 16 == 0);
 
     auto createFrameBuffer = [this](UINT width, UINT height) {
         DXGI_FORMAT format = m_options.grayscale ? DXGI_FORMAT_R8_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -377,8 +378,7 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
                 m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
                 m_context->CSSetSamplers(0, 1, &smp);
                 m_context->CSSetShader(m_cs_copy.get(), nullptr, 0);
-
-                m_context->Dispatch(m_fb_width, m_fb_height, 1);
+                m_context->Dispatch(ceildiv(m_fb_width, 32), ceildiv(m_fb_height, 32), 1);
             }
 
             if (m_options.cpu_readable) {

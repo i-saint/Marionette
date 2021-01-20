@@ -25,6 +25,9 @@
     <FxCompile Include="Graphics\copy.hlsl">
       <Filter>Graphics</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\match_grayscale.hlsl">
+      <Filter>Graphics</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
