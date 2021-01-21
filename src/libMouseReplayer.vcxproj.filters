@@ -22,14 +22,17 @@
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="MouseReplayer.h" />
-    <ClInclude Include="Graphics\Compute.h">
-      <Filter>Graphics</Filter>
-    </ClInclude>
     <ClInclude Include="Internal.h" />
     <ClInclude Include="Graphics\Filter.h">
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\GfxFoundation.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\Half.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\Vector.h">
       <Filter>Graphics</Filter>
     </ClInclude>
   </ItemGroup>

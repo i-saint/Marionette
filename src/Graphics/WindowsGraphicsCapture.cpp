@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Internal.h"
+#include "GfxFoundation.h"
 #include "MouseReplayer.h"
 
 
@@ -272,12 +273,9 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
 {
     struct CopyParams
     {
-        float pixel_size_x;
-        float pixel_size_y;
-        float pixel_offset_x;
-        float pixel_offset_y;
-        float sample_step_x;
-        float sample_step_y;
+        float2 pixel_size;
+        float2 pixel_offset;
+        float2 sample_step;
         int flip_rb;
         int grayscale;
     };
@@ -356,12 +354,15 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
                 surface->GetDesc(&desc);
 
                 CopyParams params{};
-                params.pixel_size_x = (1.0f / float(desc.Width));
-                params.pixel_size_y = (1.0f / float(desc.Height));
-                //params.pixel_offset_x = params.pixel_size_x * x;
-                //params.pixel_offset_y = params.pixel_size_y * y;
-                params.sample_step_x = (float(size.Width) / float(desc.Width)) / m_fb_width;
-                params.sample_step_y = (float(size.Height) / float(desc.Height)) / m_fb_height;
+                //params.pixel_offset;
+                params.pixel_size = {
+                    (1.0f / float(desc.Width)),
+                    (1.0f / float(desc.Height))
+                };
+                params.sample_step = {
+                    (float(size.Width) / float(desc.Width)) / m_fb_width,
+                    (float(size.Height) / float(desc.Height)) / m_fb_height
+                };
                 params.grayscale = m_options.grayscale ? 1 : 0;
                 createConstantBuffer(params);
             }

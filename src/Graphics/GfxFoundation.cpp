@@ -3,6 +3,34 @@
 
 namespace mr {
 
+
+FenceEvent::FenceEvent()
+{
+    m_handle = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+}
+
+FenceEvent::FenceEvent(const FenceEvent& v)
+{
+    *this = v;
+}
+
+FenceEvent& FenceEvent::operator=(const FenceEvent& v)
+{
+    ::DuplicateHandle(::GetCurrentProcess(), v.m_handle, ::GetCurrentProcess(), &m_handle, 0, TRUE, DUPLICATE_SAME_ACCESS);
+    return *this;
+}
+
+FenceEvent::~FenceEvent()
+{
+    ::CloseHandle(m_handle);
+}
+
+FenceEvent::operator HANDLE() const
+{
+    return m_handle;
+}
+
+
 CSContext::~CSContext()
 {
 
@@ -54,6 +82,14 @@ void CSContext::dispatch(int x, int y, int z)
         m_context->CSSetSamplers(0, m_samplers.size(), m_samplers.data());
     m_context->CSSetShader(m_shader.get(), nullptr, 0);
     m_context->Dispatch(x, y, z);
+}
+
+void CSContext::clear()
+{
+    m_cbuffers.clear();
+    m_srvs.clear();
+    m_uavs.clear();
+    m_samplers.clear();
 }
 
 } // namespace mr

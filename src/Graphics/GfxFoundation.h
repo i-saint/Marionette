@@ -2,11 +2,27 @@
 
 #include <winrt/Windows.Foundation.h>
 #include <d3d11.h>
+#include "Vector.h"
 using winrt::com_ptr;
 
 #define mrCheck16(T) static_assert(sizeof(T) % 16 == 0)
 
 namespace mr {
+
+// thin wrapper for Windows' event
+class FenceEvent
+{
+public:
+    FenceEvent();
+    FenceEvent(const FenceEvent& v);
+    FenceEvent& operator=(const FenceEvent& v);
+    ~FenceEvent();
+    operator HANDLE() const;
+
+private:
+    HANDLE m_handle = nullptr;
+};
+
 
 class CSContext
 {
@@ -21,6 +37,7 @@ public:
     void setSampler(com_ptr<ID3D11SamplerState>& v, int slot = 0);
 
     void dispatch(int x, int y, int z = 1);
+    void clear();
 
 private:
     com_ptr<ID3D11Device> m_device;
@@ -31,6 +48,17 @@ private:
     std::vector<ID3D11ShaderResourceView*> m_srvs;
     std::vector<ID3D11UnorderedAccessView*> m_uavs;
     std::vector<ID3D11SamplerState*> m_samplers;
+};
+
+
+class DeviceManager
+{
+public:
+
+
+private:
+    com_ptr<ID3D11Device> m_device;
+    com_ptr<ID3D11DeviceContext> m_context;
 };
 
 } // namespace mr

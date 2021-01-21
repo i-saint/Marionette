@@ -24,9 +24,10 @@
     <ClCompile Include="Recorder.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Graphics\Compute.h" />
     <ClInclude Include="Graphics\Filter.h" />
     <ClInclude Include="Graphics\GfxFoundation.h" />
+    <ClInclude Include="Graphics\Half.h" />
+    <ClInclude Include="Graphics\Vector.h" />
     <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="pch.h" />
