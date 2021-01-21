@@ -31,10 +31,16 @@
     <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
+    <FxCompile Include="Graphics\Shaders\Contour.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\Contour.hlsl">
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

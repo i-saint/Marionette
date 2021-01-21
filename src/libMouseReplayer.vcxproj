@@ -58,6 +58,15 @@
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass1.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
