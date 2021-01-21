@@ -278,8 +278,8 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
         float pixel_offset_y;
         float sample_step_x;
         float sample_step_y;
+        int flip_rb;
         int grayscale;
-        int pad[1];
     };
     static_assert(sizeof(CopyParams) % 16 == 0);
 

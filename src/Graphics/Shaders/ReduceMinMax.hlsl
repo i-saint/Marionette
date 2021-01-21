@@ -53,6 +53,7 @@ void ReduceGroup(uint gi)
 
 
 // reduce horizontally
+// assume Dispatch(1, height_of_g_image, 1)
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
@@ -79,6 +80,7 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 }
 
 // reduce vertically
+// assume Dispatch(1, 1, 1)
 [numthreads(BX, 1, 1)]
 void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {

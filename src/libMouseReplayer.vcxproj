@@ -12,6 +12,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Foundation.cpp" />
+    <ClCompile Include="Graphics\Filter.cpp" />
+    <ClCompile Include="Graphics\GfxFoundation.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
@@ -23,6 +25,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Compute.h" />
+    <ClInclude Include="Graphics\Filter.h" />
+    <ClInclude Include="Graphics\GfxFoundation.h" />
     <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="pch.h" />

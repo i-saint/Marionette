@@ -12,6 +12,12 @@
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\Filter.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\GfxFoundation.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -20,6 +26,12 @@
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="Internal.h" />
+    <ClInclude Include="Graphics\Filter.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\GfxFoundation.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
