@@ -2,13 +2,14 @@
 #include "Filter.h"
 
 // shader binaries
-#include "Copy.hlsl.h"
+#include "Transform.hlsl.h"
 #include "Contour.hlsl.h"
 #include "MatchGrayscale.hlsl.h"
+#include "MatchBinary.hlsl.h"
 #include "ReduceMinMax_Pass1.hlsl.h"
 #include "ReduceMinMax_Pass2.hlsl.h"
 
-#define PassBin(A) g_hlsl_Copy, std::size(g_hlsl_Copy)
+#define mrBytecode(A) A, std::size(A)
 
 namespace mr {
 
@@ -17,13 +18,13 @@ IFilter::~IFilter()
 }
 
 
-Resize::Resize()
+Transform::Transform()
 {
-    m_ctx.initialize(PassBin(g_hlsl_Copy));
+    m_ctx.initialize(mrBytecode(g_hlsl_Transform));
     m_ctx.setSampler(mrGetDefaultSampler());
 }
 
-void Resize::setSrcImage(Texture2DPtr v)
+void Transform::setSrcImage(Texture2DPtr v)
 {
     if (m_src == v)
         return;
@@ -32,7 +33,7 @@ void Resize::setSrcImage(Texture2DPtr v)
     m_dirty = true;
 }
 
-void Resize::setDstImage(Texture2DPtr v)
+void Transform::setDstImage(Texture2DPtr v)
 {
     if (m_dst == v)
         return;
@@ -41,7 +42,7 @@ void Resize::setDstImage(Texture2DPtr v)
     m_dirty = true;
 }
 
-void Resize::setCopyRegion(int2 pos, int2 size)
+void Transform::setCopyRegion(int2 pos, int2 size)
 {
     if (pos == m_pos && size == m_size)
         return;
@@ -50,7 +51,7 @@ void Resize::setCopyRegion(int2 pos, int2 size)
     m_dirty = true;
 }
 
-void Resize::setFlipRB(bool v)
+void Transform::setFlipRB(bool v)
 {
     if (m_flip_rb == v)
         return;
@@ -58,7 +59,7 @@ void Resize::setFlipRB(bool v)
     m_dirty = true;
 }
 
-void Resize::setGrayscale(bool v)
+void Transform::setGrayscale(bool v)
 {
     if (m_grayscale == v)
         return;
@@ -66,7 +67,7 @@ void Resize::setGrayscale(bool v)
     m_dirty = true;
 }
 
-void Resize::dispatch()
+void Transform::dispatch()
 {
     if (!m_src || !m_dst)
         return;
@@ -100,7 +101,7 @@ void Resize::dispatch()
     m_ctx.dispatch(m_size.x, m_size.y);
 }
 
-void Resize::clear()
+void Transform::clear()
 {
     m_src = {};
     m_dst = {};
@@ -112,7 +113,7 @@ void Resize::clear()
 
 Contour::Contour()
 {
-    m_ctx.initialize(PassBin(g_hlsl_Contour));
+    m_ctx.initialize(mrBytecode(g_hlsl_Contour));
 }
 
 void Contour::setSrcImage(Texture2DPtr v)
@@ -152,8 +153,8 @@ void Contour::clear()
 
 TemplateMatch::TemplateMatch()
 {
-    m_ctx_grayscale.initialize(PassBin(g_hlsl_MatchGrayscale));
-    m_ctx_binary.initialize(PassBin(g_hlsl_MatchBinary));
+    m_ctx_grayscale.initialize(mrBytecode(g_hlsl_MatchGrayscale));
+    m_ctx_binary.initialize(mrBytecode(g_hlsl_MatchBinary));
 }
 
 void TemplateMatch::setImage(Texture2DPtr v)
@@ -186,8 +187,8 @@ void TemplateMatch::clear()
 ReduceMinMax::ReduceMinMax()
 {
     mrCheck16(Result);
-    m_ctx1.initialize(PassBin(g_hlsl_ReduceMinMax_Pass1));
-    m_ctx2.initialize(PassBin(g_hlsl_ReduceMinMax_Pass2));
+    m_ctx1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
+    m_ctx2.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass2));
     m_staging = Buffer::createStaging(sizeof(Result));
 }
 

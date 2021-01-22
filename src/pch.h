@@ -1,9 +1,5 @@
 #pragma once
 
-#include <windows.h>
-#include <windowsx.h>
-#include <shellscalingapi.h>
-
 #include <cstdio>
 #include <cstdint>
 #include <fstream>
@@ -20,9 +16,13 @@
 #include <regex>
 #include <type_traits>
 
+#include <windows.h>
+#include <windowsx.h>
+#include <shellscalingapi.h>
+#include <d3d11.h>
+#include <d3d11_4.h>
 
 #define mrWithOpenCV
-#define mrWithGraphicsCapture
 
 #ifdef mrWithOpenCV
 #include <opencv2/opencv.hpp>
@@ -30,7 +30,3 @@
 #include <opencv2/highgui.hpp>
 #endif // mrWithOpenCV
 
-#ifdef mrWithGraphicsCapture
-#include <d3d11.h>
-#include <d3d11_4.h>
-#endif // mrWithGraphicsCapture

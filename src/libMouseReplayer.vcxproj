@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Foundation.cpp" />
+    <ClCompile Include="Graphics\DesktopDuplication.cpp" />
     <ClCompile Include="Graphics\Filter.cpp" />
     <ClCompile Include="Graphics\GfxFoundation.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
@@ -44,7 +45,7 @@
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\Copy.hlsl">
+    <FxCompile Include="Graphics\Shaders\Transform.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>

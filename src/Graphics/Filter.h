@@ -15,10 +15,10 @@ protected:
 };
 
 
-class Resize : public IFilter
+class Transform : public IFilter
 {
 public:
-    Resize();
+    Transform();
     void setSrcImage(Texture2DPtr v);
     void setDstImage(Texture2DPtr v);
     void setCopyRegion(int2 pos, int2 size);

@@ -162,8 +162,6 @@ public:
     void dispatch(int x, int y = 1, int z = 1);
     void clear();
 
-
-
 private:
     com_ptr<ID3D11ComputeShader> m_shader;
     std::vector<ID3D11Buffer*> m_cbuffers;
@@ -192,5 +190,51 @@ inline com_ptr<To> As(com_ptr<From>& ptr)
 {
     return As<To>(ptr.get());
 }
+
+
+#define mrWithDesktopDuplicationAPI
+//#define mrWithWindowsGraphicsCapture
+
+#ifdef mrWithDesktopDuplicationAPI
+
+class IDesktopDuplication
+{
+public:
+    using Callback = std::function<void(ID3D11Texture2D*, int w, int h)>;
+
+    virtual ~IDesktopDuplication() {};
+    virtual void release() = 0;
+    virtual bool start(HMONITOR hmon = nullptr) = 0;
+    virtual void stop() = 0;
+    virtual bool getFrame(int timeout_ms, const Callback& calback) = 0;
+};
+mrDeclPtr(IDesktopDuplication);
+
+IDesktopDuplication* CreateDesktopDuplication();
+mrDefShared(CreateDesktopDuplication);
+
+#endif // mrWithDesktopDuplicationAPI
+
+
+#ifdef mrWithWindowsGraphicsCapture
+
+class IGraphicsCapture
+{
+public:
+    using Callback = std::function<void(ID3D11Texture2D*, int w, int h)>;
+
+    virtual ~IGraphicsCapture() {};
+    virtual void release() = 0;
+    virtual bool start(HWND hwnd, const Callback& handler) = 0;
+    virtual bool start(HMONITOR hmon, const Callback& handler) = 0;
+    virtual void stop() = 0;
+};
+mrDeclPtr(IGraphicsCapture);
+
+bool IsGraphicsCaptureSupported();
+IGraphicsCapture* CreateGraphicsCapture();
+mrDefShared(CreateGraphicsCapture);
+
+#endif // mrWithWindowsGraphicsCapture
 
 } // namespace mr

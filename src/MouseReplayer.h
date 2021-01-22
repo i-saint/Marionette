@@ -1,4 +1,5 @@
 #pragma once
+#include "Graphics/Vector.h"
 
 #define mrAPI extern "C" __declspec(dllexport)
 
@@ -173,28 +174,6 @@ void Split(const std::string& str, const std::string& separator, const std::func
 void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body);
 
 
-class Timer
-{
-public:
-    Timer();
-    void reset();
-    float elapsed() const; // in sec
-
-private:
-    nanosec m_begin = 0;
-};
-
-class ProfileTimer : public Timer
-{
-public:
-    ProfileTimer(const char* mes, ...);
-    ~ProfileTimer();
-
-private:
-    std::string m_message;
-};
-
-
 
 #ifdef mrWithOpenCV
 struct MatchImageParams
@@ -220,40 +199,79 @@ cv::Mat CaptureWindow(HWND hwnd);
 
 
 
-#ifdef mrWithGraphicsCapture
-using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
-using PixelHandler = std::function<void(const void* data, int width, int height, int pitch)>;
-
-class IScreenCapture
+enum class TextureFormat
 {
-public:
-    struct Options
-    {
-        bool free_threaded = false;
-        bool create_backbuffer = true;
-        bool grayscale = false;
-        bool cpu_readable = true; // require create_backbuffer
-        float scale_factor = 1.0f; // require create_backbuffer
-        int buffer_count = 1;
-    };
-
-    virtual ~IScreenCapture() {};
-    virtual void release() = 0;
-    virtual void setOptions(const Options& opt) = 0;
-    virtual bool start(HWND hwnd, const CaptureHandler& handler) = 0;
-    virtual bool start(HMONITOR hmon, const CaptureHandler& handler) = 0;
-    virtual void stop() = 0;
-
-    virtual bool getPixels(const PixelHandler& handler) = 0;
+    Ru8,
+    RGBAu8,
+    Ri32,
 };
 
-mrAPI bool IsGraphicsCaptureSupported();
-mrAPI void InitializeGraphicsCapture();
-mrAPI IScreenCapture* CreateScreenCapture();
+class ITexture2D
+{
+public:
+    virtual ~ITexture2D() {};
+    virtual void release() = 0;
 
-mrDeclPtr(IScreenCapture);
-mrDefShared(CreateScreenCapture);
-#endif // mrWithGraphicsCapture
+    virtual int getWidth() const = 0;
+    virtual int getHeight() const = 0;
+    virtual int getPitch() const = 0;
+    virtual TextureFormat getFormat() const = 0;
+
+    virtual bool read(const std::function<void(const void* data)>& callback) = 0;
+};
+mrDeclPtr(ITexture2D);
+
+struct TransformParams
+{
+    ITexture2DPtr src;
+    ITexture2DPtr dst;
+};
+
+struct ContourParams
+{
+    ITexture2DPtr src;
+    ITexture2DPtr dst;
+    int block_size = 5;
+};
+
+struct MatchParams
+{
+    ITexture2DPtr src;
+    ITexture2DPtr dst;
+    ITexture2DPtr template_image;
+};
+
+struct ReduceMinmaxParams
+{
+    ITexture2DPtr src;
+};
+
+struct ReduceMinmaxResult
+{
+    int2 pos_min{};
+    int2 pos_max{};
+    float val_min{};
+    float val_max{};
+};
+
+class IGraphicsInterface
+{
+public:
+    virtual ~IGraphicsInterface() {};
+    virtual void release() = 0;
+
+    virtual ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) = 0;
+    virtual ITexture2DPtr captureScreen(HWND hwnd) = 0;
+    virtual ITexture2DPtr captureMonitor(HMONITOR hmon) = 0;
+
+    virtual void transform(const TransformParams& v) = 0;
+    virtual void contour(const ContourParams& v) = 0;
+    virtual void match(const MatchParams& v) = 0;
+    virtual std::future<ReduceMinmaxResult> reduceMinMax(const ReduceMinmaxParams& v) = 0;
+
+    virtual void flush() = 0;
+    virtual void wait() = 0;
+};
 
 
 mrAPI void Initialize();
@@ -262,8 +280,8 @@ mrAPI void Finalize();
 class InitializeScope
 {
 public:
-    InitializeScope() { Initialize(); }
-    ~InitializeScope() { Finalize(); }
+    InitializeScope() { ::mr::Initialize(); }
+    ~InitializeScope() { ::mr::Finalize(); }
 };
 
 } // namespace mr

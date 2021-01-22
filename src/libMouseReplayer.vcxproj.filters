@@ -18,6 +18,9 @@
     <ClCompile Include="Graphics\GfxFoundation.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\DesktopDuplication.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -40,7 +43,7 @@
     <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\Copy.hlsl">
+    <FxCompile Include="Graphics\Shaders\Transform.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">

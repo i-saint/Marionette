@@ -1,11 +1,9 @@
 #include "pch.h"
 #include "Internal.h"
 #include "GfxFoundation.h"
-#include "MouseReplayer.h"
-#include "Filter.h"
 
 
-#ifdef mrWithGraphicsCapture
+#ifdef mrWithWindowsGraphicsCapture
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.System.h>
 #include <winrt/Windows.Graphics.Capture.h>
@@ -13,12 +11,8 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Windows.Graphics.Capture.Interop.h>
 
-// shader binaries
-#include "Copy.hlsl.h"
-
 #pragma comment(lib, "windowsapp.lib")
 #pragma comment(lib, "dwmapi.lib")
-#pragma comment(lib, "dxguid.lib")
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -30,24 +24,17 @@ using namespace winrt::Windows::Graphics::Capture;
 
 namespace mr {
 
-static const DWORD kTimeoutMS = 3000;
-
-// ScreenCapture with Windows Graphics Capture
-
-class ScreenCaptureWGC : public IScreenCapture
+class GraphicsCapture : public IGraphicsCapture
 {
 public:
-    ScreenCaptureWGC();
-    ~ScreenCaptureWGC() override;
+    GraphicsCapture();
+    ~GraphicsCapture() override;
 
     bool valid() const;
     void release() override;
-    void setOptions(const Options& opt) override;
-    bool start(HWND hwnd, const CaptureHandler& handler) override;
-    bool start(HMONITOR hmon, const CaptureHandler& handler) override;
+    bool start(HWND hwnd, const Callback& handler) override;
+    bool start(HMONITOR hmon, const Callback& handler) override;
     void stop() override;
-
-    bool getPixels(const PixelHandler& handler) override;
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -57,20 +44,13 @@ public:
         winrt::Windows::Foundation::IInspectable const& args);
 
 private:
-    Options m_options;
-    Resize m_resize;
-
-    Texture2DPtr m_surface;
-    Texture2DPtr m_frame_buffer;
-    Texture2DPtr m_staging_buffer;
+    Callback m_callback;
 
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
     GraphicsCaptureItem m_capture_item{ nullptr };
     GraphicsCaptureSession m_capture_session{ nullptr };
     Direct3D11CaptureFramePool::FrameArrived_revoker m_frame_arrived;
-
-    CaptureHandler m_handler;
 };
 
 
@@ -92,37 +72,32 @@ inline auto GetDXGIInterfaceFromObject(winrt::Windows::Foundation::IInspectable 
     return result;
 }
 
-ScreenCaptureWGC::ScreenCaptureWGC()
+GraphicsCapture::GraphicsCapture()
 {
     InitializeGraphicsCapture();
 }
 
-ScreenCaptureWGC::~ScreenCaptureWGC()
+GraphicsCapture::~GraphicsCapture()
 {
     stop();
 }
 
-bool ScreenCaptureWGC::valid() const
+bool GraphicsCapture::valid() const
 {
     return m_capture_session != nullptr;
 }
 
-void ScreenCaptureWGC::release()
+void GraphicsCapture::release()
 {
     delete this;
 }
 
-void ScreenCaptureWGC::setOptions(const Options& opt)
-{
-    m_options = opt;
-}
-
 template<class CreateCaptureItem>
-bool ScreenCaptureWGC::startImpl(const CreateCaptureItem& cci)
+bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 {
     mrProfile("GraphicsCapture::start()");
     try {
-        {
+        if (!m_device_rt) {
             auto dxgi = As<IDXGIDevice>(mrGetDevice());
             com_ptr<::IInspectable> device_rt;
             check_hresult(::CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), device_rt.put()));
@@ -134,13 +109,9 @@ bool ScreenCaptureWGC::startImpl(const CreateCaptureItem& cci)
             cci(interop);
             if (m_capture_item) {
                 auto size = m_capture_item.Size();
-                if (m_options.free_threaded)
-                    m_frame_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
-                        m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
-                else
-                    m_frame_pool = Direct3D11CaptureFramePool::Create(
-                        m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, m_options.buffer_count, size);
-                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &ScreenCaptureWGC::onFrameArrived });
+                m_frame_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
+                    m_device_rt, DirectXPixelFormat::B8G8R8A8UIntNormalized, 1, size);
+                m_frame_arrived = m_frame_pool.FrameArrived(auto_revoke, { this, &GraphicsCapture::onFrameArrived });
                 m_capture_session = m_frame_pool.CreateCaptureSession(m_capture_item);
                 m_capture_session.StartCapture();
                 return true;
@@ -153,29 +124,29 @@ bool ScreenCaptureWGC::startImpl(const CreateCaptureItem& cci)
     return false;
 }
 
-bool ScreenCaptureWGC::start(HWND hwnd, const CaptureHandler& handler)
+bool GraphicsCapture::start(HWND hwnd, const Callback& callback)
 {
     stop();
 
-    m_handler = handler;
+    m_callback = callback;
     startImpl([this, hwnd](auto& interop) {
         check_hresult(interop->CreateForWindow(hwnd, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
     return valid();
 }
 
-bool ScreenCaptureWGC::start(HMONITOR hmon, const CaptureHandler& handler)
+bool GraphicsCapture::start(HMONITOR hmon, const Callback& callback)
 {
     stop();
 
-    m_handler = handler;
+    m_callback = callback;
     startImpl([this, hmon](auto& interop) {
         check_hresult(interop->CreateForMonitor(hmon, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
     return valid();
 }
 
-void ScreenCaptureWGC::stop()
+void GraphicsCapture::stop()
 {
     m_frame_arrived.revoke();
     m_capture_session = nullptr;
@@ -183,66 +154,17 @@ void ScreenCaptureWGC::stop()
         m_frame_pool.Close();
         m_frame_pool = nullptr;
     }
+    m_callback = {};
 }
 
-bool ScreenCaptureWGC::getPixels(const PixelHandler& handler)
-{
-    if (!m_staging_buffer) {
-        mrDbgPrint("GraphicsCapture::getPixels() require create_backbuffer and cpu_read option\n");
-        return false;
-    }
-
-    {
-        mrProfile("GraphicsCapture: copy texture (wait)");
-        // wait for completion
-        uint64_t fv = DeviceManager::get()->addFenceEvent();
-        DeviceManager::get()->flush();
-        DeviceManager::get()->waitFence(fv);
-    }
-
-    bool ret = false;
-    {
-        mrProfile("GraphicsCapture: map texture");
-
-        // map & unmap
-        ret = MapRead(m_staging_buffer, [&](const void* data, int pitch) {
-            auto size = m_staging_buffer->size();
-            handler(data, size.x, size.y, pitch);
-            });
-    }
-    return ret;
-}
-
-void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
+void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
         auto frame = sender.TryGetNextFrame();
         auto size = frame.ContentSize();
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
 
-        if (!m_surface || m_surface->ptr() != surface.get()) {
-            m_surface = Texture2D::wrap(surface);
-        }
-
-        // create staging texture if needed
-        if (!m_frame_buffer) {
-            int width = int(float(size.Width) * m_options.scale_factor);
-            int height = int(float(size.Height) * m_options.scale_factor);
-            auto format = m_options.grayscale ? DXGI_FORMAT_R8_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
-            m_frame_buffer = Texture2D::create(width, height, format);
-            m_staging_buffer = Texture2D::createStaging(width, height, format);
-        }
-
-        // dispatch copy
-        m_resize.setSrcImage(m_surface);
-        m_resize.setDstImage(m_frame_buffer);
-        m_resize.setCopyRegion({ 0, 0 }, { size.Width, size.Height });
-        m_resize.setGrayscale(m_options.grayscale);
-        m_resize.dispatch();
-
-        DispatchCopy(m_staging_buffer, m_frame_buffer);
-
-        m_handler(m_staging_buffer->ptr());
+        m_callback(surface.get(), size.Width, size.Height);
 
         frame.Close();
     }
@@ -251,17 +173,17 @@ void ScreenCaptureWGC::onFrameArrived(Direct3D11CaptureFramePool const& sender, 
     }
 }
 
-mrAPI bool IsGraphicsCaptureSupported()
+bool IsGraphicsCaptureSupported()
 {
     return GraphicsCaptureSession::IsSupported();
 }
 
-mrAPI IScreenCapture* CreateScreenCapture()
+IGraphicsCapture* CreateScreenCapture()
 {
     if (!IsGraphicsCaptureSupported())
         return nullptr;
-    return new ScreenCaptureWGC();
+    return new GraphicsCapture();
 }
 
 } // namespace mr
-#endif // mrWithGraphicsCapture
+#endif // mrWithWindowsGraphicsCapture

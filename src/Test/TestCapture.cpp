@@ -2,7 +2,7 @@
 #include "Test.h"
 
 #define mrWithOpenCV
-#define mrWithGraphicsCapture
+#define mrWithWindowsGraphicsCapture
 #include <d3d11.h>
 #include "MouseReplayer.h"
 
@@ -24,34 +24,34 @@ TestCase(Image)
 
 TestCase(ScreenCapture)
 {
-    auto capture = mr::CreateScreenCaptureShared();
+    //auto capture = mr::CreateScreenCaptureShared();
 
-    mr::IScreenCapture::Options opt;
-    opt.free_threaded = true;
-    opt.grayscale = true;
-    opt.scale_factor = 1.0f;
-    capture->setOptions(opt);
+    //mr::IGraphicsCapture::Options opt;
+    //opt.free_threaded = true;
+    //opt.grayscale = true;
+    //opt.scale_factor = 1.0f;
+    //capture->setOptions(opt);
 
-    std::mutex mutex;
-    std::condition_variable cond;
+    //std::mutex mutex;
+    //std::condition_variable cond;
 
-    auto task = [&](ID3D11Texture2D* surface) {
-        mrProfile("GraphicsCapture");
-        capture->getPixels([&](const void* data, int width, int height, int pitch) {
-            int ch = opt.grayscale ? 1 : 4;
-            auto image = mr::MakeCVImage(data, width, height, pitch, ch);
-            cv::imwrite("fg.png", image);
-        });
-        cond.notify_one();
-    };
+    //auto task = [&](ID3D11Texture2D* surface) {
+    //    mrProfile("GraphicsCapture");
+    //    capture->getPixels([&](const void* data, int width, int height, int pitch) {
+    //        int ch = opt.grayscale ? 1 : 4;
+    //        auto image = mr::MakeCVImage(data, width, height, pitch, ch);
+    //        cv::imwrite("fg.png", image);
+    //    });
+    //    cond.notify_one();
+    //};
 
 
-    {
-        std::unique_lock<std::mutex> lock(mutex);
-        HWND hwnd = ::GetAncestor(::GetForegroundWindow(), GA_ROOT);
-        if (capture->start(hwnd, task)) {
-            cond.wait(lock);
-            capture->stop();
-        }
-    }
+    //{
+    //    std::unique_lock<std::mutex> lock(mutex);
+    //    HWND hwnd = ::GetAncestor(::GetForegroundWindow(), GA_ROOT);
+    //    if (capture->start(hwnd, task)) {
+    //        cond.wait(lock);
+    //        capture->stop();
+    //    }
+    //}
 }

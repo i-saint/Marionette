@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "MouseReplayer.h"
+#include "Internal.h"
 
 #ifdef mrWithOpenCV
 #pragma comment(lib,"gdi32.lib")
