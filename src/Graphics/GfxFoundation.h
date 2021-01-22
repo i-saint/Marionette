@@ -64,6 +64,14 @@ private:
 #define mrGetDefaultSampler() DeviceManager::get()->getDefaultSampler()
 
 
+class DeviceObject;
+class Buffer;
+class Texture2D;
+mrDeclPtr(DeviceObject);
+mrDeclPtr(Buffer);
+mrDeclPtr(Texture2D);
+
+
 class DeviceObject
 {
 public:
@@ -73,14 +81,14 @@ public:
     virtual ID3D11ShaderResourceView* srv() = 0;
     virtual ID3D11UnorderedAccessView* uav() = 0;
 };
-mrDeclPtr(DeviceObject);
+
 
 class Buffer : public DeviceObject
 {
 public:
-    static std::shared_ptr<Buffer> createConstant(uint32_t size, const void* data);
-    static std::shared_ptr<Buffer> createStructured(uint32_t size, uint32_t stride, const void* data = nullptr);
-    static std::shared_ptr<Buffer> createStaging(uint32_t size, uint32_t stride = 0);
+    static BufferPtr createConstant(uint32_t size, const void* data);
+    static BufferPtr createStructured(uint32_t size, uint32_t stride, const void* data = nullptr);
+    static BufferPtr createStaging(uint32_t size, uint32_t stride = 0);
 
     template<class T>
     static inline std::shared_ptr<Buffer> createConstant(const T& v)
@@ -106,15 +114,14 @@ private:
     com_ptr<ID3D11ShaderResourceView> m_srv;
     com_ptr<ID3D11UnorderedAccessView> m_uav;
 };
-mrDeclPtr(Buffer);
 
 
 class Texture2D : public DeviceObject
 {
 public:
-    static std::shared_ptr<Texture2D> create(uint32_t w, uint32_t h, DXGI_FORMAT format, const void* data = nullptr, uint32_t stride = 0);
-    static std::shared_ptr<Texture2D> createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format);
-    static std::shared_ptr<Texture2D> wrap(com_ptr<ID3D11Texture2D>& v);
+    static Texture2DPtr create(uint32_t w, uint32_t h, DXGI_FORMAT format, const void* data = nullptr, uint32_t stride = 0);
+    static Texture2DPtr createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format);
+    static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;
     bool operator!=(const Texture2D& v) const;
@@ -133,7 +140,6 @@ private:
     com_ptr<ID3D11ShaderResourceView> m_srv;
     com_ptr<ID3D11UnorderedAccessView> m_uav;
 };
-mrDeclPtr(Texture2D);
 
 
 class CSContext
@@ -174,12 +180,17 @@ bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callbac
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
 
 template<class To, class From>
-inline To* As(From* ptr)
+inline com_ptr<To> As(From* ptr)
 {
-    void* result{};
-    ptr->QueryInterface(guid_of<To>(), &result);
-    return (To*)result;
+    com_ptr<To> ret;
+    ptr->QueryInterface(guid_of<To>(), ret.put_void());
+    return ret;
+}
 
+template<class To, class From>
+inline com_ptr<To> As(com_ptr<From>& ptr)
+{
+    return As<To>(ptr.get());
 }
 
 } // namespace mr

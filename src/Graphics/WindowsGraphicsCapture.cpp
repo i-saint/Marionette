@@ -122,11 +122,10 @@ bool ScreenCaptureWGC::startImpl(const CreateCaptureItem& cci)
 {
     mrProfile("GraphicsCapture::start()");
     try {
-        auto device = mrGetDevice();
         {
-            auto dxgi = As<IDXGIDevice>(device);
+            auto dxgi = As<IDXGIDevice>(mrGetDevice());
             com_ptr<::IInspectable> device_rt;
-            check_hresult(::CreateDirect3D11DeviceFromDXGIDevice(dxgi, device_rt.put()));
+            check_hresult(::CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), device_rt.put()));
             m_device_rt = device_rt.as<IDirect3DDevice>();
         }
 

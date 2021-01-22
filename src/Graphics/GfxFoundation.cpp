@@ -105,6 +105,17 @@ DeviceManager::DeviceManager()
 
 DeviceManager::~DeviceManager()
 {
+    m_sampler = nullptr;
+    m_fence = nullptr;
+    m_context = nullptr;
+
+//#ifdef mrDebug
+//    com_ptr<ID3D11Debug> debug;
+//    m_device->QueryInterface(IID_PPV_ARGS(&debug));
+//    if (debug) {
+//        debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+//    }
+//#endif // mrDebug
 }
 
 bool DeviceManager::valid() const
@@ -309,9 +320,9 @@ std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
     D3D11_TEXTURE2D_DESC desc{};
     v->GetDesc(&desc);
 
+    ret->m_texture = v;
     ret->m_size = { (int)desc.Width, (int)desc.Height };
     ret->m_format = desc.Format;
-    ret->m_texture = v;
     if (desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) {
         D3D11_SHADER_RESOURCE_VIEW_DESC desc{};
         desc.Format = desc.Format;
