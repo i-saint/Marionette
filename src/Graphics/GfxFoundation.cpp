@@ -115,7 +115,7 @@ bool DeviceManager::waitFence(uint64_t v, uint32_t timeout_ms)
 
 
 
-BufferPtr Buffer::createConstant(const void* data, uint32_t size)
+BufferPtr Buffer::createConstant(uint32_t size, const void* data)
 {
     auto ret = std::make_shared<Buffer>();
 
@@ -130,7 +130,7 @@ BufferPtr Buffer::createConstant(const void* data, uint32_t size)
     return ret->valid() ? ret : nullptr;
 }
 
-BufferPtr Buffer::createStructured(const void* data, uint32_t size, uint32_t stride)
+BufferPtr Buffer::createStructured(uint32_t size, uint32_t stride, const void* data)
 {
     auto ret = std::make_shared<Buffer>();
 
@@ -141,7 +141,7 @@ BufferPtr Buffer::createStructured(const void* data, uint32_t size, uint32_t str
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 
         D3D11_SUBRESOURCE_DATA sd{ data, 0, 0 };
-        mrGetDevice()->CreateBuffer(&desc, &sd, ret->m_buffer.put());
+        mrGetDevice()->CreateBuffer(&desc, data ? &sd : nullptr, ret->m_buffer.put());
     }
     if (ret->m_buffer) {
         {
@@ -160,6 +160,23 @@ BufferPtr Buffer::createStructured(const void* data, uint32_t size, uint32_t str
             desc.Buffer.NumElements = size / stride;
             mrGetDevice()->CreateUnorderedAccessView(ret->m_buffer.get(), &desc, ret->m_uav.put());
         }
+    }
+    return ret->valid() ? ret : nullptr;
+}
+
+std::shared_ptr<Buffer> Buffer::createStaging(uint32_t size, uint32_t stride)
+{
+    auto ret = std::make_shared<Buffer>();
+
+    if (stride == 0)
+        stride = size;
+    ret->m_size = size;
+    ret->m_stride = stride;
+    {
+        D3D11_BUFFER_DESC desc{ size, D3D11_USAGE_STAGING, 0, 0, 0, stride };
+        desc.BindFlags = D3D11_CPU_ACCESS_READ;
+
+        mrGetDevice()->CreateBuffer(&desc, nullptr, ret->m_buffer.put());
     }
     return ret->valid() ? ret : nullptr;
 }
@@ -360,27 +377,58 @@ void CSContext::clear()
 }
 
 
-
-ID3D11Resource* GetResource(ID3D11View* view)
+void DispatchCopy(BufferPtr a, BufferPtr b, int size, int offset)
 {
-    return nullptr;
+    D3D11_BOX box{};
+    box.left = offset;
+    box.right = size;
+    box.bottom = 1;
+    box.back = 1;
+    mrGetContext()->CopySubresourceRegion(b->ptr(), 0, 0, 0, 0, a->ptr(), 0, &box);
 }
 
-int2 GetSize(ID3D11Texture2D* tex)
+void DispatchCopy(Texture2DPtr a, Texture2DPtr b, int2 size, int2 offset)
 {
-    D3D11_TEXTURE2D_DESC desc{};
-    tex->GetDesc(&desc);
-    return { (int)desc.Width, (int)desc.Height };
+    D3D11_BOX box{};
+    box.left = offset.x;
+    box.right = size.x;
+    box.top = offset.y;
+    box.bottom = size.y;
+    box.back = 1;
+    mrGetContext()->CopySubresourceRegion(b->ptr(), 0, 0, 0, 0, a->ptr(), 0, &box);
 }
 
-com_ptr<ID3D11Buffer> CreateConstantBuffer(const void* data, size_t size_)
+bool MapRead(BufferPtr v, const std::function<void (const void*)>& callback)
 {
-    auto size = (UINT)size_;
-    D3D11_BUFFER_DESC desc{ size, D3D11_USAGE_DEFAULT, D3D11_BIND_CONSTANT_BUFFER, 0, 0, size };
-    D3D11_SUBRESOURCE_DATA sd{ data, size, size };
-    com_ptr<ID3D11Buffer> ret;
-    mrGetDevice()->CreateBuffer(&desc, &sd, ret.put());
-    return ret;
+    auto ctx = mrGetContext();
+    auto buf = v->ptr();
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
+        callback(mapped.pData);
+        ctx->Unmap(buf, 0);
+        return true;
+    }
+    return false;
 }
+
+bool MapRead(Texture2DPtr v, const std::function<void(const void* data, int pitch)>& callback)
+{
+    auto ctx = mrGetContext();
+    auto buf = v->ptr();
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
+        D3D11_TEXTURE2D_DESC desc{};
+        buf->GetDesc(&desc);
+
+        callback(mapped.pData, mapped.RowPitch);
+
+        ctx->Unmap(buf, 0);
+        return true;
+    }
+    return false;
+}
+
 
 } // namespace mr

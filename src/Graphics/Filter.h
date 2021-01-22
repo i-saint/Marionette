@@ -106,6 +106,8 @@ public:
 private:
     Texture2DPtr m_src;
     BufferPtr m_result;
+    BufferPtr m_staging;
+    std::future<Result> m_task;
 
     CSContext m_ctx1;
     CSContext m_ctx2;

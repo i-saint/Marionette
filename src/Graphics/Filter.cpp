@@ -62,6 +62,9 @@ void Resize::setGrayscale(bool v)
 
 void Resize::dispatch()
 {
+    if (!m_src || !m_dst)
+        return;
+
     struct
     {
         float2 pixel_size;
@@ -72,19 +75,18 @@ void Resize::dispatch()
     } params;
 
     if (m_dirty) {
-        //params.pixel_offset;
         int2 src_size = m_src->size();
         int2 dst_size = m_dst->size();
         if (m_size == int2::zero())
             m_size = dst_size;
 
-        params.pixel_size = 1.0f / (float2)src_size;
+        params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_pos;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
         params.flip_rb = m_flip_rb ? 1 : 0;
         params.grayscale = m_grayscale ? 1 : 0;
 
-        m_const = Buffer::createConstant(&params, sizeof(params));
+        m_const = Buffer::createConstant(params);
         m_ctx.setCBuffer(m_const);
 
         m_dirty = false;
@@ -95,6 +97,9 @@ void Resize::dispatch()
 
 void Resize::clear()
 {
+    m_src = {};
+    m_dst = {};
+    m_const = {};
     m_ctx.clear();
 }
 
@@ -116,6 +121,58 @@ ReduceMinMax::ReduceMinMax()
 {
     m_ctx1.initialize(PassBin(g_hlsl_ReduceMinMax_Pass1));
     m_ctx2.initialize(PassBin(g_hlsl_ReduceMinMax_Pass2));
+    m_staging = Buffer::createStaging(sizeof(Result));
+}
+
+void ReduceMinMax::setImage(Texture2DPtr v)
+{
+    m_src = v;
+
+    if (v) {
+        size_t rsize = v->size().y * sizeof(Result);
+        if (!m_result || m_result->size() != rsize) {
+            m_result = Buffer::createStructured(rsize, sizeof(Result));
+        }
+
+        m_ctx1.setSRV(v);
+        m_ctx1.setUAV(m_result);
+        m_ctx2.setSRV(v);
+        m_ctx2.setUAV(m_result);
+    }
+}
+
+void ReduceMinMax::dispatch()
+{
+    if (!m_src)
+        return;
+
+    auto image_size = m_src->size();
+    m_ctx1.dispatch(1, image_size.y);
+    m_ctx2.dispatch(1, 1);
+    DispatchCopy(m_result, m_staging, sizeof(Result));
+
+    auto fv = DeviceManager::get()->addFenceEvent();
+    m_task = std::async(std::launch::async, [this, fv]() {
+        DeviceManager::get()->waitFence(fv);
+        Result ret{};
+        MapRead(m_staging, [&ret](const void* v) {
+            ret = *(Result*)v;
+            });
+        return ret;
+        });
+}
+
+void ReduceMinMax::clear()
+{
+    m_ctx1.clear();
+    m_ctx2.clear();
+}
+
+ReduceMinMax::Result ReduceMinMax::getResult()
+{
+    if (m_task.valid())
+        return m_task.get();
+    return {};
 }
 
 } // namespace mr

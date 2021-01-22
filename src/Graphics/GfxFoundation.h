@@ -71,8 +71,16 @@ mrDeclPtr(DeviceObject);
 class Buffer : public DeviceObject
 {
 public:
-    static std::shared_ptr<Buffer> createConstant(const void* data, uint32_t size);
-    static std::shared_ptr<Buffer> createStructured(const void* data, uint32_t size, uint32_t stride);
+    static std::shared_ptr<Buffer> createConstant(uint32_t size, const void* data);
+    static std::shared_ptr<Buffer> createStructured(uint32_t size, uint32_t stride, const void* data = nullptr);
+    static std::shared_ptr<Buffer> createStaging(uint32_t size, uint32_t stride = 0);
+
+    template<class T>
+    static inline std::shared_ptr<Buffer> createConstant(const T& v)
+    {
+        mrCheck16(T);
+        return createConstant(sizeof(v), &v);
+    }
 
     bool operator==(const Buffer& v) const;
     bool operator!=(const Buffer& v) const;
@@ -137,7 +145,7 @@ public:
     std::vector<ID3D11UnorderedAccessView*> getUAVs();
     std::vector<ID3D11SamplerState*> getSamplers();
 
-    void dispatch(int x, int y, int z = 1);
+    void dispatch(int x, int y = 1, int z = 1);
     void clear();
 
 
@@ -151,18 +159,10 @@ private:
 };
 
 
-ID3D11Resource* GetResource(ID3D11View* view);
-
-int2 GetSize(ID3D11Texture2D* tex);
-inline int2 GetSize(com_ptr<ID3D11Texture2D>& tex) { return GetSize(tex.get()); }
-
-com_ptr<ID3D11Buffer> CreateConstantBuffer(const void* data, size_t size);
-template<class T>
-inline com_ptr<ID3D11Buffer> CreateConstantBuffer(const T& p)
-{
-    static_assert(sizeof(T) % 16 == 0);
-    return CreateConstantBuffer(&p, sizeof(T));
-};
+void DispatchCopy(BufferPtr a, BufferPtr b, int size, int offset = 0);
+void DispatchCopy(Texture2DPtr a, Texture2DPtr b, int2 size, int2 offset = int2::zero());
+bool MapRead(BufferPtr v, const std::function<void(const void* data)>& callback);
+bool MapRead(Texture2DPtr v, const std::function<void(const void* data, int pitch)>& callback);
 
 
 } // namespace mr
