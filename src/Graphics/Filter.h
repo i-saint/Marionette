@@ -18,11 +18,10 @@ protected:
 class Resize : public IFilter
 {
 public:
-    Resize(com_ptr<ID3D11Device>& device);
-    void setImage(com_ptr<ID3D11ShaderResourceView>& v);
-    void setResult(com_ptr<ID3D11UnorderedAccessView>& v);
-    void setCopyRegion(int x, int y, int width, int height);
-    void setScale(float v);
+    Resize();
+    void setImage(Texture2DPtr v);
+    void setResult(Texture2DPtr v);
+    void setCopyRegion(int2 pos, int2 size);
     void setFlipRB(bool v);
     void setGrayscale(bool v);
 
@@ -30,15 +29,15 @@ public:
     void clear() override;
 
 private:
-    struct CopyParams
-    {
-        float2 pixel_size;
-        float2 pixel_offset;
-        float2 sample_step;
-        int flip_rb;
-        int grayscale;
-    };
-    static_assert(sizeof(CopyParams) % 16 == 0);
+    Texture2DPtr m_src;
+    Texture2DPtr m_dst;
+    BufferPtr m_const;
+
+    int2 m_pos{};
+    int2 m_size{};
+    bool m_flip_rb = false;
+    bool m_grayscale = false;
+    bool m_dirty = true;
 
     CSContext m_ctx;
 };
@@ -47,15 +46,18 @@ private:
 class Contour : public IFilter
 {
 public:
-    Contour(com_ptr<ID3D11Device>& device);
-    void setImage(com_ptr<ID3D11ShaderResourceView>& v);
-    void setResult(com_ptr<ID3D11UnorderedAccessView>& v);
+    Contour();
+    void setImage(Texture2DPtr v);
+    void setResult(Texture2DPtr v);
     void setBlockSize(int v);
 
     void dispatch() override;
     void clear() override;
 
 private:
+    Texture2DPtr m_src;
+    Texture2DPtr m_dst;
+
     CSContext m_ctx;
 };
 
@@ -63,14 +65,18 @@ private:
 class TemplateMatch : public IFilter
 {
 public:
-    TemplateMatch(com_ptr<ID3D11Device>& device);
-    void setImage(com_ptr<ID3D11ShaderResourceView>& v);
-    void setTemplate(com_ptr<ID3D11ShaderResourceView>& v);
+    TemplateMatch();
+    void setImage(Texture2DPtr v);
+    void setTemplate(Texture2DPtr v);
 
     void dispatch() override;
     void clear() override;
 
 private:
+    Texture2DPtr m_src;
+    Texture2DPtr m_template;
+    Texture2DPtr m_dst;
+
     CSContext m_ctx_grayscale;
     CSContext m_ctx_binary;
 };
@@ -89,9 +95,8 @@ public:
     };
     mrCheck16(Result);
 
-    ReduceMinMax(com_ptr<ID3D11Device>& device);
-    void setImage(com_ptr<ID3D11ShaderResourceView>& v);
-    void setResult(com_ptr<ID3D11UnorderedAccessView>& v);
+    ReduceMinMax();
+    void setImage(Texture2DPtr v);
 
     void dispatch() override;
     void clear() override;
@@ -99,6 +104,9 @@ public:
     Result getResult();
 
 private:
+    Texture2DPtr m_src;
+    BufferPtr m_result;
+
     CSContext m_ctx1;
     CSContext m_ctx2;
 };

@@ -33,6 +33,7 @@ struct tvec2
     bool operator==(const tvec2& v) const { return x == v.x && y == v.y; }
     bool operator!=(const tvec2& v) const { return !((*this)==v); }
 
+    template<class U> operator tvec2<U>() const { return {(U)x, (U)y}; }
     template<class U> void assign(const U *v) { *this = { (T)v[0], (T)v[1] }; }
     template<class U> void assign(const tvec2<U>& v) { assign((const U*)&v); }
 
@@ -53,6 +54,7 @@ struct tvec3
     bool operator==(const tvec3& v) const { return x == v.x && y == v.y && z == v.z; }
     bool operator!=(const tvec3& v) const { return !((*this) == v); }
 
+    template<class U> operator tvec3<U>() const { return { (U)x, (U)y, (U)z }; }
     template<class U> void assign(const U *v) { *this = { (T)v[0], (T)v[1], (T)v[2] }; }
     template<class U> void assign(const tvec3<U>& v) { assign((const U*)&v); }
 
@@ -74,6 +76,7 @@ struct tvec4
     bool operator==(const tvec4& v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
     bool operator!=(const tvec4& v) const { return !((*this) == v); }
 
+    template<class U> operator tvec4<U>() const { return { (U)x, (U)y, (U)z, (U)w }; }
     template<class U> void assign(const U *v) { *this = { (T)v[0], (T)v[1], (T)v[2], (T)v[3] }; }
     template<class U> void assign(const tvec4<U>& v) { assign((const U*)&v); }
 
@@ -94,6 +97,7 @@ struct tquat
     bool operator==(const tquat& v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
     bool operator!=(const tquat& v) const { return !((*this) == v); }
 
+    template<class U> operator tquat<U>() const { return { (U)x, (U)y, (U)z, (U)w }; }
     template<class U> void assign(const U *v) { *this = { (T)v[0], (T)v[1], (T)v[2], (T)v[3] }; }
     template<class U> void assign(const tquat<U>& v) { assign((const U*)&v); }
 
