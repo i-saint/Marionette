@@ -19,8 +19,8 @@ class Resize : public IFilter
 {
 public:
     Resize();
-    void setImage(Texture2DPtr v);
-    void setResult(Texture2DPtr v);
+    void setSrcImage(Texture2DPtr v);
+    void setDstImage(Texture2DPtr v);
     void setCopyRegion(int2 pos, int2 size);
     void setFlipRB(bool v);
     void setGrayscale(bool v);
@@ -47,8 +47,8 @@ class Contour : public IFilter
 {
 public:
     Contour();
-    void setImage(Texture2DPtr v);
-    void setResult(Texture2DPtr v);
+    void setSrcImage(Texture2DPtr v);
+    void setDstImage(Texture2DPtr v);
     void setBlockSize(int v);
 
     void dispatch() override;
@@ -57,6 +57,10 @@ public:
 private:
     Texture2DPtr m_src;
     Texture2DPtr m_dst;
+    BufferPtr m_const;
+
+    int m_block_size = 5;
+    bool m_dirty = true;
 
     CSContext m_ctx;
 };
@@ -73,9 +77,10 @@ public:
     void clear() override;
 
 private:
-    Texture2DPtr m_src;
+    Texture2DPtr m_image;
     Texture2DPtr m_template;
     Texture2DPtr m_dst;
+    bool m_dirty = true;
 
     CSContext m_ctx_grayscale;
     CSContext m_ctx_binary;
@@ -93,7 +98,6 @@ public:
         float val_max;
         int pad[2];
     };
-    mrCheck16(Result);
 
     ReduceMinMax();
     void setImage(Texture2DPtr v);
@@ -113,17 +117,6 @@ private:
     CSContext m_ctx2;
 };
 
-
-class FilterManager
-{
-public:
-
-private:
-    Resize m_resize;
-    Contour m_contour;
-    TemplateMatch m_template_match;
-    ReduceMinMax m_reduce_minmax;
-};
 
 } // namespace mr
 

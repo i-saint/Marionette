@@ -284,4 +284,39 @@ std::map<Key, std::string> LoadKeymap(const char* path, const std::function<void
 }
 
 
+
+static std::vector<std::function<void()>>& GetInitializeHandlers()
+{
+    static std::vector<std::function<void()>> s_obj;
+    return s_obj;
+}
+
+static std::vector<std::function<void()>>& GetFinalizeHandlers()
+{
+    static std::vector<std::function<void()>> s_obj;
+    return s_obj;
+}
+
+void AddInitializeHandler(const std::function<void()>& v)
+{
+    GetInitializeHandlers().push_back(v);
+}
+
+void AddFinalizeHandler(const std::function<void()>& v)
+{
+    GetFinalizeHandlers().push_back(v);
+}
+
+mrAPI void Initialize()
+{
+    for (auto& h : GetInitializeHandlers())
+        h();
+}
+
+mrAPI void Finalize()
+{
+    for (auto& h : GetFinalizeHandlers())
+        h();
+}
+
 } // namespace mr

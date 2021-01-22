@@ -29,7 +29,7 @@ TestCase(ScreenCapture)
     mr::IScreenCapture::Options opt;
     opt.free_threaded = true;
     opt.grayscale = true;
-    opt.scale_factor = 0.5f;
+    opt.scale_factor = 1.0f;
     capture->setOptions(opt);
 
     std::mutex mutex;
@@ -37,7 +37,7 @@ TestCase(ScreenCapture)
 
     auto task = [&](ID3D11Texture2D* surface) {
         mrProfile("GraphicsCapture");
-        capture->getPixels([&](const byte* data, int width, int height, int pitch) {
+        capture->getPixels([&](const void* data, int width, int height, int pitch) {
             int ch = opt.grayscale ? 1 : 4;
             auto image = mr::MakeCVImage(data, width, height, pitch, ch);
             cv::imwrite("fg.png", image);

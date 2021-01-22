@@ -397,6 +397,7 @@ bool MouseReplayerApp::onInput(mr::OpRecord& rec)
 
 void mrStart()
 {
+    mr::InitializeScope mri;
     auto& app = MouseReplayerApp::instance();
     if (__argc >= 2)
         app.setDataPath(__argv[1]);

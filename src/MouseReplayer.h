@@ -222,7 +222,7 @@ cv::Mat CaptureWindow(HWND hwnd);
 
 #ifdef mrWithGraphicsCapture
 using CaptureHandler = std::function<void(ID3D11Texture2D*)>;
-using PixelHandler = std::function<void(const byte* data, int width, int height, int pitch)>;
+using PixelHandler = std::function<void(const void* data, int width, int height, int pitch)>;
 
 class IScreenCapture
 {
@@ -244,8 +244,6 @@ public:
     virtual bool start(HMONITOR hmon, const CaptureHandler& handler) = 0;
     virtual void stop() = 0;
 
-    virtual ID3D11Device* getDevice() = 0;
-    virtual ID3D11DeviceContext* getDeviceContext() = 0;
     virtual bool getPixels(const PixelHandler& handler) = 0;
 };
 
@@ -256,5 +254,16 @@ mrAPI IScreenCapture* CreateScreenCapture();
 mrDeclPtr(IScreenCapture);
 mrDefShared(CreateScreenCapture);
 #endif // mrWithGraphicsCapture
+
+
+mrAPI void Initialize();
+mrAPI void Finalize();
+
+class InitializeScope
+{
+public:
+    InitializeScope() { Initialize(); }
+    ~InitializeScope() { Finalize(); }
+};
 
 } // namespace mr

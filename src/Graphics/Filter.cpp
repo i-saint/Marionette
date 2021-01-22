@@ -12,12 +12,18 @@
 
 namespace mr {
 
+IFilter::~IFilter()
+{
+}
+
+
 Resize::Resize()
 {
     m_ctx.initialize(PassBin(g_hlsl_Copy));
+    m_ctx.setSampler(mrGetDefaultSampler());
 }
 
-void Resize::setImage(Texture2DPtr v)
+void Resize::setSrcImage(Texture2DPtr v)
 {
     if (m_src == v)
         return;
@@ -26,7 +32,7 @@ void Resize::setImage(Texture2DPtr v)
     m_dirty = true;
 }
 
-void Resize::setResult(Texture2DPtr v)
+void Resize::setDstImage(Texture2DPtr v)
 {
     if (m_dst == v)
         return;
@@ -65,21 +71,20 @@ void Resize::dispatch()
     if (!m_src || !m_dst)
         return;
 
-    struct
-    {
-        float2 pixel_size;
-        float2 pixel_offset;
-        float2 sample_step;
-        int flip_rb;
-        int grayscale;
-    } params;
-
     if (m_dirty) {
         int2 src_size = m_src->size();
         int2 dst_size = m_dst->size();
         if (m_size == int2::zero())
             m_size = dst_size;
 
+        struct
+        {
+            float2 pixel_size;
+            float2 pixel_offset;
+            float2 sample_step;
+            int flip_rb;
+            int grayscale;
+        } params;
         params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_pos;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
@@ -101,12 +106,47 @@ void Resize::clear()
     m_dst = {};
     m_const = {};
     m_ctx.clear();
+    m_dirty = true;
 }
 
 
 Contour::Contour()
 {
     m_ctx.initialize(PassBin(g_hlsl_Contour));
+}
+
+void Contour::setSrcImage(Texture2DPtr v)
+{
+    if (m_src == v)
+        return;
+    m_src = v;
+    m_dirty = true;
+}
+
+void Contour::setDstImage(Texture2DPtr v)
+{
+    if (m_dst == v)
+        return;
+    m_dst = v;
+    m_dirty = true;
+}
+
+void Contour::setBlockSize(int v)
+{
+    if (m_block_size == v)
+        return;
+    m_block_size = v;
+    m_dirty = true;
+}
+
+void Contour::dispatch()
+{
+    // todo
+}
+
+void Contour::clear()
+{
+    // todo
 }
 
 
@@ -116,9 +156,36 @@ TemplateMatch::TemplateMatch()
     m_ctx_binary.initialize(PassBin(g_hlsl_MatchBinary));
 }
 
+void TemplateMatch::setImage(Texture2DPtr v)
+{
+    if (m_image == v)
+        return;
+    m_image = v;
+    m_dirty = true;
+}
+
+void TemplateMatch::setTemplate(Texture2DPtr v)
+{
+    if (m_template == v)
+        return;
+    m_template = v;
+    m_dirty = true;
+}
+
+void TemplateMatch::dispatch()
+{
+    // todo
+}
+
+void TemplateMatch::clear()
+{
+    // todo
+}
+
 
 ReduceMinMax::ReduceMinMax()
 {
+    mrCheck16(Result);
     m_ctx1.initialize(PassBin(g_hlsl_ReduceMinMax_Pass1));
     m_ctx2.initialize(PassBin(g_hlsl_ReduceMinMax_Pass2));
     m_staging = Buffer::createStaging(sizeof(Result));
@@ -149,7 +216,7 @@ void ReduceMinMax::dispatch()
     auto image_size = m_src->size();
     m_ctx1.dispatch(1, image_size.y);
     m_ctx2.dispatch(1, 1);
-    DispatchCopy(m_result, m_staging, sizeof(Result));
+    DispatchCopy(m_staging, m_result, sizeof(Result));
 
     auto fv = DeviceManager::get()->addFenceEvent();
     m_task = std::async(std::launch::async, [this, fv]() {

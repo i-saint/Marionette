@@ -31,13 +31,28 @@ FenceEvent::operator HANDLE() const
 }
 
 
+static struct RegisterGfxInitializer
+{
+    RegisterGfxInitializer()
+    {
+        AddInitializeHandler([]() { DeviceManager::initialize(); });
+        AddFinalizeHandler([]() { DeviceManager::finalize(); });
+    }
+} s_register_gfx;
 
-static std::unique_ptr<DeviceManager> g_device_manager;
+
+
+static std::unique_ptr<DeviceManager>& GetDeviceManagerPtr()
+{
+    static std::unique_ptr<DeviceManager> s_inst;
+    return s_inst;
+}
 
 bool DeviceManager::initialize()
 {
-    if (!g_device_manager) {
-        g_device_manager = std::make_unique<DeviceManager>();
+    auto& inst = GetDeviceManagerPtr();
+    if (!inst) {
+        inst = std::make_unique<DeviceManager>();
         return true;
     }
     return false;
@@ -45,8 +60,9 @@ bool DeviceManager::initialize()
 
 bool DeviceManager::finalize()
 {
-    if (g_device_manager) {
-        g_device_manager = nullptr;
+    auto& inst = GetDeviceManagerPtr();
+    if (inst) {
+        inst = nullptr;
         return true;
     }
     return false;
@@ -54,26 +70,36 @@ bool DeviceManager::finalize()
 
 DeviceManager* DeviceManager::get()
 {
-    return g_device_manager.get();
+    return GetDeviceManagerPtr().get();
 }
 
 DeviceManager::DeviceManager()
 {
-    {
-        UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #ifdef mrDebug
-        flags |= D3D11_CREATE_DEVICE_DEBUG;
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-        com_ptr<ID3D11Device> device;
-        ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr);
+    com_ptr<ID3D11Device> device;
+    ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr);
+    if (device)
         device->QueryInterface(IID_PPV_ARGS(&m_device));
 
-        m_device->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_fence));
-    }
-    {
+    if (m_device) {
         com_ptr<ID3D11DeviceContext> context;
         m_device->GetImmediateContext(context.put());
         context->QueryInterface(IID_PPV_ARGS(&m_context));
+
+        m_device->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_fence));
+
+        {
+            D3D11_SAMPLER_DESC desc{};
+            desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+            desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+            desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+            m_device->CreateSamplerState(&desc, m_sampler.put());
+        }
     }
 }
 
@@ -111,6 +137,16 @@ bool DeviceManager::waitFence(uint64_t v, uint32_t timeout_ms)
         }
     }
     return false;
+}
+
+void DeviceManager::flush()
+{
+    m_context->Flush();
+}
+
+ID3D11SamplerState* DeviceManager::getDefaultSampler()
+{
+    return m_sampler.get();
 }
 
 
@@ -260,8 +296,35 @@ Texture2DPtr Texture2D::createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format
     ret->m_format = format;
     {
         D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, format, { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
-        desc.BindFlags = D3D11_CPU_ACCESS_READ;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         mrGetDevice()->CreateTexture2D(&desc, nullptr, ret->m_texture.put());
+    }
+    return ret->valid() ? ret : nullptr;
+}
+
+std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
+{
+    auto ret = std::make_shared<Texture2D>();
+
+    D3D11_TEXTURE2D_DESC desc{};
+    v->GetDesc(&desc);
+
+    ret->m_size = { (int)desc.Width, (int)desc.Height };
+    ret->m_format = desc.Format;
+    ret->m_texture = v;
+    if (desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC desc{};
+        desc.Format = desc.Format;
+        desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        desc.Texture2D.MipLevels = 1;
+        mrGetDevice()->CreateShaderResourceView(ret->m_texture.get(), &desc, ret->m_srv.put());
+    }
+    if (desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS) {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC desc{};
+        desc.Format = desc.Format;
+        desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        desc.Texture2D.MipSlice = 0;
+        mrGetDevice()->CreateUnorderedAccessView(ret->m_texture.get(), &desc, ret->m_uav.put());
     }
     return ret->valid() ? ret : nullptr;
 }
@@ -298,12 +361,12 @@ ID3D11UnorderedAccessView* Texture2D::uav()
 
 int2 Texture2D::size() const
 {
-    return int2();
+    return m_size;
 }
 
 DXGI_FORMAT Texture2D::format() const
 {
-    return DXGI_FORMAT();
+    return m_format;
 }
 
 
@@ -377,17 +440,22 @@ void CSContext::clear()
 }
 
 
-void DispatchCopy(BufferPtr a, BufferPtr b, int size, int offset)
+void DispatchCopy(DeviceObjectPtr dst, DeviceObjectPtr src)
+{
+    mrGetContext()->CopyResource(dst->ptr(), src->ptr());
+}
+
+void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset)
 {
     D3D11_BOX box{};
     box.left = offset;
     box.right = size;
     box.bottom = 1;
     box.back = 1;
-    mrGetContext()->CopySubresourceRegion(b->ptr(), 0, 0, 0, 0, a->ptr(), 0, &box);
+    mrGetContext()->CopySubresourceRegion(dst->ptr(), 0, 0, 0, 0, src->ptr(), 0, &box);
 }
 
-void DispatchCopy(Texture2DPtr a, Texture2DPtr b, int2 size, int2 offset)
+void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset)
 {
     D3D11_BOX box{};
     box.left = offset.x;
@@ -395,13 +463,13 @@ void DispatchCopy(Texture2DPtr a, Texture2DPtr b, int2 size, int2 offset)
     box.top = offset.y;
     box.bottom = size.y;
     box.back = 1;
-    mrGetContext()->CopySubresourceRegion(b->ptr(), 0, 0, 0, 0, a->ptr(), 0, &box);
+    mrGetContext()->CopySubresourceRegion(dst->ptr(), 0, 0, 0, 0, src->ptr(), 0, &box);
 }
 
-bool MapRead(BufferPtr v, const std::function<void (const void*)>& callback)
+bool MapRead(BufferPtr src, const std::function<void (const void*)>& callback)
 {
     auto ctx = mrGetContext();
-    auto buf = v->ptr();
+    auto buf = src->ptr();
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
@@ -412,10 +480,10 @@ bool MapRead(BufferPtr v, const std::function<void (const void*)>& callback)
     return false;
 }
 
-bool MapRead(Texture2DPtr v, const std::function<void(const void* data, int pitch)>& callback)
+bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback)
 {
     auto ctx = mrGetContext();
-    auto buf = v->ptr();
+    auto buf = src->ptr();
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {

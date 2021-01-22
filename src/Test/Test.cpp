@@ -134,8 +134,12 @@ testExport void RunAllTests()
     }
 }
 
+#include "MouseReplayer.h"
+
 int main(int argc, char *argv[])
 {
+    mr::InitializeScope mri;
+
     int run_count = 0;
     for (int i = 1; i < argc; ++i) {
         if (char *sep = std::strstr(argv[i], "=")) {

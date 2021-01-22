@@ -3,6 +3,7 @@
 #include <winrt/Windows.Foundation.h>
 #include <d3d11.h>
 #include "Vector.h"
+#include "Internal.h"
 #include "MouseReplayer.h"
 using winrt::com_ptr;
 
@@ -38,6 +39,9 @@ public:
 
     uint64_t addFenceEvent();
     bool waitFence(uint64_t v, uint32_t timeout_ms = 1000);
+    void flush();
+
+    ID3D11SamplerState* getDefaultSampler();
 
 public:
     DeviceManager();
@@ -52,9 +56,12 @@ private:
     FenceEvent m_fence_event;
     uint64_t m_fence_value = 0;
 
+    com_ptr<ID3D11SamplerState> m_sampler;
+
 };
 #define mrGetDevice() DeviceManager::get()->getDevice()
 #define mrGetContext() DeviceManager::get()->getContext()
+#define mrGetDefaultSampler() DeviceManager::get()->getDefaultSampler()
 
 
 class DeviceObject
@@ -107,6 +114,7 @@ class Texture2D : public DeviceObject
 public:
     static std::shared_ptr<Texture2D> create(uint32_t w, uint32_t h, DXGI_FORMAT format, const void* data = nullptr, uint32_t stride = 0);
     static std::shared_ptr<Texture2D> createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format);
+    static std::shared_ptr<Texture2D> wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;
     bool operator!=(const Texture2D& v) const;
@@ -159,10 +167,19 @@ private:
 };
 
 
-void DispatchCopy(BufferPtr a, BufferPtr b, int size, int offset = 0);
-void DispatchCopy(Texture2DPtr a, Texture2DPtr b, int2 size, int2 offset = int2::zero());
-bool MapRead(BufferPtr v, const std::function<void(const void* data)>& callback);
-bool MapRead(Texture2DPtr v, const std::function<void(const void* data, int pitch)>& callback);
+void DispatchCopy(DeviceObjectPtr dst, DeviceObjectPtr src);
+void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset = 0);
+void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = int2::zero());
+bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callback);
+bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
 
+template<class To, class From>
+inline To* As(From* ptr)
+{
+    void* result{};
+    ptr->QueryInterface(guid_of<To>(), &result);
+    return (To*)result;
+
+}
 
 } // namespace mr
