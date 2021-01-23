@@ -38,6 +38,9 @@
     <ClInclude Include="Graphics\Vector.h">
       <Filter>Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="Graphics\ScreenCapture.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">

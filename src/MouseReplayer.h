@@ -223,6 +223,12 @@ public:
 mrDeclPtr(ITexture2D);
 
 
+struct ScreenCaptureParams
+{
+    float scale_factor = 1.0f;
+    bool grayscale = false;
+};
+
 class IScreenCapture
 {
 public:
@@ -230,12 +236,12 @@ public:
     {
         ITexture2DPtr surface;
         uint64_t present_time{};
-        float monitor_scale_factor = 1.0f;
     };
 
     virtual ~IScreenCapture() {};
     virtual void release() = 0;
-    virtual FrameInfo getFrame() const = 0;
+    virtual bool valid() const = 0;
+    virtual FrameInfo getFrame() = 0;
 };
 mrDeclPtr(IScreenCapture);
 

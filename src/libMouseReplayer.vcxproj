@@ -28,6 +28,7 @@
     <ClInclude Include="Graphics\Filter.h" />
     <ClInclude Include="Graphics\GfxFoundation.h" />
     <ClInclude Include="Graphics\Half.h" />
+    <ClInclude Include="Graphics\ScreenCapture.h" />
     <ClInclude Include="Graphics\Vector.h" />
     <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />

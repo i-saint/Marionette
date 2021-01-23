@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Internal.h"
-#include "GfxFoundation.h"
+#include "ScreenCapture.h"
 
 
 #ifdef mrWithWindowsGraphicsCapture
@@ -24,17 +24,19 @@ using namespace winrt::Windows::Graphics::Capture;
 
 namespace mr {
 
-class GraphicsCapture : public IGraphicsCapture
+class GraphicsCapture : public IScreenCapture
 {
 public:
     GraphicsCapture();
     ~GraphicsCapture() override;
 
-    bool valid() const;
     void release() override;
-    bool start(HWND hwnd, const Callback& handler) override;
-    bool start(HMONITOR hmon, const Callback& handler) override;
-    void stop() override;
+    bool valid() const override;
+    FrameInfo getFrame() override;
+
+    bool start(HWND hwnd);
+    bool start(HMONITOR hmon);
+    void stop();
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -44,7 +46,8 @@ public:
         winrt::Windows::Foundation::IInspectable const& args);
 
 private:
-    Callback m_callback;
+    FrameInfo m_frame_info;
+    std::mutex m_mutex;
 
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
@@ -87,6 +90,16 @@ bool GraphicsCapture::valid() const
     return m_capture_session != nullptr;
 }
 
+GraphicsCapture::FrameInfo GraphicsCapture::getFrame()
+{
+    FrameInfo ret;
+    {
+        std::unique_lock l(m_mutex);
+        ret = m_frame_info;
+    }
+    return ret;
+}
+
 void GraphicsCapture::release()
 {
     delete this;
@@ -95,6 +108,8 @@ void GraphicsCapture::release()
 template<class CreateCaptureItem>
 bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 {
+    stop();
+
     mrProfile("GraphicsCapture::start()");
     try {
         if (!m_device_rt) {
@@ -124,22 +139,16 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
     return false;
 }
 
-bool GraphicsCapture::start(HWND hwnd, const Callback& callback)
+bool GraphicsCapture::start(HWND hwnd)
 {
-    stop();
-
-    m_callback = callback;
     startImpl([this, hwnd](auto& interop) {
         check_hresult(interop->CreateForWindow(hwnd, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
     return valid();
 }
 
-bool GraphicsCapture::start(HMONITOR hmon, const Callback& callback)
+bool GraphicsCapture::start(HMONITOR hmon)
 {
-    stop();
-
-    m_callback = callback;
     startImpl([this, hmon](auto& interop) {
         check_hresult(interop->CreateForMonitor(hmon, guid_of<ABI::Windows::Graphics::Capture::IGraphicsCaptureItem>(), put_abi(m_capture_item)));
         });
@@ -154,7 +163,6 @@ void GraphicsCapture::stop()
         m_frame_pool.Close();
         m_frame_pool = nullptr;
     }
-    m_callback = {};
 }
 
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
@@ -164,7 +172,11 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
         auto size = frame.ContentSize();
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
 
-        m_callback(surface.get(), size.Width, size.Height);
+        FrameInfo tmp{ Texture2D::wrap(surface), NowNS() };
+        {
+            std::unique_lock l(m_mutex);
+            m_frame_info = tmp;
+        }
 
         frame.Close();
     }
@@ -173,14 +185,14 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
     }
 }
 
-bool IsGraphicsCaptureSupported()
+bool IsWindowsGraphicsCaptureSupported()
 {
     return GraphicsCaptureSession::IsSupported();
 }
 
-IGraphicsCapture* CreateScreenCapture()
+IScreenCapture* CreateGraphicsCapture()
 {
-    if (!IsGraphicsCaptureSupported())
+    if (!IsWindowsGraphicsCaptureSupported())
         return nullptr;
     return new GraphicsCapture();
 }
