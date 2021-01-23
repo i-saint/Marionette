@@ -64,18 +64,18 @@ private:
 #define mrGetDefaultSampler() DeviceManager::get()->getDefaultSampler()
 
 
-class DeviceObject;
+class DeviceResource;
 class Buffer;
 class Texture2D;
-mrDeclPtr(DeviceObject);
+mrDeclPtr(DeviceResource);
 mrDeclPtr(Buffer);
 mrDeclPtr(Texture2D);
 
 
-class DeviceObject
+class DeviceResource
 {
 public:
-    virtual ~DeviceObject() {};
+    virtual ~DeviceResource() {};
     virtual bool valid() const = 0;
     virtual ID3D11Resource* ptr() = 0;
     virtual ID3D11ShaderResourceView* srv() = 0;
@@ -83,7 +83,7 @@ public:
 };
 
 
-class Buffer : public DeviceObject
+class Buffer : public DeviceResource
 {
 public:
     static BufferPtr createConstant(uint32_t size, const void* data);
@@ -116,27 +116,33 @@ private:
 };
 
 
-class Texture2D : public DeviceObject
+class Texture2D : public DeviceResource, public ITexture2D
 {
 public:
-    static Texture2DPtr create(uint32_t w, uint32_t h, DXGI_FORMAT format, const void* data = nullptr, uint32_t stride = 0);
-    static Texture2DPtr createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format);
+    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t stride = 0);
     static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;
     bool operator!=(const Texture2D& v) const;
+
+    void release() override;
     bool valid() const override;
     ID3D11Texture2D* ptr() override;
     ID3D11ShaderResourceView* srv() override;
     ID3D11UnorderedAccessView* uav() override;
 
-    int2 size() const;
-    DXGI_FORMAT format() const;
+    int2 getSize() const override;
+    TextureFormat getFormat() const override;
+
+    void readImpl();
+    bool read(const ReadCallback& cb) override;
+    std::future<bool> readAsync(const ReadCallback& callback) override;
 
 private:
     int2 m_size{};
-    DXGI_FORMAT m_format{};
+    TextureFormat m_format{};
     com_ptr<ID3D11Texture2D> m_texture;
+    com_ptr<ID3D11Texture2D> m_staging;
     com_ptr<ID3D11ShaderResourceView> m_srv;
     com_ptr<ID3D11UnorderedAccessView> m_uav;
 };
@@ -150,8 +156,8 @@ public:
     bool initialize(const void *bin, size_t size);
 
     void setCBuffer(BufferPtr v, int slot = 0);
-    void setSRV(DeviceObjectPtr v, int slot = 0);
-    void setUAV(DeviceObjectPtr v, int slot = 0);
+    void setSRV(DeviceResourcePtr v, int slot = 0);
+    void setUAV(DeviceResourcePtr v, int slot = 0);
     void setSampler(ID3D11SamplerState* v, int slot = 0);
 
     std::vector<ID3D11Buffer*> getConstants();
@@ -170,12 +176,17 @@ private:
     std::vector<ID3D11SamplerState*> m_samplers;
 };
 
+TextureFormat GetMRFormat(DXGI_FORMAT f);
+DXGI_FORMAT GetDXFormat(TextureFormat f);
 
-void DispatchCopy(DeviceObjectPtr dst, DeviceObjectPtr src);
+void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src);
+void DispatchCopy(DeviceResourcePtr dst, DeviceResourcePtr src);
 void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset = 0);
 void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = int2::zero());
 bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callback);
+bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
+void FlushCommands();
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)

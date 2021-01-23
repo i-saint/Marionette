@@ -70,4 +70,9 @@
       <UniqueIdentifier>{7a3881a4-5473-4dcc-a5ff-02ccb17e7431}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Graphics\GfxInterface.cpp">
+      <Filter>Graphics</Filter>
+    </None>
+  </ItemGroup>
 </Project>

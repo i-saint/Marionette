@@ -73,8 +73,8 @@ void Transform::dispatch()
         return;
 
     if (m_dirty) {
-        int2 src_size = m_src->size();
-        int2 dst_size = m_dst->size();
+        int2 src_size = m_src->getSize();
+        int2 dst_size = m_dst->getSize();
         if (m_size == int2::zero())
             m_size = dst_size;
 
@@ -197,7 +197,7 @@ void ReduceMinMax::setImage(Texture2DPtr v)
     m_src = v;
 
     if (v) {
-        size_t rsize = v->size().y * sizeof(Result);
+        size_t rsize = v->getSize().y * sizeof(Result);
         if (!m_result || m_result->size() != rsize) {
             m_result = Buffer::createStructured(rsize, sizeof(Result));
         }
@@ -214,7 +214,7 @@ void ReduceMinMax::dispatch()
     if (!m_src)
         return;
 
-    auto image_size = m_src->size();
+    auto image_size = m_src->getSize();
     m_ctx1.dispatch(1, image_size.y);
     m_ctx2.dispatch(1, 1);
     DispatchCopy(m_staging, m_result, sizeof(Result));

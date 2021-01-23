@@ -79,6 +79,9 @@
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Graphics\GfxInterface.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{63CBDC2A-183A-495A-9242-8F34277C7695}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

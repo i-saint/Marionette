@@ -143,8 +143,6 @@ mrDefShared(CreateRecorder);
 mrDefShared(CreatePlayer);
 
 
-// internal
-
 class IInputReceiver
 {
 public:
@@ -201,49 +199,70 @@ cv::Mat CaptureWindow(HWND hwnd);
 
 enum class TextureFormat
 {
+    Unknown,
     Ru8,
     RGBAu8,
+    Rf32,
     Ri32,
 };
 
 class ITexture2D
 {
 public:
+    using ReadCallback = std::function<void(const void* data, int pitch)>;
+
     virtual ~ITexture2D() {};
     virtual void release() = 0;
 
-    virtual int getWidth() const = 0;
-    virtual int getHeight() const = 0;
-    virtual int getPitch() const = 0;
+    virtual int2 getSize() const = 0;
     virtual TextureFormat getFormat() const = 0;
 
-    virtual bool read(const std::function<void(const void* data)>& callback) = 0;
+    virtual bool read(const ReadCallback& callback) = 0;
+    virtual std::future<bool> readAsync(const ReadCallback& callback) = 0;
 };
 mrDeclPtr(ITexture2D);
 
+
+class IScreenCapture
+{
+public:
+    struct FrameInfo
+    {
+        ITexture2DPtr surface;
+        uint64_t present_time{};
+        float monitor_scale_factor = 1.0f;
+    };
+
+    virtual ~IScreenCapture() {};
+    virtual void release() = 0;
+    virtual FrameInfo getFrame() const = 0;
+};
+mrDeclPtr(IScreenCapture);
+
+
 struct TransformParams
 {
+    ITexture2DPtr dst; // out. will be created if null
     ITexture2DPtr src;
-    ITexture2DPtr dst;
+    int2 offset = int2::zero();
+    int2 size = int2::zero();
+    float scale = 1.0f;
+    bool flip_rb = false;
+    bool grayscale = false;
 };
 
 struct ContourParams
 {
+    ITexture2DPtr dst; // out. will be created if null
     ITexture2DPtr src;
-    ITexture2DPtr dst;
     int block_size = 5;
 };
 
 struct MatchParams
 {
+    ITexture2DPtr dst; // out. will be created if null
     ITexture2DPtr src;
-    ITexture2DPtr dst;
     ITexture2DPtr template_image;
-};
-
-struct ReduceMinmaxParams
-{
-    ITexture2DPtr src;
 };
 
 struct ReduceMinmaxResult
@@ -254,20 +273,28 @@ struct ReduceMinmaxResult
     float val_max{};
 };
 
-class IGraphicsInterface
+struct ReduceMinmaxParams
+{
+    std::future<ReduceMinmaxResult> result; // out
+    ITexture2DPtr src;
+};
+
+class IGfxInterface
 {
 public:
-    virtual ~IGraphicsInterface() {};
+    using CaptureCallback = std::function<void(ITexture2DPtr tex)>;
+
+    virtual ~IGfxInterface() {};
     virtual void release() = 0;
 
     virtual ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) = 0;
-    virtual ITexture2DPtr captureScreen(HWND hwnd) = 0;
-    virtual ITexture2DPtr captureMonitor(HMONITOR hmon) = 0;
+    virtual IScreenCapturePtr createScreenCapture(HWND hwnd) = 0;
+    virtual IScreenCapturePtr createScreenCapture(HMONITOR hmon) = 0;
 
-    virtual void transform(const TransformParams& v) = 0;
-    virtual void contour(const ContourParams& v) = 0;
-    virtual void match(const MatchParams& v) = 0;
-    virtual std::future<ReduceMinmaxResult> reduceMinMax(const ReduceMinmaxParams& v) = 0;
+    virtual void transform(TransformParams& v) = 0;
+    virtual void contour(ContourParams& v) = 0;
+    virtual void match(MatchParams& v) = 0;
+    virtual void reduceMinMax(ReduceMinmaxParams& v) = 0;
 
     virtual void flush() = 0;
     virtual void wait() = 0;

@@ -269,13 +269,14 @@ size_t Buffer::stride() const
 }
 
 
-Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, DXGI_FORMAT format, const void* data, uint32_t stride)
+Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t stride)
 {
     auto ret = std::make_shared<Texture2D>();
     ret->m_size = { (int)w, (int)h };
     ret->m_format = format;
+    auto dxformat = GetDXFormat(format);
     {
-        D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, format, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
+        D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, dxformat, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 
         D3D11_SUBRESOURCE_DATA sd{ data, stride, 0 };
@@ -284,31 +285,18 @@ Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, DXGI_FORMAT format, const
     if (ret->m_texture) {
         {
             D3D11_SHADER_RESOURCE_VIEW_DESC desc{};
-            desc.Format = format;
+            desc.Format = dxformat;
             desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             desc.Texture2D.MipLevels = 1;
             mrGetDevice()->CreateShaderResourceView(ret->m_texture.get(), &desc, ret->m_srv.put());
         }
         {
             D3D11_UNORDERED_ACCESS_VIEW_DESC desc{};
-            desc.Format = format;
+            desc.Format = dxformat;
             desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
             desc.Texture2D.MipSlice = 0;
             mrGetDevice()->CreateUnorderedAccessView(ret->m_texture.get(), &desc, ret->m_uav.put());
         }
-    }
-    return ret->valid() ? ret : nullptr;
-}
-
-Texture2DPtr Texture2D::createStaging(uint32_t w, uint32_t h, DXGI_FORMAT format)
-{
-    auto ret = std::make_shared<Texture2D>();
-    ret->m_size = { (int)w, (int)h };
-    ret->m_format = format;
-    {
-        D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, format, { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-        mrGetDevice()->CreateTexture2D(&desc, nullptr, ret->m_texture.put());
     }
     return ret->valid() ? ret : nullptr;
 }
@@ -322,7 +310,7 @@ std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
 
     ret->m_texture = v;
     ret->m_size = { (int)desc.Width, (int)desc.Height };
-    ret->m_format = desc.Format;
+    ret->m_format = GetMRFormat(desc.Format);
     if (desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) {
         D3D11_SHADER_RESOURCE_VIEW_DESC desc{};
         desc.Format = desc.Format;
@@ -350,6 +338,11 @@ bool Texture2D::operator!=(const Texture2D& v) const
     return v.m_texture != m_texture;
 }
 
+void Texture2D::release()
+{
+    delete this;
+}
+
 bool Texture2D::valid() const
 {
     return m_texture != nullptr;
@@ -370,14 +363,43 @@ ID3D11UnorderedAccessView* Texture2D::uav()
     return m_uav.get();
 }
 
-int2 Texture2D::size() const
+int2 Texture2D::getSize() const
 {
     return m_size;
 }
 
-DXGI_FORMAT Texture2D::format() const
+TextureFormat Texture2D::getFormat() const
 {
-    return m_format;
+    return TextureFormat();
+}
+
+void Texture2D::readImpl()
+{
+    if (!m_staging) {
+        D3D11_TEXTURE2D_DESC desc{ (UINT)m_size.x, (UINT)m_size.y, 1, 1, GetDXFormat(m_format), { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        mrGetDevice()->CreateTexture2D(&desc, nullptr, m_staging.put());
+    }
+    DispatchCopy(m_staging.get(), m_texture.get());
+    FlushCommands();
+}
+
+bool Texture2D::read(const ReadCallback& callback)
+{
+    readImpl();
+    return MapRead(m_staging.get(), [&](const void* data, int pitch) {
+        callback(data, pitch);
+        });
+}
+
+std::future<bool> Texture2D::readAsync(const ReadCallback& callback)
+{
+    readImpl();
+    return std::async(std::launch::async, [this, callback]() {
+        return MapRead(m_staging.get(), [&](const void* data, int pitch) {
+            callback(data, pitch);
+            });
+        });
 }
 
 
@@ -400,14 +422,14 @@ void CSContext::setCBuffer(BufferPtr v, int slot)
     m_cbuffers[slot] = v->ptr();
 }
 
-void CSContext::setSRV(DeviceObjectPtr v, int slot)
+void CSContext::setSRV(DeviceResourcePtr v, int slot)
 {
     if (slot >= m_srvs.size())
         m_srvs.resize(slot + 1);
     m_srvs[slot] = v->srv();
 }
 
-void CSContext::setUAV(DeviceObjectPtr v, int slot)
+void CSContext::setUAV(DeviceResourcePtr v, int slot)
 {
     if (slot >= m_uavs.size())
         m_uavs.resize(slot + 1);
@@ -451,9 +473,37 @@ void CSContext::clear()
 }
 
 
-void DispatchCopy(DeviceObjectPtr dst, DeviceObjectPtr src)
+
+TextureFormat GetMRFormat(DXGI_FORMAT f)
 {
-    mrGetContext()->CopyResource(dst->ptr(), src->ptr());
+    switch (f) {
+    case DXGI_FORMAT_R8_UNORM: return TextureFormat::Ru8;
+    case DXGI_FORMAT_R8G8B8A8_UNORM: return TextureFormat::RGBAu8;
+    case DXGI_FORMAT_R32_FLOAT: return TextureFormat::Rf32;
+    case DXGI_FORMAT_R32_SINT: return TextureFormat::Ri32;
+    default: return TextureFormat::Unknown;
+    }
+}
+
+DXGI_FORMAT GetDXFormat(TextureFormat f)
+{
+    switch (f) {
+    case TextureFormat::Ru8: return DXGI_FORMAT_R8_UNORM;
+    case TextureFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_UNORM;
+    case TextureFormat::Rf32: return DXGI_FORMAT_R32_FLOAT;
+    case TextureFormat::Ri32: return DXGI_FORMAT_R32_SINT;
+    default: return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src)
+{
+    mrGetContext()->CopyResource(dst, src);
+}
+
+void DispatchCopy(DeviceResourcePtr dst, DeviceResourcePtr src)
+{
+    DispatchCopy(dst->ptr(), src->ptr());
 }
 
 void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset)
@@ -491,10 +541,9 @@ bool MapRead(BufferPtr src, const std::function<void (const void*)>& callback)
     return false;
 }
 
-bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback)
+bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback)
 {
     auto ctx = mrGetContext();
-    auto buf = src->ptr();
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
@@ -507,6 +556,16 @@ bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pi
         return true;
     }
     return false;
+}
+
+bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback)
+{
+    return MapRead(src->ptr(), callback);
+}
+
+void FlushCommands()
+{
+    mrGetContext()->Flush();
 }
 
 
