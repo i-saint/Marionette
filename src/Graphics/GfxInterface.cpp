@@ -12,16 +12,16 @@ public:
     ~GfxInterface() override;
     void release() override;
 
-    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) override;
+    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data, int pitch) override;
     IScreenCapturePtr createScreenCapture() override;
 
     void transform(TransformParams& v) override;
     void contour(ContourParams& v) override;
-    void match(MatchParams& v) override;
+    void templateMatch(TemplateMatchParams& v) override;
     void reduceMinMax(ReduceMinmaxParams& v) override;
 
     void flush() override;
-    void wait() override;
+    void sync(int timeout_ms) override;
 
     void lock() override;
     void unlock() override;
@@ -80,17 +80,44 @@ void GfxInterface::transform(TransformParams& v)
 
 void GfxInterface::contour(ContourParams& v)
 {
-    // todo
+    if (!v.src)
+        return;
+    if (!v.dst) {
+        auto size = v.src->getSize();
+        v.dst = Texture2D::create(size.x, size.y, v.src->getFormat());
+    }
+
+    m_contour.setSrcImage(i2c(v.src));
+    m_contour.setDstImage(i2c(v.dst));
+    m_contour.setBlockSize(v.block_size);
+    m_contour.dispatch();
 }
 
-void GfxInterface::match(MatchParams& v)
+void GfxInterface::templateMatch(TemplateMatchParams& v)
 {
-    // todo
+    if (!v.src || !v.template_image)
+        return;
+    if (!v.dst) {
+        auto size = v.src->getSize() - v.template_image->getSize();
+        v.dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
+        if (!v.dst)
+            return;
+    }
+
+    m_template_match.setSrcImage(i2c(v.src));
+    m_template_match.setTemplateImage(i2c(v.template_image));
+    m_template_match.setDstImage(i2c(v.dst));
+    m_template_match.dispatch();
 }
 
 void GfxInterface::reduceMinMax(ReduceMinmaxParams& v)
 {
-    // todo
+    if (!v.src)
+        return;
+
+    m_reduce_minmax.setSrcImage(i2c(v.src));
+    m_reduce_minmax.dispatch();
+    v.result = m_reduce_minmax.getResult();
 }
 
 void GfxInterface::flush()
@@ -98,9 +125,9 @@ void GfxInterface::flush()
     mrGfxGlobals()->flush();
 }
 
-void GfxInterface::wait()
+void GfxInterface::sync(int timeout_ms)
 {
-    mrGfxGlobals()->wait();
+    mrGfxGlobals()->sync(timeout_ms);
 }
 
 void GfxInterface::lock()
@@ -111,6 +138,11 @@ void GfxInterface::lock()
 void GfxInterface::unlock()
 {
     mrGfxGlobals()->unlock();
+}
+
+mrAPI IGfxInterface* CreateGfxInterface()
+{
+    return new GfxInterface();
 }
 
 } // namespace mr

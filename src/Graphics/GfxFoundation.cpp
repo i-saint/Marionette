@@ -155,7 +155,7 @@ void GfxGlobals::flush()
     m_context->Flush();
 }
 
-bool GfxGlobals::wait(int timeout_ms)
+bool GfxGlobals::sync(int timeout_ms)
 {
     auto fv = addFenceEvent();
     flush();
@@ -288,6 +288,9 @@ size_t Buffer::stride() const
 
 Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t stride)
 {
+    if (w <= 0 || h <= 0)
+        return nullptr;
+
     auto ret = std::make_shared<Texture2D>();
     ret->m_size = { (int)w, (int)h };
     ret->m_format = format;

@@ -267,7 +267,7 @@ struct ContourParams
     int block_size = 5;
 };
 
-struct MatchParams
+struct TemplateMatchParams
 {
     ITexture2DPtr dst; // out. will be created if null
     ITexture2DPtr src;
@@ -299,11 +299,11 @@ public:
 
     virtual void transform(TransformParams& v) = 0;
     virtual void contour(ContourParams& v) = 0;
-    virtual void match(MatchParams& v) = 0;
+    virtual void templateMatch(TemplateMatchParams& v) = 0;
     virtual void reduceMinMax(ReduceMinmaxParams& v) = 0;
 
     virtual void flush() = 0;
-    virtual void wait() = 0;
+    virtual void sync(int timeout_ms = 1000) = 0;
 
     virtual void lock() = 0;
     virtual void unlock() = 0;
@@ -315,6 +315,10 @@ public:
         body();
     }
 };
+mrDeclPtr(IGfxInterface);
+
+mrAPI IGfxInterface* CreateGfxInterface();
+mrDefShared(CreateGfxInterface);
 
 
 mrAPI void Initialize();

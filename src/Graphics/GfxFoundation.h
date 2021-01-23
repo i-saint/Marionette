@@ -40,7 +40,7 @@ public:
     uint64_t addFenceEvent();
     bool waitFence(uint64_t v, uint32_t timeout_ms = 1000);
     void flush();
-    bool wait(int timeout_ms = 1000);
+    bool sync(int timeout_ms = 1000);
 
     ID3D11SamplerState* getDefaultSampler();
 
@@ -76,6 +76,7 @@ private:
 #define mrGfxDevice() mrGfxGlobals()->getDevice()
 #define mrGfxContext() mrGfxGlobals()->getContext()
 #define mrGfxDefaultSampler() mrGfxGlobals()->getDefaultSampler()
+#define mrGfxSync(...) mrGfxGlobals()->sync(__VA_ARGS__)
 #define mrGfxLock(Body) mrGfxGlobals()->lock(Body)
 
 

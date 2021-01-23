@@ -30,7 +30,6 @@ void Transform::setSrcImage(Texture2DPtr v)
         return;
     m_src = v;
     m_ctx.setSRV(m_src);
-    m_dirty = true;
 }
 
 void Transform::setDstImage(Texture2DPtr v)
@@ -39,7 +38,6 @@ void Transform::setDstImage(Texture2DPtr v)
         return;
     m_dst = v;
     m_ctx.setUAV(m_dst);
-    m_dirty = true;
 }
 
 void Transform::setCopyRegion(int2 pos, int2 size)
@@ -98,15 +96,17 @@ void Transform::dispatch()
         m_dirty = false;
     }
 
-    m_ctx.dispatch(m_size.x, m_size.y);
+    m_ctx.dispatch(
+        ceildiv(m_size.x, 32),
+        ceildiv(m_size.y, 32));
 }
 
 void Transform::clear()
 {
+    m_ctx.clear();
     m_src = {};
     m_dst = {};
     m_const = {};
-    m_ctx.clear();
     m_dirty = true;
 }
 
@@ -121,7 +121,7 @@ void Contour::setSrcImage(Texture2DPtr v)
     if (m_src == v)
         return;
     m_src = v;
-    m_dirty = true;
+    m_ctx.setSRV(m_src);
 }
 
 void Contour::setDstImage(Texture2DPtr v)
@@ -129,7 +129,7 @@ void Contour::setDstImage(Texture2DPtr v)
     if (m_dst == v)
         return;
     m_dst = v;
-    m_dirty = true;
+    m_ctx.setUAV(m_dst);
 }
 
 void Contour::setBlockSize(int v)
@@ -142,12 +142,35 @@ void Contour::setBlockSize(int v)
 
 void Contour::dispatch()
 {
-    // todo
+    if (!m_src || !m_dst)
+        return;
+
+    if (m_dirty) {
+        struct
+        {
+            int range;
+            int3 pad;
+        } params{};
+        params.range = (m_block_size - 1) / 2;
+
+        m_const = Buffer::createConstant(params);
+        m_ctx.setCBuffer(m_const);
+
+        m_dirty = false;
+    }
+
+    auto size = m_dst->getSize();
+    m_ctx.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
 }
 
 void Contour::clear()
 {
-    // todo
+    m_ctx.clear();
+    m_src = {};
+    m_dst = {};
+    m_dirty = true;
 }
 
 
@@ -157,56 +180,73 @@ TemplateMatch::TemplateMatch()
     m_ctx_binary.initialize(mrBytecode(g_hlsl_MatchBinary));
 }
 
-void TemplateMatch::setImage(Texture2DPtr v)
+void TemplateMatch::setSrcImage(Texture2DPtr v)
 {
-    if (m_image == v)
+    if (m_src == v)
         return;
-    m_image = v;
-    m_dirty = true;
+    m_src = v;
 }
 
-void TemplateMatch::setTemplate(Texture2DPtr v)
+void TemplateMatch::setDstImage(Texture2DPtr v)
+{
+    if (m_dst == v)
+        return;
+    m_dst = v;
+}
+
+void TemplateMatch::setTemplateImage(Texture2DPtr v)
 {
     if (m_template == v)
         return;
     m_template = v;
-    m_dirty = true;
 }
 
 void TemplateMatch::dispatch()
 {
-    // todo
+    if (!m_src || !m_dst)
+        return;
+
+    auto size = m_dst->getSize();
+    if (m_src->getFormat() == TextureFormat::Ru8) {
+        m_ctx_grayscale.setSRV(m_src, 0);
+        m_ctx_grayscale.setSRV(m_template, 1);
+        m_ctx_grayscale.setUAV(m_dst);
+
+        m_ctx_grayscale.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
+    else if (m_src->getFormat() == TextureFormat::Ri32) {
+        m_ctx_binary.setSRV(m_src, 0);
+        m_ctx_binary.setSRV(m_template, 1);
+        m_ctx_binary.setUAV(m_dst);
+
+        m_ctx_binary.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
 }
 
 void TemplateMatch::clear()
 {
-    // todo
+    m_ctx_grayscale.clear();
+    m_ctx_binary.clear();
+
+    m_src = {};
+    m_dst = {};
+    m_template = {};
 }
 
 
 ReduceMinMax::ReduceMinMax()
 {
-    mrCheck16(Result);
     m_ctx1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
     m_ctx2.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass2));
-    m_staging = Buffer::createStaging(sizeof(Result));
 }
 
-void ReduceMinMax::setImage(Texture2DPtr v)
+void ReduceMinMax::setSrcImage(Texture2DPtr v)
 {
     m_src = v;
-
-    if (v) {
-        size_t rsize = v->getSize().y * sizeof(Result);
-        if (!m_result || m_result->size() != rsize) {
-            m_result = Buffer::createStructured(rsize, sizeof(Result));
-        }
-
-        m_ctx1.setSRV(v);
-        m_ctx1.setUAV(m_result);
-        m_ctx2.setSRV(v);
-        m_ctx2.setUAV(m_result);
-    }
 }
 
 void ReduceMinMax::dispatch()
@@ -214,33 +254,55 @@ void ReduceMinMax::dispatch()
     if (!m_src)
         return;
 
+    struct Result
+    {
+        int2 pos_min;
+        int2 pos_max;
+        float val_min;
+        float val_max;
+        int pad[2];
+    };
+    mrCheck16(Result);
+
+    size_t rsize = m_src->getSize().y * sizeof(Result);
+    if (!m_dst || m_dst->size() != rsize)
+        m_dst = Buffer::createStructured(rsize, sizeof(Result));
+    if(!m_staging)
+        m_staging = Buffer::createStaging(sizeof(Result));
+
+    m_ctx1.setSRV(m_src);
+    m_ctx1.setUAV(m_dst);
+    m_ctx2.setSRV(m_src);
+    m_ctx2.setUAV(m_dst);
+
     auto image_size = m_src->getSize();
     m_ctx1.dispatch(1, image_size.y);
     m_ctx2.dispatch(1, 1);
-    DispatchCopy(m_staging, m_result, sizeof(Result));
+    DispatchCopy(m_staging, m_dst, sizeof(Result));
 
-    auto fv = GfxGlobals::get()->addFenceEvent();
-    m_task = std::async(std::launch::async, [this, fv]() {
-        GfxGlobals::get()->waitFence(fv);
-        Result ret{};
-        MapRead(m_staging, [&ret](const void* v) {
-            ret = *(Result*)v;
-            });
-        return ret;
-        });
 }
 
 void ReduceMinMax::clear()
 {
+    m_src = {};
+    m_dst = {};
+    m_staging = {};
+
     m_ctx1.clear();
     m_ctx2.clear();
 }
 
-ReduceMinMax::Result ReduceMinMax::getResult()
+std::future<ReduceMinmaxResult> ReduceMinMax::getResult()
 {
-    if (m_task.valid())
-        return m_task.get();
-    return {};
+    auto fv = GfxGlobals::get()->addFenceEvent();
+    return std::async(std::launch::async, [this, fv]() {
+        GfxGlobals::get()->waitFence(fv);
+        ReduceMinmaxResult ret{};
+        MapRead(m_staging, [&ret](const void* v) {
+            ret = *(ReduceMinmaxResult*)v;
+            });
+        return ret;
+        });
 }
 
 } // namespace mr

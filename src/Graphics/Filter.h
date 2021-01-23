@@ -70,17 +70,17 @@ class TemplateMatch : public IFilter
 {
 public:
     TemplateMatch();
-    void setImage(Texture2DPtr v);
-    void setTemplate(Texture2DPtr v);
+    void setSrcImage(Texture2DPtr v);
+    void setDstImage(Texture2DPtr v);
+    void setTemplateImage(Texture2DPtr v);
 
     void dispatch() override;
     void clear() override;
 
 private:
-    Texture2DPtr m_image;
+    Texture2DPtr m_src;
     Texture2DPtr m_template;
     Texture2DPtr m_dst;
-    bool m_dirty = true;
 
     CSContext m_ctx_grayscale;
     CSContext m_ctx_binary;
@@ -90,28 +90,18 @@ private:
 class ReduceMinMax : public IFilter
 {
 public:
-    struct Result
-    {
-        int2 pos_min;
-        int2 pos_max;
-        float val_min;
-        float val_max;
-        int pad[2];
-    };
-
     ReduceMinMax();
-    void setImage(Texture2DPtr v);
+    void setSrcImage(Texture2DPtr v);
 
     void dispatch() override;
     void clear() override;
 
-    Result getResult();
+    std::future<ReduceMinmaxResult> getResult();
 
 private:
     Texture2DPtr m_src;
-    BufferPtr m_result;
+    BufferPtr m_dst;
     BufferPtr m_staging;
-    std::future<Result> m_task;
 
     CSContext m_ctx1;
     CSContext m_ctx2;
