@@ -14,8 +14,9 @@ struct SetDllSearchPath
 
 TestCase(Image)
 {
-    //auto image = mr::CaptureEntireScreen();
-    //cv::imwrite("screen.png", image);
+    mr::CaptureEntireScreen([](const void* data, int w, int h) {
+        mr::SaveAsPNG("EntireScreen.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
+        });
 }
 
 TestCase(ScreenCapture)

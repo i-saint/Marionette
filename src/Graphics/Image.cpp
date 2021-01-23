@@ -44,7 +44,7 @@ cv::Mat MakeCVImage(const void* data_, int width, int height, int src_pitch, int
 
 // Blt: [](HDC hscreen, HDC hdc) -> void
 template<class Blt>
-static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
+static cv::Mat CaptureImplCV(RECT rect, HWND hwnd, const Blt& blt)
 {
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
@@ -78,40 +78,40 @@ static cv::Mat CaptureImpl(RECT rect, HWND hwnd, const Blt& blt)
 }
 
 
-cv::Mat CaptureScreen(RECT rect)
+cv::Mat CaptureScreenCV(RECT rect)
 {
     int x = rect.left;
     int y = rect.top;
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    mrProfile("CaptureScreen %dx%d at %d,%d: ", width, height, x, y);
+    mrProfile("CaptureScreenCV %dx%d at %d,%d: ", width, height, x, y);
 
-    return CaptureImpl(rect, nullptr, [&](HDC hscreen, HDC hdc) {
+    return CaptureImplCV(rect, nullptr, [&](HDC hscreen, HDC hdc) {
         ::StretchBlt(hdc, 0, 0, width, height, hscreen, x, y, width, height, SRCCOPY);
         });
 }
 
-cv::Mat CaptureEntireScreen()
+cv::Mat CaptureEntireScreenCV()
 {
     int x = ::GetSystemMetrics(SM_XVIRTUALSCREEN);
     int y = ::GetSystemMetrics(SM_YVIRTUALSCREEN);
     int width = ::GetSystemMetrics(SM_CXVIRTUALSCREEN);
     int height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    mrProfile("CaptureEntireScreen %dx%d at %d,%d: ", width, height, x, y);
+    mrProfile("CaptureEntireScreenCV %dx%d at %d,%d: ", width, height, x, y);
 
-    return CaptureScreen({ x, y, width + x, height + y });
+    return CaptureScreenCV({ x, y, width + x, height + y });
 }
 
-cv::Mat CaptureWindow(HWND hwnd)
+cv::Mat CaptureWindowCV(HWND hwnd)
 {
     RECT rect{};
     ::GetWindowRect(hwnd, &rect);
 
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    mrProfile("CaptureWindow %d %d: ", width, height);
+    mrProfile("CaptureWindowCV %d %d: ", width, height);
 
-    return CaptureImpl(rect, hwnd, [&](HDC hscreen, HDC hdc) {
+    return CaptureImplCV(rect, hwnd, [&](HDC hscreen, HDC hdc) {
         // BitBlt() can't capture Chrome, Edge, etc. PrintWindow() with PW_RENDERFULLCONTENT can do it.
         //::BitBlt(hdc, 0, 0, width, height, hscreen, 0, 0, SRCCOPY);
         ::PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT);
@@ -169,9 +169,9 @@ void ScreenData::match(const MatchImageParams& args)
             scale_screen /= scale_factor;
 
         if (args.target_window)
-            image = CaptureWindow(args.target_window);
+            image = CaptureWindowCV(args.target_window);
         else
-            image = CaptureScreen(screen_rect);
+            image = CaptureScreenCV(screen_rect);
 
         // resize images to half and convert to binary
 #ifdef mrDbgScreenshots

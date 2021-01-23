@@ -205,7 +205,7 @@ bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callbac
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
 
-bool SaveAsPng(const char* path, Texture2DPtr tex);
+bool SaveTextureAsPNG(const char* path, Texture2DPtr tex);
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)

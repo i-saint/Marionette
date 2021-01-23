@@ -6,8 +6,9 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-namespace mr {
+#pragma comment(lib, "d3d11.lib")
 
+namespace mr {
 
 FenceEvent::FenceEvent()
 {
@@ -625,7 +626,7 @@ bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pi
     return MapRead(src->ptr(), callback);
 }
 
-bool SaveAsPng(const char* path, Texture2DPtr tex)
+bool SaveTextureAsPNG(const char* path, Texture2DPtr tex)
 {
     return MapRead(tex, [path, &tex](const void* data, int pitch) {
         auto size = tex->getSize();
@@ -649,6 +650,45 @@ bool SaveAsPng(const char* path, Texture2DPtr tex)
         }
 
         });
+}
+
+mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch, bool flip_y)
+{
+    if (pitch == 0) {
+        switch (format) {
+        case PixelFormat::Ru8: pitch = w * 1; break;
+        case PixelFormat::BGRAu8: pitch = w * 4; break;
+        case PixelFormat::RGBAu8: pitch = w * 4; break;
+        default: break;
+        }
+    }
+
+    if (format == PixelFormat::Ru8) {
+        return stbi_write_png(path, w, h, 1, data, pitch);
+    }
+    else if (format == PixelFormat::BGRAu8) {
+        std::vector<byte> buf(w * h * 4);
+        int dst_pitch = w * 4;
+
+        auto src = (const byte*)data;
+        for (int i = 0; i < h; ++i) {
+            auto s = src + (flip_y ? (pitch * (h - i - 1)) : (pitch * i));
+            auto d = buf.data() + (dst_pitch * i);
+            for (int j = 0; j < w; ++j) {
+                d[0] = s[2];
+                d[1] = s[1];
+                d[2] = s[0];
+                d[3] = s[3];
+                s += 4;
+                d += 4;
+            }
+        }
+        return stbi_write_png(path, w, h, 4, buf.data(), dst_pitch);
+    }
+    else if (format == PixelFormat::RGBAu8) {
+        return stbi_write_png(path, w, h, 4, data, pitch);
+    }
+    return false;
 }
 
 } // namespace mr

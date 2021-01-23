@@ -14,6 +14,7 @@
     <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="Graphics\DesktopDuplication.cpp" />
     <ClCompile Include="Graphics\Filter.cpp" />
+    <ClCompile Include="Graphics\GDI.cpp" />
     <ClCompile Include="Graphics\GfxFoundation.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />

@@ -190,9 +190,6 @@ struct MatchImageParams
 };
 mrAPI float MatchImage(MatchImageParams& params);
 cv::Mat MakeCVImage(const void* data, int width, int height, int pitch, int ch = 4, bool flip_y = false);
-cv::Mat CaptureScreen(RECT rect);
-cv::Mat CaptureEntireScreen();
-cv::Mat CaptureWindow(HWND hwnd);
 #endif // mrWithOpenCV
 
 
@@ -320,6 +317,21 @@ mrDeclPtr(IGfxInterface);
 
 mrAPI IGfxInterface* CreateGfxInterface();
 mrDefShared(CreateGfxInterface);
+
+using BitmapCallback = std::function<void(const void* data, int width, int height)>;
+mrAPI bool CaptureEntireScreen(const BitmapCallback& callback);
+mrAPI bool CaptureScreen(RECT rect, const BitmapCallback& callback);
+mrAPI bool CaptureMonitor(HMONITOR hmon, const BitmapCallback& callback);
+mrAPI bool CaptureWindow(HWND hwnd, const BitmapCallback& callback);
+
+enum class PixelFormat
+{
+    Unknown,
+    Ru8,
+    RGBAu8,
+    BGRAu8,
+};
+mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch = 0, bool flip_y = false);
 
 
 mrAPI void Initialize();
