@@ -1,6 +1,11 @@
 #include "pch.h"
 #include "GfxFoundation.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
+#include <stb_image_write.h>
+
 namespace mr {
 
 
@@ -203,6 +208,7 @@ BufferPtr Buffer::createStructured(uint32_t size, uint32_t stride, const void* d
     {
         D3D11_BUFFER_DESC desc{ size, D3D11_USAGE_DEFAULT, 0, 0, 0, stride };
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 
         D3D11_SUBRESOURCE_DATA sd{ data, 0, 0 };
         mrGfxDevice()->CreateBuffer(&desc, data ? &sd : nullptr, ret->m_buffer.put());
@@ -275,12 +281,12 @@ ID3D11UnorderedAccessView* Buffer::uav()
     return m_uav.get();
 }
 
-size_t Buffer::size() const
+int Buffer::getSize() const
 {
     return m_size;
 }
 
-size_t Buffer::stride() const
+int Buffer::getStride() const
 {
     return m_stride;
 }
@@ -319,6 +325,42 @@ Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, con
         }
     }
     return ret->valid() ? ret : nullptr;
+}
+
+Texture2DPtr Texture2D::create(const char* path)
+{
+    Texture2DPtr ret;
+
+    int w, h, ch;
+    byte* data = stbi_load(path, &w, &h, &ch, 0);
+    if (data) {
+        if (ch == 1) {
+            ret = create(w, h, TextureFormat::Ru8, data, w * 1);
+        }
+        else if (ch == 4) {
+            ret = create(w, h, TextureFormat::RGBAu8, data, w * 4);
+        }
+        else if (ch == 3) {
+            std::vector<byte> tmp(w * h * 4);
+            for (int i = 0; i < h; ++i) {
+                auto s = data + (w * 3 * i);
+                auto d = tmp.data() + (w * 4 * i);
+                for (int j = 0; j < w; ++j) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = 255;
+                    s += 3;
+                    d += 4;
+                }
+            }
+            ret = create(w, h, TextureFormat::RGBAu8, tmp.data(), w * 4);
+        }
+
+        stbi_image_free(data);
+    }
+
+    return nullptr;
 }
 
 std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
@@ -401,7 +443,7 @@ void Texture2D::readImpl()
         mrGfxDevice()->CreateTexture2D(&desc, nullptr, m_staging.put());
     }
     DispatchCopy(m_staging.get(), m_texture.get());
-    FlushCommands();
+    mrGfxFlush();
 }
 
 bool Texture2D::read(const ReadCallback& callback)
@@ -583,10 +625,30 @@ bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pi
     return MapRead(src->ptr(), callback);
 }
 
-void FlushCommands()
+bool SaveAsPng(const char* path, Texture2DPtr tex)
 {
-    mrGfxContext()->Flush();
-}
+    return MapRead(tex, [path, &tex](const void* data, int pitch) {
+        auto size = tex->getSize();
+        auto format = tex->getFormat();
+        if (format == TextureFormat::RGBAu8) {
+            stbi_write_png(path, size.x, size.y, 4, data, pitch);
+        }
+        else if (format == TextureFormat::Ru8) {
+            stbi_write_png(path, size.x, size.y, 1, data, pitch);
+        }
+        else if (format == TextureFormat::Rf32) {
+            std::vector<byte> buf(size.x * size.y);
+            for (int i = 0; i < size.y; ++i) {
+                auto s = (const float*)((const byte*)data + (pitch * i));
+                auto d = buf.data() + (size.x * i);
+                for (int j = 0; j < size.x; ++j) {
+                    *d++ = byte(*s++ * 255.0f);
+                }
+            }
+            stbi_write_png(path, size.x, size.y, 1, buf.data(), size.x);
+        }
 
+        });
+}
 
 } // namespace mr

@@ -1,9 +1,5 @@
 #include "pch.h"
 #include "Test.h"
-
-#define mrWithOpenCV
-#define mrWithWindowsGraphicsCapture
-#include <d3d11.h>
 #include "MouseReplayer.h"
 
 
@@ -18,8 +14,8 @@ struct SetDllSearchPath
 
 TestCase(Image)
 {
-    auto image = mr::CaptureEntireScreen();
-    cv::imwrite("screen.png", image);
+    //auto image = mr::CaptureEntireScreen();
+    //cv::imwrite("screen.png", image);
 }
 
 TestCase(ScreenCapture)

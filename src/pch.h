@@ -22,7 +22,15 @@
 #include <d3d11.h>
 #include <d3d11_4.h>
 
-#define mrWithOpenCV
+
+#ifdef min
+    #undef min
+#endif
+#ifdef max
+    #undef max
+#endif
+
+//#define mrWithOpenCV
 
 #ifdef mrWithOpenCV
 #include <opencv2/opencv.hpp>

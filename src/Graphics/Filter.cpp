@@ -265,7 +265,7 @@ void ReduceMinMax::dispatch()
     mrCheck16(Result);
 
     size_t rsize = m_src->getSize().y * sizeof(Result);
-    if (!m_dst || m_dst->size() != rsize)
+    if (!m_dst || m_dst->getSize() != rsize)
         m_dst = Buffer::createStructured(rsize, sizeof(Result));
     if(!m_staging)
         m_staging = Buffer::createStaging(sizeof(Result));

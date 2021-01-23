@@ -13,6 +13,7 @@ public:
     void release() override;
 
     ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data, int pitch) override;
+    ITexture2DPtr createTextureFromFile(const char* path) override;
     IScreenCapturePtr createScreenCapture() override;
 
     void transform(TransformParams& v) override;
@@ -34,6 +35,7 @@ private:
     ReduceMinMax m_reduce_minmax;
 };
 
+
 GfxInterface::GfxInterface()
 {
 }
@@ -50,6 +52,11 @@ void GfxInterface::release()
 ITexture2DPtr GfxInterface::createTexture(int w, int h, TextureFormat f, const void* data, int pitch)
 {
     return Texture2D::create(w, h, f, data, pitch);
+}
+
+ITexture2DPtr GfxInterface::createTextureFromFile(const char* path)
+{
+    return Texture2D::create(path);
 }
 
 IScreenCapturePtr GfxInterface::createScreenCapture()

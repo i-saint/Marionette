@@ -295,6 +295,7 @@ public:
     virtual void release() = 0;
 
     virtual ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) = 0;
+    virtual ITexture2DPtr createTextureFromFile(const char* path) = 0;
     virtual IScreenCapturePtr createScreenCapture() = 0;
 
     virtual void transform(TransformParams& v) = 0;

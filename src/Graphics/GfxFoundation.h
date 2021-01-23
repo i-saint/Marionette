@@ -76,6 +76,7 @@ private:
 #define mrGfxDevice() mrGfxGlobals()->getDevice()
 #define mrGfxContext() mrGfxGlobals()->getContext()
 #define mrGfxDefaultSampler() mrGfxGlobals()->getDefaultSampler()
+#define mrGfxFlush(...) mrGfxGlobals()->flush()
 #define mrGfxSync(...) mrGfxGlobals()->sync(__VA_ARGS__)
 #define mrGfxLock(Body) mrGfxGlobals()->lock(Body)
 
@@ -120,12 +121,12 @@ public:
     ID3D11ShaderResourceView* srv() override;
     ID3D11UnorderedAccessView* uav() override;
 
-    size_t size() const;
-    size_t stride() const;
+    int getSize() const;
+    int getStride() const;
 
 private:
-    size_t m_size{};
-    size_t m_stride{};
+    int m_size{};
+    int m_stride{};
     com_ptr<ID3D11Buffer> m_buffer;
     com_ptr<ID3D11ShaderResourceView> m_srv;
     com_ptr<ID3D11UnorderedAccessView> m_uav;
@@ -136,6 +137,7 @@ class Texture2D : public DeviceResource, public ITexture2D
 {
 public:
     static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t stride = 0);
+    static Texture2DPtr create(const char* path);
     static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;
@@ -202,7 +204,8 @@ void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = i
 bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callback);
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
-void FlushCommands();
+
+bool SaveAsPng(const char* path, Texture2DPtr tex);
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)
