@@ -21,7 +21,7 @@ IFilter::~IFilter()
 Transform::Transform()
 {
     m_ctx.initialize(mrBytecode(g_hlsl_Transform));
-    m_ctx.setSampler(mrGetDefaultSampler());
+    m_ctx.setSampler(mrGfxDefaultSampler());
 }
 
 void Transform::setSrcImage(Texture2DPtr v)
@@ -219,9 +219,9 @@ void ReduceMinMax::dispatch()
     m_ctx2.dispatch(1, 1);
     DispatchCopy(m_staging, m_result, sizeof(Result));
 
-    auto fv = DeviceManager::get()->addFenceEvent();
+    auto fv = GfxGlobals::get()->addFenceEvent();
     m_task = std::async(std::launch::async, [this, fv]() {
-        DeviceManager::get()->waitFence(fv);
+        GfxGlobals::get()->waitFence(fv);
         Result ret{};
         MapRead(m_staging, [&ret](const void* v) {
             ret = *(Result*)v;

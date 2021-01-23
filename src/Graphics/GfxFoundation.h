@@ -26,12 +26,12 @@ private:
 };
 
 
-class DeviceManager
+class GfxGlobals
 {
 public:
     static bool initialize();
     static bool finalize();
-    static DeviceManager* get();
+    static GfxGlobals* get();
 
     bool valid() const;
     ID3D11Device5* getDevice();
@@ -40,13 +40,24 @@ public:
     uint64_t addFenceEvent();
     bool waitFence(uint64_t v, uint32_t timeout_ms = 1000);
     void flush();
+    bool wait(int timeout_ms = 1000);
 
     ID3D11SamplerState* getDefaultSampler();
 
+    void lock();
+    void unlock();
+
+    template<class Body>
+    inline void lock(const Body& body)
+    {
+        std::lock_guard lock(*this);
+        body();
+    }
+
 public:
-    DeviceManager();
-    ~DeviceManager();
-    DeviceManager(const DeviceManager&) = delete;
+    GfxGlobals();
+    ~GfxGlobals();
+    GfxGlobals(const GfxGlobals&) = delete;
 
 private:
     com_ptr<ID3D11Device5> m_device;
@@ -58,10 +69,14 @@ private:
 
     com_ptr<ID3D11SamplerState> m_sampler;
 
+    std::mutex m_mutex;
+
 };
-#define mrGetDevice() DeviceManager::get()->getDevice()
-#define mrGetContext() DeviceManager::get()->getContext()
-#define mrGetDefaultSampler() DeviceManager::get()->getDefaultSampler()
+#define mrGfxGlobals() GfxGlobals::get()
+#define mrGfxDevice() mrGfxGlobals()->getDevice()
+#define mrGfxContext() mrGfxGlobals()->getContext()
+#define mrGfxDefaultSampler() mrGfxGlobals()->getDefaultSampler()
+#define mrGfxLock(Body) mrGfxGlobals()->lock(Body)
 
 
 class DeviceResource;

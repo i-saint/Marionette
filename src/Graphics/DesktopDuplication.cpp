@@ -12,22 +12,22 @@ public:
 
     void release() override;
     bool valid() const override;
-    FrameInfo getFrame();
 
-    bool start(HMONITOR hmon);
-    void stop();
+    bool initializeDuplication(HMONITOR hmon);
+    bool startCapture(HWND hwnd) override;
+    bool startCapture(HMONITOR hmon) override;
+    void stopCapture() override;
+    FrameInfo getFrame() override;
 
-    using Callback = std::function<void(com_ptr<ID3D11Texture2D>& surface, uint64_t time)>;
-    bool getFrame(int timeout_ms, const Callback& calback);
-
-    // capture thread
+    // called from capture thread
     void captureLoop();
+    bool getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time);
 
 private:
     FrameInfo m_frame_info;
 
     com_ptr<IDXGIOutputDuplication> m_duplication;
-    bool m_end_flag = false;
+    std::atomic_bool m_end_flag = false;
     std::thread m_capture_thread;
     std::mutex m_mutex;
 };
@@ -35,7 +35,7 @@ private:
 
 DesktopDuplication::~DesktopDuplication()
 {
-    stop();
+    stopCapture();
 }
 
 void DesktopDuplication::release()
@@ -48,22 +48,12 @@ bool DesktopDuplication::valid() const
     return m_duplication != nullptr;
 }
 
-DesktopDuplication::FrameInfo DesktopDuplication::getFrame()
+bool DesktopDuplication::initializeDuplication(HMONITOR hmon)
 {
-    FrameInfo ret;
-    {
-        std::unique_lock l(m_mutex);
-        ret = m_frame_info;
-    }
-    return ret;
-}
-
-bool DesktopDuplication::start(HMONITOR hmon)
-{
-    stop();
+    stopCapture();
 
     mrProfile("DesktopDuplication::start");
-    auto device = mrGetDevice();
+    auto device = mrGfxDevice();
 
     // create duplication
     com_ptr<IDXGIDevice> dxgi;
@@ -92,22 +82,46 @@ bool DesktopDuplication::start(HMONITOR hmon)
         return false;
     if (FAILED(output1->DuplicateOutput(device, m_duplication.put())))
         return false;
-
-    m_capture_thread = std::thread([this]() { captureLoop(); });
     return true;
 }
 
-void DesktopDuplication::stop()
+bool DesktopDuplication::startCapture(HWND hwnd)
 {
-    m_end_flag = true;
+    return false;
+}
+
+bool DesktopDuplication::startCapture(HMONITOR hmon)
+{
+    if (initializeDuplication(hmon)) {
+        m_capture_thread = std::thread([this]() { captureLoop(); });
+        return true;
+    }
+    return false;
+}
+
+void DesktopDuplication::stopCapture()
+{
     if (m_capture_thread.joinable()) {
+        m_end_flag = true;
         m_capture_thread.join();
         m_capture_thread = {};
+        m_end_flag = false;
     }
     m_duplication = nullptr;
 }
 
-bool DesktopDuplication::getFrame(int timeout_ms, const Callback& calback)
+DesktopDuplication::FrameInfo DesktopDuplication::getFrame()
+{
+    FrameInfo ret;
+    {
+        std::unique_lock l(m_mutex);
+        ret = m_frame_info;
+    }
+    return ret;
+}
+
+
+bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time)
 {
     if (!m_duplication)
         return false;
@@ -118,10 +132,8 @@ bool DesktopDuplication::getFrame(int timeout_ms, const Callback& calback)
     auto hr = m_duplication->AcquireNextFrame(timeout_ms, &frame_info, resource.put());
     if (SUCCEEDED(hr)) {
         if (frame_info.LastPresentTime.QuadPart != 0) {
-            com_ptr<ID3D11Texture2D> surface;
             resource->QueryInterface(IID_PPV_ARGS(surface.put()));
-
-            calback(surface, (uint64_t)frame_info.LastPresentTime.QuadPart);
+            time = frame_info.LastPresentTime.QuadPart;
             ret = true;
         }
         m_duplication->ReleaseFrame();
@@ -141,13 +153,15 @@ void DesktopDuplication::captureLoop()
     const int kTimeout = 30; // in ms
 
     while (valid() && !m_end_flag) {
-        getFrame(kTimeout, [this](com_ptr<ID3D11Texture2D>& surface, uint64_t time) {
+        com_ptr<ID3D11Texture2D> surface{};
+        uint64_t time{};
+        if (getFrameInternal(kTimeout, surface, time)) {
             FrameInfo tmp{Texture2D::wrap(surface), time};
             {
                 std::unique_lock l(m_mutex);
                 m_frame_info = tmp;
             }
-            });
+        }
     }
 }
 

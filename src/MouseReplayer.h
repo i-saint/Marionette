@@ -241,6 +241,9 @@ public:
     virtual ~IScreenCapture() {};
     virtual void release() = 0;
     virtual bool valid() const = 0;
+    virtual bool startCapture(HWND hwnd) = 0;
+    virtual bool startCapture(HMONITOR hmon) = 0;
+    virtual void stopCapture() = 0;
     virtual FrameInfo getFrame() = 0;
 };
 mrDeclPtr(IScreenCapture);
@@ -288,14 +291,11 @@ struct ReduceMinmaxParams
 class IGfxInterface
 {
 public:
-    using CaptureCallback = std::function<void(ITexture2DPtr tex)>;
-
     virtual ~IGfxInterface() {};
     virtual void release() = 0;
 
     virtual ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) = 0;
-    virtual IScreenCapturePtr createScreenCapture(HWND hwnd) = 0;
-    virtual IScreenCapturePtr createScreenCapture(HMONITOR hmon) = 0;
+    virtual IScreenCapturePtr createScreenCapture() = 0;
 
     virtual void transform(TransformParams& v) = 0;
     virtual void contour(ContourParams& v) = 0;
@@ -304,6 +304,16 @@ public:
 
     virtual void flush() = 0;
     virtual void wait() = 0;
+
+    virtual void lock() = 0;
+    virtual void unlock() = 0;
+
+    template<class Body>
+    inline void lock(const Body& body)
+    {
+        std::lock_guard lock(*this);
+        body();
+    }
 };
 
 
