@@ -60,13 +60,13 @@
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">
+    <FxCompile Include="Graphics\Shaders\TemplateMatch_Binary.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
+    <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>

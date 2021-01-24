@@ -49,13 +49,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Graphics\Shaders\MatchGrayscale.hlsl">
+    <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Transform.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\MatchBinary.hlsl">
+    <FxCompile Include="Graphics\Shaders\TemplateMatch_Binary.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Contour.hlsl">

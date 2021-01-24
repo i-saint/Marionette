@@ -5,8 +5,8 @@
 #include "Transform.hlsl.h"
 #include "Contour.hlsl.h"
 #include "Binarize.hlsl.h"
-#include "MatchGrayscale.hlsl.h"
-#include "MatchBinary.hlsl.h"
+#include "TemplateMatch_Grayscale.hlsl.h"
+#include "TemplateMatch_Binary.hlsl.h"
 #include "ReduceMinMax_Pass1.hlsl.h"
 #include "ReduceMinMax_Pass2.hlsl.h"
 
@@ -240,8 +240,8 @@ void Binarize::clear()
 
 TemplateMatch::TemplateMatch()
 {
-    m_ctx_grayscale.initialize(mrBytecode(g_hlsl_MatchGrayscale));
-    m_ctx_binary.initialize(mrBytecode(g_hlsl_MatchBinary));
+    m_ctx_grayscale.initialize(mrBytecode(g_hlsl_TemplateMatch_Grayscale));
+    m_ctx_binary.initialize(mrBytecode(g_hlsl_TemplateMatch_Binary));
 }
 
 void TemplateMatch::setSrcImage(Texture2DPtr v)
