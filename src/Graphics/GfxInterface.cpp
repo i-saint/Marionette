@@ -64,7 +64,11 @@ IScreenCapturePtr GfxInterface::createScreenCapture()
     return CreateGraphicsCaptureShared();
 }
 
-inline std::shared_ptr<Texture2D>& i2c(std::shared_ptr<ITexture2D>& c) { return std::static_pointer_cast<Texture2D>(c); }
+
+inline std::shared_ptr<Texture2D> i2c(std::shared_ptr<ITexture2D>& c)
+{
+    return std::static_pointer_cast<Texture2D>(c);
+}
 
 void GfxInterface::transform(TransformParams& v)
 {

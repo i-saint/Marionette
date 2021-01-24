@@ -216,6 +216,9 @@ public:
 
     virtual bool read(const ReadCallback& callback) = 0;
     virtual std::future<bool> readAsync(const ReadCallback& callback) = 0;
+
+    virtual bool save(const std::string& path) = 0;
+    virtual std::future<bool> saveAsync(const std::string& path) = 0;
 };
 mrDeclPtr(ITexture2D);
 
@@ -326,7 +329,6 @@ mrAPI bool CaptureWindow(HWND hwnd, const BitmapCallback& callback);
 
 enum class PixelFormat
 {
-    Unknown,
     Ru8,
     RGBAu8,
     BGRAu8,

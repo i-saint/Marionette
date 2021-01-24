@@ -16,6 +16,7 @@
     <ClCompile Include="Graphics\Filter.cpp" />
     <ClCompile Include="Graphics\GDI.cpp" />
     <ClCompile Include="Graphics\GfxFoundation.cpp" />
+    <ClCompile Include="Graphics\GfxInterface.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
@@ -80,9 +81,6 @@
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Graphics\GfxInterface.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{63CBDC2A-183A-495A-9242-8F34277C7695}</ProjectGuid>

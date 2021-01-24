@@ -360,8 +360,7 @@ Texture2DPtr Texture2D::create(const char* path)
 
         stbi_image_free(data);
     }
-
-    return nullptr;
+    return ret;
 }
 
 std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
@@ -433,7 +432,7 @@ int2 Texture2D::getSize() const
 
 TextureFormat Texture2D::getFormat() const
 {
-    return TextureFormat();
+    return m_format;
 }
 
 void Texture2D::readImpl()
@@ -462,6 +461,44 @@ std::future<bool> Texture2D::readAsync(const ReadCallback& callback)
         return MapRead(m_staging.get(), [&](const void* data, int pitch) {
             callback(data, pitch);
             });
+        });
+}
+
+bool Texture2D::save(const std::string& path)
+{
+    bool ret = false;
+    read([this, path, &ret](const void* data, int pitch) {
+        auto size = getSize();
+        auto format = getFormat();
+        if (format == TextureFormat::RGBAu8) {
+            ret = stbi_write_png(path.c_str(), size.x, size.y, 4, data, pitch);
+        }
+        else if (format == TextureFormat::Ru8) {
+            ret = stbi_write_png(path.c_str(), size.x, size.y, 1, data, pitch);
+        }
+        else if (format == TextureFormat::Rf32) {
+            std::vector<byte> buf(size.x * size.y);
+            for (int i = 0; i < size.y; ++i) {
+                auto s = (const float*)((const byte*)data + (pitch * i));
+                auto d = buf.data() + (size.x * i);
+                for (int j = 0; j < size.x; ++j) {
+                    *d++ = byte(*s++ * 255.0f);
+                }
+            }
+            ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
+        }
+        else {
+            mrDbgPrint("Texture2D::save(): unknown format\n");
+        }
+
+        });
+    return ret;
+}
+
+std::future<bool> Texture2D::saveAsync(const std::string& path)
+{
+    return std::async(std::launch::async, [this, path]() {
+        return save(path);
         });
 }
 
@@ -624,32 +661,6 @@ bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, in
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback)
 {
     return MapRead(src->ptr(), callback);
-}
-
-bool SaveTextureAsPNG(const char* path, Texture2DPtr tex)
-{
-    return MapRead(tex, [path, &tex](const void* data, int pitch) {
-        auto size = tex->getSize();
-        auto format = tex->getFormat();
-        if (format == TextureFormat::RGBAu8) {
-            stbi_write_png(path, size.x, size.y, 4, data, pitch);
-        }
-        else if (format == TextureFormat::Ru8) {
-            stbi_write_png(path, size.x, size.y, 1, data, pitch);
-        }
-        else if (format == TextureFormat::Rf32) {
-            std::vector<byte> buf(size.x * size.y);
-            for (int i = 0; i < size.y; ++i) {
-                auto s = (const float*)((const byte*)data + (pitch * i));
-                auto d = buf.data() + (size.x * i);
-                for (int j = 0; j < size.x; ++j) {
-                    *d++ = byte(*s++ * 255.0f);
-                }
-            }
-            stbi_write_png(path, size.x, size.y, 1, buf.data(), size.x);
-        }
-
-        });
 }
 
 mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch, bool flip_y)

@@ -2,15 +2,16 @@
 #include "Test.h"
 #include "MouseReplayer.h"
 
-
-struct SetDllSearchPath
+static void SetDllSearchPath()
 {
-    SetDllSearchPath()
-    {
-        auto bin_path = mr::GetCurrentModuleDirectory() + "\\bin";
-        ::SetDllDirectoryA(bin_path.c_str());
-    }
-} s_SetDllSearchPath;
+    auto bin_path = mr::GetCurrentModuleDirectory() + "\\bin";
+    ::SetDllDirectoryA(bin_path.c_str());
+}
+
+testRegisterInitializer(mr,
+    []() { SetDllSearchPath(); ::mr::Initialize(); },
+    []() { ::mr::Finalize(); });
+
 
 TestCase(Image)
 {
@@ -21,6 +22,12 @@ TestCase(Image)
 
 TestCase(ScreenCapture)
 {
+    auto gfx = mr::CreateGfxInterfaceShared();
+
+    if (auto tex = gfx->createTextureFromFile("EntireScreen.png")) {
+        tex->save("TextureSave.png");
+    }
+
     //auto capture = mr::CreateScreenCaptureShared();
 
     //mr::IGraphicsCapture::Options opt;

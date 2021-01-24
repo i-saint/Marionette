@@ -8,12 +8,17 @@
 
 #define testPrint(...) ::test::PrintImpl(__VA_ARGS__)
 
-#define testRegisterTestEntry(Name)\
-    struct Register##Name {\
-        Register##Name() { ::test::RegisterTestEntryImpl(#Name, Name); }\
-    } g_Register##Name;
+#define testRegisterInitializer(Name, Init, Fini)\
+    static struct _TestInitializer_##Name {\
+        _TestInitializer_##Name() { ::test::RegisterInitializer(Init, Fini); }\
+    } g_TestInitializer_##Name;
 
-#define TestCase(Name) testExport void Name(); testRegisterTestEntry(Name); testExport void Name()
+#define testRegisterTestCase(Name)\
+    static struct _TestCase_##Name {\
+        _TestCase_##Name() { ::test::RegisterTestCaseImpl(#Name, Name); }\
+    } g_TestCase_##Name;
+
+#define TestCase(Name) testExport void Name(); testRegisterTestCase(Name); testExport void Name()
 #define Expect(Body) if(!(Body)) { Print("%s(%d): failed - " #Body "\n", __FILE__, __LINE__); }
 
 
@@ -23,7 +28,8 @@ using nanosec = uint64_t;
 nanosec Now();
 inline float NS2MS(nanosec ns) { return float(double(ns) / 1000000.0); }
 
-void RegisterTestEntryImpl(const char *name, const std::function<void()>& body);
+void RegisterInitializer(const std::function<void()>& init, const std::function<void()>& fini);
+void RegisterTestCaseImpl(const char* name, const std::function<void()>& body);
 void PrintImpl(const char *format, ...);
 template<class T> bool GetArg(const char* name, T& dst);
 

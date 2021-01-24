@@ -156,6 +156,9 @@ public:
     bool read(const ReadCallback& cb) override;
     std::future<bool> readAsync(const ReadCallback& callback) override;
 
+    bool save(const std::string& path) override;
+    std::future<bool> saveAsync(const std::string& path) override;
+
 private:
     int2 m_size{};
     TextureFormat m_format{};
@@ -204,8 +207,6 @@ void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = i
 bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callback);
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
 bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
-
-bool SaveTextureAsPNG(const char* path, Texture2DPtr tex);
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)

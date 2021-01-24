@@ -83,11 +83,23 @@ template bool GetArg(const char *name, float& dst);
 
 
 
+struct TestInitializer
+{
+    std::function<void()> initializer;
+    std::function<void()> finalizer;
+};
+
 struct TestEntry
 {
     std::string name;
     std::function<void()> body;
 };
+
+static std::vector<TestInitializer>& GetInitializers()
+{
+    static std::vector<TestInitializer> s_instance;
+    return s_instance;
+}
 
 static std::vector<TestEntry>& GetTests()
 {
@@ -95,7 +107,12 @@ static std::vector<TestEntry>& GetTests()
     return s_instance;
 }
 
-void RegisterTestEntryImpl(const char *name, const std::function<void()>& body)
+void RegisterInitializer(const std::function<void()>& init, const std::function<void()>& fini)
+{
+    GetInitializers().push_back({ init, fini });
+}
+
+void RegisterTestCaseImpl(const char *name, const std::function<void()>& body)
 {
     GetTests().push_back({name, body});
 }
@@ -134,11 +151,10 @@ testExport void RunAllTests()
     }
 }
 
-#include "MouseReplayer.h"
-
 int main(int argc, char *argv[])
 {
-    mr::InitializeScope mri;
+    for (auto& i : test::GetInitializers())
+        i.initializer();
 
     int run_count = 0;
     for (int i = 1; i < argc; ++i) {
@@ -154,4 +170,7 @@ int main(int argc, char *argv[])
     if (run_count == 0) {
         RunAllTests();
     }
+
+    for (auto& i : test::GetInitializers())
+        i.finalizer();
 }
