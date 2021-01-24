@@ -6,6 +6,7 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+#pragma comment(lib, "shcore.lib")
 #pragma comment(lib, "d3d11.lib")
 
 namespace mr {

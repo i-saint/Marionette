@@ -42,12 +42,16 @@ public:
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
 
+    void setOnFrameArrived(const Callback& cb) override;
+
     // called from capture thread
     void onFrameArrived(
         winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& sender,
         winrt::Windows::Foundation::IInspectable const& args);
 
 private:
+    Callback m_callback;
+
     FrameInfo m_frame_info;
     std::mutex m_mutex;
 
@@ -170,6 +174,12 @@ void GraphicsCapture::stopCapture()
     }
 }
 
+void GraphicsCapture::setOnFrameArrived(const Callback& cb)
+{
+    std::unique_lock l(m_mutex);
+    m_callback = cb;
+}
+
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
@@ -193,6 +203,9 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
         {
             std::unique_lock l(m_mutex);
             m_frame_info = tmp;
+
+            if (m_callback)
+                m_callback(m_frame_info);
         }
 
         frame.Close();

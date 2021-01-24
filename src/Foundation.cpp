@@ -319,4 +319,17 @@ mrAPI void Finalize()
         h();
 }
 
+
+mrAPI HMONITOR GetPrimaryMonitor()
+{
+    return ::MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+}
+
+mrAPI float GetScaleFactor(HMONITOR hmon)
+{
+    UINT dpix, dpiy;
+    ::GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &dpix, &dpiy);
+    return (float)dpix / 96.0;
+}
+
 } // namespace mr

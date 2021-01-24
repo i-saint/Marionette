@@ -237,6 +237,7 @@ public:
         ITexture2DPtr surface;
         uint64_t present_time{};
     };
+    using Callback = std::function<void(FrameInfo&)>;
 
     virtual ~IScreenCapture() {};
     virtual void release() = 0;
@@ -245,6 +246,8 @@ public:
     virtual bool startCapture(HMONITOR hmon) = 0;
     virtual void stopCapture() = 0;
     virtual FrameInfo getFrame() = 0;
+
+    virtual void setOnFrameArrived(const Callback& cb) = 0;
 };
 mrDeclPtr(IScreenCapture);
 
@@ -345,5 +348,10 @@ public:
     InitializeScope() { ::mr::Initialize(); }
     ~InitializeScope() { ::mr::Finalize(); }
 };
+
+
+
+mrAPI HMONITOR GetPrimaryMonitor();
+mrAPI float GetScaleFactor(HMONITOR hmon);
 
 } // namespace mr

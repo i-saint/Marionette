@@ -19,11 +19,14 @@ public:
     void stopCapture() override;
     FrameInfo getFrame() override;
 
+    void setOnFrameArrived(const Callback& cb) override;
+
     // called from capture thread
     void captureLoop();
     bool getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time);
 
 private:
+    Callback m_callback;
     FrameInfo m_frame_info;
 
     com_ptr<IDXGIOutputDuplication> m_duplication;
@@ -120,6 +123,12 @@ DesktopDuplication::FrameInfo DesktopDuplication::getFrame()
     return ret;
 }
 
+void DesktopDuplication::setOnFrameArrived(const Callback& cb)
+{
+    std::unique_lock l(m_mutex);
+    m_callback = cb;
+}
+
 
 bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time)
 {
@@ -160,6 +169,9 @@ void DesktopDuplication::captureLoop()
             {
                 std::unique_lock l(m_mutex);
                 m_frame_info = tmp;
+
+                if (m_callback)
+                    m_callback(m_frame_info);
             }
         }
     }

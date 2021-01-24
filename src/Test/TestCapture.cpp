@@ -20,42 +20,38 @@ TestCase(Image)
         });
 }
 
-TestCase(ScreenCapture)
+TestCase(Texture)
 {
     auto gfx = mr::CreateGfxInterfaceShared();
 
     if (auto tex = gfx->createTextureFromFile("EntireScreen.png")) {
         tex->save("TextureSave.png");
     }
+}
 
-    //auto capture = mr::CreateScreenCaptureShared();
+TestCase(ScreenCapture)
+{
+    auto gfx = mr::CreateGfxInterfaceShared();
 
-    //mr::IGraphicsCapture::Options opt;
-    //opt.free_threaded = true;
-    //opt.grayscale = true;
-    //opt.scale_factor = 1.0f;
-    //capture->setOptions(opt);
+    std::mutex mutex;
+    std::condition_variable cond;
 
-    //std::mutex mutex;
-    //std::condition_variable cond;
+    auto on_frame = [&cond](auto& frame) {
+        cond.notify_one();
+    };
 
-    //auto task = [&](ID3D11Texture2D* surface) {
-    //    mrProfile("GraphicsCapture");
-    //    capture->getPixels([&](const void* data, int width, int height, int pitch) {
-    //        int ch = opt.grayscale ? 1 : 4;
-    //        auto image = mr::MakeCVImage(data, width, height, pitch, ch);
-    //        cv::imwrite("fg.png", image);
-    //    });
-    //    cond.notify_one();
-    //};
+    auto scap = gfx->createScreenCapture();
+    scap->setOnFrameArrived(on_frame);
+    if (scap->startCapture(mr::GetPrimaryMonitor())) {
+        for (int i = 0; i < 5; ++i) {
+            std::unique_lock<std::mutex> lock(mutex);
+            cond.wait(lock);
 
-
-    //{
-    //    std::unique_lock<std::mutex> lock(mutex);
-    //    HWND hwnd = ::GetAncestor(::GetForegroundWindow(), GA_ROOT);
-    //    if (capture->start(hwnd, task)) {
-    //        cond.wait(lock);
-    //        capture->stop();
-    //    }
-    //}
+            auto frame = scap->getFrame();
+            char filename[256];
+            snprintf(filename, std::size(filename), "Frame%02d.png", i);
+            frame.surface->save(filename);
+        }
+        scap->stopCapture();
+    }
 }
