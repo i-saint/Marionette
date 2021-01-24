@@ -12,8 +12,10 @@ void main(uint2 tid : SV_DispatchThreadID)
     for (uint i = 0; i < h; ++i) {
         for (uint j = 0; j < w; ++j) {
             uint2 pos = uint2(j, i);
-            float diff = abs(g_image[tid + pos] - g_template[pos]);
-            r += diff * diff;
+            float s = g_image[tid + pos];
+            float t = g_template[pos];
+            float diff = abs(s - t);
+            r += diff;
         }
     }
     g_result[tid] = r / float(w * h);

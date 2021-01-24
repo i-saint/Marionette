@@ -12,14 +12,14 @@ void main(uint2 tid : SV_DispatchThreadID)
 {
     uint w, h;
     g_image.GetDimensions(w, h);
-    uint2 ur = uint2(max(tid - g_size, 0));
-    uint2 bl = uint2(min(tid + g_size, uint2(w, h)));
+    int2 ur = int2(max((int2)tid - g_size, 0));
+    int2 bl = int2(min((int2)tid + g_size, int2(w, h)));
 
     float cmin, cmax;
     cmin = cmax = g_image[tid];
-    for (uint i = ur.y; i < bl.y; ++i) {
-        for (uint j = ur.x; j < bl.x; ++j) {
-            float c = g_image[uint2(j, i)];
+    for (int i = ur.y; i < bl.y; ++i) {
+        for (int j = ur.x; j < bl.x; ++j) {
+            float c = g_image[int2(j, i)];
             cmin = min(c, cmin);
             cmax = max(c, cmax);
         }

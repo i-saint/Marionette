@@ -15,36 +15,74 @@ testRegisterInitializer(mr,
 
 TestCase(Filter)
 {
-    mr::CaptureEntireScreen([](const void* data, int w, int h) {
+    mr::CaptureMonitor(mr::GetPrimaryMonitor(), [](const void* data, int w, int h) {
         mr::SaveAsPNG("EntireScreen.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
         });
 
-    auto gfx = mr::CreateGfxInterfaceShared();
-    auto tex = gfx->createTextureFromFile("EntireScreen.png");
-    if (tex) {
-        std::lock_guard<mr::IGfxInterface> lock(*gfx);
+    std::vector<std::future<bool>> async_ops;
 
+    auto gfx = mr::CreateGfxInterfaceShared();
+
+    mr::ITexture2DPtr template_image = gfx->createTextureFromFile("template.png");
+    if (template_image) {
         mr::TransformParams trans;
-        trans.src = tex;
+        trans.src = template_image;
         trans.grayscale = true;
         gfx->transform(trans);
 
         mr::ContourParams cont;
         cont.src = trans.dst;
         gfx->contour(cont);
+        std::swap(cont.dst, template_image);
+        async_ops.push_back(template_image->saveAsync("template_contour.png"));
+    }
+
+    auto tex = gfx->createTextureFromFile("EntireScreen.png");
+    if (tex) {
+        std::lock_guard<mr::IGfxInterface> lock(*gfx);
+
+        auto time_begin = test::Now();
+        mr::ITexture2DPtr match_result;
+        mr::ITexture2DPtr src;
+
+        mr::TransformParams trans;
+        trans.src = tex;
+        trans.grayscale = true;
+        gfx->transform(trans);
+        src = trans.dst;
+
+        mr::ContourParams cont;
+        cont.src = src;
+        gfx->contour(cont);
+        src = cont.dst;
+
+        if (template_image) {
+            mr::TemplateMatchParams tmatch;
+            tmatch.src = src;
+            tmatch.template_image = template_image;
+            gfx->templateMatch(tmatch);
+            src = match_result = tmatch.dst;
+        }
 
         mr::ReduceMinmaxParams red;
-        red.src = cont.dst;
+        red.src = src;
         gfx->reduceMinMax(red);
 
-        auto save1 = trans.dst->saveAsync("grayscale.png");
-        auto save2 = cont.dst->saveAsync("contour.png");
         auto result = red.result.get();
+
+        auto elapsed = test::Now() - time_begin;
+        testPrint("elapsed: %.2f\n", test::NS2MS(elapsed));
+
         testPrint("Min: %f (%d, %d)\n", result.val_min, result.pos_min.x, result.pos_min.y);
         testPrint("Max: %f (%d, %d)\n", result.val_max, result.pos_max.x, result.pos_max.y);
-        save1.wait();
-        save2.wait();
+
+        async_ops.push_back(trans.dst->saveAsync("grayscale.png"));
+        async_ops.push_back(cont.dst->saveAsync("contour.png"));
+        if (match_result)
+            async_ops.push_back(match_result->saveAsync("match.png"));
     }
+    for (auto& a : async_ops)
+        a.wait();
 }
 
 TestCase(ScreenCapture)
