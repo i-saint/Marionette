@@ -125,9 +125,19 @@ void GfxInterface::templateMatch(TemplateMatchParams& v)
 {
     if (!v.src || !v.template_image)
         return;
+    if (v.src->getFormat() != v.template_image->getFormat()) {
+        mrDbgPrint("*** GfxInterface::templateMatch(): format mismatch ***\n");
+        return;
+    }
     if (!v.dst) {
-        auto size = v.src->getSize() - v.template_image->getSize();
-        v.dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
+        if (v.src->getFormat() == TextureFormat::Ru8) {
+            auto size = v.src->getSize() - v.template_image->getSize();
+            v.dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
+        }
+        else if (v.src->getFormat() == TextureFormat::Ri32) {
+            auto size = v.src->getSize() - v.template_image->getSize();
+            v.dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Rf32);
+        }
         if (!v.dst)
             return;
     }
