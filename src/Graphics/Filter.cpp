@@ -294,9 +294,7 @@ void ReduceMinMax::clear()
 
 std::future<ReduceMinmaxResult> ReduceMinMax::getResult()
 {
-    auto fv = GfxGlobals::get()->addFenceEvent();
-    return std::async(std::launch::async, [this, fv]() {
-        GfxGlobals::get()->waitFence(fv);
+    return std::async(std::launch::deferred, [this]() {
         ReduceMinmaxResult ret{};
         MapRead(m_staging, [&ret](const void* v) {
             ret = *(ReduceMinmaxResult*)v;

@@ -13,7 +13,7 @@ RWStructuredBuffer<Result> g_result : register(u0);
 groupshared Result s_result[BX];
 
 
-void Compare(float v, uint2 p, inout Result r)
+void Compare(inout Result r, uint2 p, float v)
 {
     if (v < r.vmin) {
         r.vmin = v;
@@ -68,7 +68,7 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
     for (uint x = tid.x + BX; x < w; x += BX) {
         uint2 p = uint2(x, tid.y);
-        Compare(g_image[p], p, r);
+        Compare(r, p, g_image[p]);
     }
     s_result[gi] = r;
     GroupMemoryBarrierWithGroupSync();

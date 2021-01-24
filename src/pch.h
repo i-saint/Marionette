@@ -16,19 +16,12 @@
 #include <regex>
 #include <type_traits>
 
+#define NOMINMAX
 #include <windows.h>
 #include <windowsx.h>
 #include <shellscalingapi.h>
 #include <d3d11.h>
 #include <d3d11_4.h>
-
-
-#ifdef min
-    #undef min
-#endif
-#ifdef max
-    #undef max
-#endif
 
 //#define mrWithOpenCV
 

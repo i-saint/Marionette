@@ -6,7 +6,6 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-#pragma comment(lib, "shcore.lib")
 #pragma comment(lib, "d3d11.lib")
 
 namespace mr {
@@ -246,7 +245,7 @@ std::shared_ptr<Buffer> Buffer::createStaging(uint32_t size, uint32_t stride)
     ret->m_stride = stride;
     {
         D3D11_BUFFER_DESC desc{ size, D3D11_USAGE_STAGING, 0, 0, 0, stride };
-        desc.BindFlags = D3D11_CPU_ACCESS_READ;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
         mrGfxDevice()->CreateBuffer(&desc, nullptr, ret->m_buffer.put());
     }
@@ -436,7 +435,7 @@ TextureFormat Texture2D::getFormat() const
     return m_format;
 }
 
-void Texture2D::readImpl()
+bool Texture2D::read(const ReadCallback& callback)
 {
     if (!m_staging) {
         D3D11_TEXTURE2D_DESC desc{ (UINT)m_size.x, (UINT)m_size.y, 1, 1, GetDXFormat(m_format), { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
@@ -445,32 +444,42 @@ void Texture2D::readImpl()
     }
     DispatchCopy(m_staging.get(), m_texture.get());
     mrGfxFlush();
-}
-
-bool Texture2D::read(const ReadCallback& callback)
-{
-    readImpl();
     return MapRead(m_staging.get(), [&](const void* data, int pitch) {
         callback(data, pitch);
         });
 }
 
-std::future<bool> Texture2D::readAsync(const ReadCallback& callback)
+bool Texture2D::saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch)
 {
-    readImpl();
-    return std::async(std::launch::async, [this, callback]() {
-        return MapRead(m_staging.get(), [&](const void* data, int pitch) {
-            callback(data, pitch);
-            });
-        });
+    bool ret = false;
+    if (format == TextureFormat::RGBAu8) {
+        ret = stbi_write_png(path.c_str(), size.x, size.y, 4, data, pitch);
+    }
+    else if (format == TextureFormat::Ru8) {
+        ret = stbi_write_png(path.c_str(), size.x, size.y, 1, data, pitch);
+    }
+    else if (format == TextureFormat::Rf32) {
+        std::vector<byte> buf(size.x * size.y);
+        for (int i = 0; i < size.y; ++i) {
+            auto s = (const float*)((const byte*)data + (pitch * i));
+            auto d = buf.data() + (size.x * i);
+            for (int j = 0; j < size.x; ++j) {
+                *d++ = byte(*s++ * 255.0f);
+            }
+        }
+        ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
+    }
+    else {
+        mrDbgPrint("Texture2D::save(): unknown format\n");
+    }
+    return ret;
 }
 
 bool Texture2D::save(const std::string& path)
 {
+    // copy data to temporary buffer to minimize Map() time
     std::vector<byte> buf;
     int pitch{};
-
-    // copy data to temporary buffer to minimize map time
     bool ret = read([&](const void* data, int pitch_) {
         pitch = pitch_;
         buf.resize(pitch * m_size.y);
@@ -478,39 +487,25 @@ bool Texture2D::save(const std::string& path)
         });
 
     // write to file
-    if (ret) {
-        auto size = getSize();
-        auto format = getFormat();
-        auto data = buf.data();
-        if (format == TextureFormat::RGBAu8) {
-            ret = stbi_write_png(path.c_str(), size.x, size.y, 4, data, pitch);
-        }
-        else if (format == TextureFormat::Ru8) {
-            ret = stbi_write_png(path.c_str(), size.x, size.y, 1, data, pitch);
-        }
-        else if (format == TextureFormat::Rf32) {
-            std::vector<byte> buf(size.x * size.y);
-            for (int i = 0; i < size.y; ++i) {
-                auto s = (const float*)((const byte*)data + (pitch * i));
-                auto d = buf.data() + (size.x * i);
-                for (int j = 0; j < size.x; ++j) {
-                    *d++ = byte(*s++ * 255.0f);
-                }
-            }
-            ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
-        }
-        else {
-            mrDbgPrint("Texture2D::save(): unknown format\n");
-            ret = false;
-        }
-    }
+    if (ret)
+        ret = saveImpl(path, m_size, m_format, buf.data(), pitch);
     return ret;
 }
 
 std::future<bool> Texture2D::saveAsync(const std::string& path)
 {
-    return std::async(std::launch::async, [this, path]() {
-        return save(path);
+    std::vector<byte> buf;
+    int pitch{};
+    bool ret = read([&](const void* data, int pitch_) {
+        pitch = pitch_;
+        buf.resize(pitch * m_size.y);
+        memcpy(buf.data(), data, buf.size());
+        });
+
+    return std::async(std::launch::async, [path, size = m_size, format = m_format, pitch, buf = std::move(buf)]() {
+        if (buf.empty())
+            return false;
+        return saveImpl(path, size, format, buf.data(), pitch);
         });
 }
 
@@ -572,8 +567,19 @@ void CSContext::dispatch(int x, int y, int z)
         ctx->CSSetUnorderedAccessViews(0, m_uavs.size(), m_uavs.data(), nullptr);
     if (!m_samplers.empty())
         ctx->CSSetSamplers(0, m_samplers.size(), m_samplers.data());
+
     ctx->CSSetShader(m_shader.get(), nullptr, 0);
     ctx->Dispatch(x, y, z);
+
+    static void* nulls[32]{};
+    if (!m_cbuffers.empty())
+        ctx->CSSetConstantBuffers(0, m_cbuffers.size(), (ID3D11Buffer**)nulls);
+    if (!m_srvs.empty())
+        ctx->CSSetShaderResources(0, m_srvs.size(), (ID3D11ShaderResourceView**)nulls);
+    if (!m_uavs.empty())
+        ctx->CSSetUnorderedAccessViews(0, m_uavs.size(), (ID3D11UnorderedAccessView**)nulls, nullptr);
+    if (!m_samplers.empty())
+        ctx->CSSetSamplers(0, m_samplers.size(), (ID3D11SamplerState**)nulls);
 }
 
 void CSContext::clear()

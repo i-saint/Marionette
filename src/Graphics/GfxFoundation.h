@@ -79,6 +79,7 @@ private:
 #define mrGfxFlush(...) mrGfxGlobals()->flush()
 #define mrGfxSync(...) mrGfxGlobals()->sync(__VA_ARGS__)
 #define mrGfxLock(Body) mrGfxGlobals()->lock(Body)
+#define mrGfxLockScope() std::lock_guard<GfxGlobals> _gfx_lock(*mrGfxGlobals())
 
 
 class DeviceResource;
@@ -152,10 +153,9 @@ public:
     int2 getSize() const override;
     TextureFormat getFormat() const override;
 
-    void readImpl();
     bool read(const ReadCallback& cb) override;
-    std::future<bool> readAsync(const ReadCallback& callback) override;
 
+    static bool saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch);
     bool save(const std::string& path) override;
     std::future<bool> saveAsync(const std::string& path) override;
 

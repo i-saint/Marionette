@@ -183,6 +183,7 @@ void GraphicsCapture::setOnFrameArrived(const Callback& cb)
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
+        auto time = NowNS();
         auto frame = sender.TryGetNextFrame();
         auto size = frame.ContentSize();
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
@@ -199,7 +200,7 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
             m_transform.dispatch();
             });
 
-        FrameInfo tmp{ m_frame_buffer, NowNS() };
+        FrameInfo tmp{ m_frame_buffer, time };
         {
             std::unique_lock l(m_mutex);
             m_frame_info = tmp;

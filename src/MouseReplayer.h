@@ -206,16 +206,14 @@ enum class TextureFormat
 class ITexture2D
 {
 public:
-    using ReadCallback = std::function<void(const void* data, int pitch)>;
-
     virtual ~ITexture2D() {};
     virtual void release() = 0;
 
     virtual int2 getSize() const = 0;
     virtual TextureFormat getFormat() const = 0;
 
+    using ReadCallback = std::function<void(const void* data, int pitch)>;
     virtual bool read(const ReadCallback& callback) = 0;
-    virtual std::future<bool> readAsync(const ReadCallback& callback) = 0;
 
     virtual bool save(const std::string& path) = 0;
     virtual std::future<bool> saveAsync(const std::string& path) = 0;

@@ -78,7 +78,7 @@ void GfxInterface::transform(TransformParams& v)
         auto size = v.src->getSize();
         if (v.scale != 1.0f)
             size = int2(float2(size) * v.scale);
-        v.dst = Texture2D::create(size.x, size.y, v.src->getFormat());
+        v.dst = Texture2D::create(size.x, size.y, v.grayscale ? TextureFormat::Ru8 : v.src->getFormat());
     }
 
     m_transform.setSrcImage(i2c(v.src));
@@ -95,7 +95,7 @@ void GfxInterface::contour(ContourParams& v)
         return;
     if (!v.dst) {
         auto size = v.src->getSize();
-        v.dst = Texture2D::create(size.x, size.y, v.src->getFormat());
+        v.dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
     }
 
     m_contour.setSrcImage(i2c(v.src));

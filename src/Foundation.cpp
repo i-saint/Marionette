@@ -2,6 +2,7 @@
 #include "Internal.h"
 #include "MouseReplayer.h"
 
+#pragma comment(lib, "shcore.lib")
 
 namespace mr {
 
