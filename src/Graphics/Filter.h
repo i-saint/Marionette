@@ -66,13 +66,13 @@ private:
 };
 
 
-class Binalize : public IFilter
+class Binarize : public IFilter
 {
 public:
-    Binalize();
+    Binarize();
     void setSrcImage(Texture2DPtr v);
     void setDstImage(Texture2DPtr v);
-    void setThreshold(int v);
+    void setThreshold(float v);
 
     void dispatch() override;
     void clear() override;

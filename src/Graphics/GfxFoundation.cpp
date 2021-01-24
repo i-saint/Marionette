@@ -292,6 +292,20 @@ int Buffer::getStride() const
     return m_stride;
 }
 
+bool Buffer::read(const ReadCallback& callback)
+{
+    if (!m_staging) {
+        D3D11_BUFFER_DESC desc{ (UINT)m_size, D3D11_USAGE_STAGING, 0, 0, 0, (UINT)m_stride };
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        mrGfxDevice()->CreateBuffer(&desc, nullptr, m_staging.put());
+    }
+    DispatchCopy(m_staging.get(), m_buffer.get());
+    mrGfxFlush();
+    return MapRead(m_staging.get(), [&](const void* data) {
+        callback(data);
+        });
+}
+
 
 Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t stride)
 {
@@ -658,15 +672,13 @@ void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset)
     mrGfxContext()->CopySubresourceRegion(dst->ptr(), 0, 0, 0, 0, src->ptr(), 0, &box);
 }
 
-bool MapRead(BufferPtr src, const std::function<void (const void*)>& callback)
+bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& callback)
 {
     auto ctx = mrGfxContext();
-    auto buf = src->ptr();
-
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
+    if (SUCCEEDED(ctx->Map(src, 0, D3D11_MAP_READ, 0, &mapped))) {
         callback(mapped.pData);
-        ctx->Unmap(buf, 0);
+        ctx->Unmap(src, 0);
         return true;
     }
     return false;
@@ -687,11 +699,6 @@ bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, in
         return true;
     }
     return false;
-}
-
-bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback)
-{
-    return MapRead(src->ptr(), callback);
 }
 
 mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch, bool flip_y)

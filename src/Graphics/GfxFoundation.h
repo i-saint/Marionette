@@ -125,10 +125,14 @@ public:
     int getSize() const;
     int getStride() const;
 
+    using ReadCallback = std::function<void(const void* data)>;
+    bool read(const ReadCallback& callback);
+
 private:
     int m_size{};
     int m_stride{};
     com_ptr<ID3D11Buffer> m_buffer;
+    com_ptr<ID3D11Buffer> m_staging;
     com_ptr<ID3D11ShaderResourceView> m_srv;
     com_ptr<ID3D11UnorderedAccessView> m_uav;
 };
@@ -153,7 +157,7 @@ public:
     int2 getSize() const override;
     TextureFormat getFormat() const override;
 
-    bool read(const ReadCallback& cb) override;
+    bool read(const ReadCallback& callback) override;
 
     static bool saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch);
     bool save(const std::string& path) override;
@@ -204,9 +208,8 @@ void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src);
 void DispatchCopy(DeviceResourcePtr dst, DeviceResourcePtr src);
 void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset = 0);
 void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = int2::zero());
-bool MapRead(BufferPtr src, const std::function<void(const void* data)>& callback);
+bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& callback);
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
-bool MapRead(Texture2DPtr src, const std::function<void(const void* data, int pitch)>& callback);
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)

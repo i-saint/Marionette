@@ -261,6 +261,13 @@ struct TransformParams
     bool grayscale = false;
 };
 
+struct BinarizeParams
+{
+    ITexture2DPtr dst; // out. will be created if null
+    ITexture2DPtr src;
+    float threshold = 0.5f;
+};
+
 struct ContourParams
 {
     ITexture2DPtr dst; // out. will be created if null
@@ -300,6 +307,7 @@ public:
     virtual IScreenCapturePtr createScreenCapture() = 0;
 
     virtual void transform(TransformParams& v) = 0;
+    virtual void binarize(BinarizeParams& v) = 0;
     virtual void contour(ContourParams& v) = 0;
     virtual void templateMatch(TemplateMatchParams& v) = 0;
     virtual void reduceMinMax(ReduceMinmaxParams& v) = 0;

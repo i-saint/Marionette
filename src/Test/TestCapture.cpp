@@ -55,8 +55,15 @@ TestCase(Filter)
 
         mr::ContourParams cont;
         cont.src = src;
+        cont.block_size = 5;
         gfx->contour(cont);
         src = cont.dst;
+
+        mr::BinarizeParams bin;
+        bin.src = src;
+        bin.threshold = 0.10f;
+        gfx->binarize(bin);
+        //src = bin.dst;
 
         mr::TemplateMatchParams tmatch;
         if (template_image) {
@@ -82,6 +89,8 @@ TestCase(Filter)
             async_ops.push_back(trans.dst->saveAsync("grayscale.png"));
         if (cont.dst)
             async_ops.push_back(cont.dst->saveAsync("contour.png"));
+        if (bin.dst)
+            async_ops.push_back(bin.dst->saveAsync("binarize.png"));
         if (tmatch.dst)
             async_ops.push_back(tmatch.dst->saveAsync("match.png"));
     }

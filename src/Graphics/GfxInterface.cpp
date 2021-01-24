@@ -17,6 +17,7 @@ public:
     IScreenCapturePtr createScreenCapture() override;
 
     void transform(TransformParams& v) override;
+    void binarize(BinarizeParams& v) override;
     void contour(ContourParams& v) override;
     void templateMatch(TemplateMatchParams& v) override;
     void reduceMinMax(ReduceMinmaxParams& v) override;
@@ -30,6 +31,7 @@ public:
 private:
     // filters
     Transform m_transform;
+    Binarize m_binarize;
     Contour m_contour;
     TemplateMatch m_template_match;
     ReduceMinMax m_reduce_minmax;
@@ -87,6 +89,21 @@ void GfxInterface::transform(TransformParams& v)
     m_transform.setFlipRB(v.flip_rb);
     m_transform.setGrayscale(v.grayscale);
     m_transform.dispatch();
+}
+
+void GfxInterface::binarize(BinarizeParams& v)
+{
+    if (!v.src)
+        return;
+    if (!v.dst) {
+        auto size = v.src->getSize();
+        v.dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32);
+    }
+
+    m_binarize.setSrcImage(i2c(v.src));
+    m_binarize.setDstImage(i2c(v.dst));
+    m_binarize.setThreshold(v.threshold);
+    m_binarize.dispatch();
 }
 
 void GfxInterface::contour(ContourParams& v)

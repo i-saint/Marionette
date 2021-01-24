@@ -175,12 +175,12 @@ void Contour::clear()
 }
 
 
-Binalize::Binalize()
+Binarize::Binarize()
 {
     m_ctx.initialize(mrBytecode(g_hlsl_Binarize));
 }
 
-void Binalize::setSrcImage(Texture2DPtr v)
+void Binarize::setSrcImage(Texture2DPtr v)
 {
     if (m_src == v)
         return;
@@ -188,7 +188,7 @@ void Binalize::setSrcImage(Texture2DPtr v)
     m_ctx.setSRV(m_src);
 }
 
-void Binalize::setDstImage(Texture2DPtr v)
+void Binarize::setDstImage(Texture2DPtr v)
 {
     if (m_dst == v)
         return;
@@ -196,7 +196,7 @@ void Binalize::setDstImage(Texture2DPtr v)
     m_ctx.setUAV(m_dst);
 }
 
-void Binalize::setThreshold(int v)
+void Binarize::setThreshold(float v)
 {
     if (m_threshold == v)
         return;
@@ -204,7 +204,7 @@ void Binalize::setThreshold(int v)
     m_dirty = true;
 }
 
-void Binalize::dispatch()
+void Binarize::dispatch()
 {
     if (!m_src || !m_dst)
         return;
@@ -225,11 +225,11 @@ void Binalize::dispatch()
 
     auto size = m_dst->getSize();
     m_ctx.dispatch(
-        ceildiv(size.x, 32),
+        size.x,
         ceildiv(size.y, 32));
 }
 
-void Binalize::clear()
+void Binarize::clear()
 {
     m_ctx.clear();
     m_src = {};
@@ -360,7 +360,7 @@ std::future<ReduceMinmaxResult> ReduceMinMax::getResult()
 {
     return std::async(std::launch::deferred, [this]() {
         ReduceMinmaxResult ret{};
-        MapRead(m_staging, [&ret](const void* v) {
+        MapRead(m_staging->ptr(), [&ret](const void* v) {
             ret = *(ReduceMinmaxResult*)v;
             });
         return ret;
