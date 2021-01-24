@@ -28,12 +28,14 @@ TestCase(Filter)
         mr::TransformParams trans;
         trans.src = template_image;
         trans.grayscale = true;
+       // trans.scale = 0.5f;
         gfx->transform(trans);
 
         mr::ContourParams cont;
         cont.src = trans.dst;
         gfx->contour(cont);
         std::swap(cont.dst, template_image);
+
         async_ops.push_back(template_image->saveAsync("template_contour.png"));
     }
 
@@ -42,12 +44,12 @@ TestCase(Filter)
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         auto time_begin = test::Now();
-        mr::ITexture2DPtr match_result;
         mr::ITexture2DPtr src;
 
         mr::TransformParams trans;
         trans.src = tex;
         trans.grayscale = true;
+        //trans.scale = 0.5f;
         gfx->transform(trans);
         src = trans.dst;
 
@@ -56,12 +58,12 @@ TestCase(Filter)
         gfx->contour(cont);
         src = cont.dst;
 
+        mr::TemplateMatchParams tmatch;
         if (template_image) {
-            mr::TemplateMatchParams tmatch;
             tmatch.src = src;
             tmatch.template_image = template_image;
             gfx->templateMatch(tmatch);
-            src = match_result = tmatch.dst;
+            src = tmatch.dst;
         }
 
         mr::ReduceMinmaxParams red;
@@ -71,15 +73,17 @@ TestCase(Filter)
         auto result = red.result.get();
 
         auto elapsed = test::Now() - time_begin;
-        testPrint("elapsed: %.2f\n", test::NS2MS(elapsed));
+        testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
 
         testPrint("Min: %f (%d, %d)\n", result.val_min, result.pos_min.x, result.pos_min.y);
         testPrint("Max: %f (%d, %d)\n", result.val_max, result.pos_max.x, result.pos_max.y);
 
-        async_ops.push_back(trans.dst->saveAsync("grayscale.png"));
-        async_ops.push_back(cont.dst->saveAsync("contour.png"));
-        if (match_result)
-            async_ops.push_back(match_result->saveAsync("match.png"));
+        if (trans.dst)
+            async_ops.push_back(trans.dst->saveAsync("grayscale.png"));
+        if (cont.dst)
+            async_ops.push_back(cont.dst->saveAsync("contour.png"));
+        if (tmatch.dst)
+            async_ops.push_back(tmatch.dst->saveAsync("match.png"));
     }
     for (auto& a : async_ops)
         a.wait();

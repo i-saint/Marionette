@@ -66,6 +66,29 @@ private:
 };
 
 
+class Binalize : public IFilter
+{
+public:
+    Binalize();
+    void setSrcImage(Texture2DPtr v);
+    void setDstImage(Texture2DPtr v);
+    void setThreshold(int v);
+
+    void dispatch() override;
+    void clear() override;
+
+private:
+    Texture2DPtr m_src;
+    Texture2DPtr m_dst;
+    BufferPtr m_const;
+
+    float m_threshold = 0.5f;
+    bool m_dirty = true;
+
+    CSContext m_ctx;
+};
+
+
 class TemplateMatch : public IFilter
 {
 public:

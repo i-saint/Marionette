@@ -4,6 +4,7 @@
 // shader binaries
 #include "Transform.hlsl.h"
 #include "Contour.hlsl.h"
+#include "Binarize.hlsl.h"
 #include "MatchGrayscale.hlsl.h"
 #include "MatchBinary.hlsl.h"
 #include "ReduceMinMax_Pass1.hlsl.h"
@@ -74,7 +75,7 @@ void Transform::dispatch()
         int2 src_size = m_src->getSize();
         int2 dst_size = m_dst->getSize();
         if (m_size == int2::zero())
-            m_size = dst_size;
+            m_size = src_size;
 
         struct
         {
@@ -166,6 +167,69 @@ void Contour::dispatch()
 }
 
 void Contour::clear()
+{
+    m_ctx.clear();
+    m_src = {};
+    m_dst = {};
+    m_dirty = true;
+}
+
+
+Binalize::Binalize()
+{
+    m_ctx.initialize(mrBytecode(g_hlsl_Binarize));
+}
+
+void Binalize::setSrcImage(Texture2DPtr v)
+{
+    if (m_src == v)
+        return;
+    m_src = v;
+    m_ctx.setSRV(m_src);
+}
+
+void Binalize::setDstImage(Texture2DPtr v)
+{
+    if (m_dst == v)
+        return;
+    m_dst = v;
+    m_ctx.setUAV(m_dst);
+}
+
+void Binalize::setThreshold(int v)
+{
+    if (m_threshold == v)
+        return;
+    m_threshold = v;
+    m_dirty = true;
+}
+
+void Binalize::dispatch()
+{
+    if (!m_src || !m_dst)
+        return;
+
+    if (m_dirty) {
+        struct
+        {
+            float threshold;
+            int3 pad;
+        } params{};
+        params.threshold = m_threshold;
+
+        m_const = Buffer::createConstant(params);
+        m_ctx.setCBuffer(m_const);
+
+        m_dirty = false;
+    }
+
+    auto size = m_dst->getSize();
+    m_ctx.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
+}
+
+void Binalize::clear()
 {
     m_ctx.clear();
     m_src = {};

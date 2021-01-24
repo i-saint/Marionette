@@ -24,6 +24,9 @@
     <ClCompile Include="Graphics\GDI.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\GfxInterface.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -67,6 +70,9 @@
     <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Binarize.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
@@ -75,10 +81,5 @@
     <Filter Include="Graphics\Shaders">
       <UniqueIdentifier>{7a3881a4-5473-4dcc-a5ff-02ccb17e7431}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Graphics\GfxInterface.cpp">
-      <Filter>Graphics</Filter>
-    </None>
   </ItemGroup>
 </Project>

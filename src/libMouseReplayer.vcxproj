@@ -42,6 +42,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Graphics\Shaders\Binarize.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
     <FxCompile Include="Graphics\Shaders\Contour.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>

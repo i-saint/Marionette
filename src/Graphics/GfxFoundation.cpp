@@ -469,6 +469,19 @@ bool Texture2D::saveImpl(const std::string& path, int2 size, TextureFormat forma
         }
         ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
     }
+    else if (format == TextureFormat::Ri32) {
+        std::vector<byte> buf(size.x * 32 * size.y);
+        for (int i = 0; i < size.y; ++i) {
+            auto s = (const uint32_t*)((const byte*)data + (pitch * i));
+            auto d = buf.data() + (size.x * 32 * i);
+            for (int j = 0; j < size.x; ++j) {
+                uint32_t v = *s++;
+                for (int k = 0; k < 32; ++k)
+                    *d++ = (v & (1 << k)) ? 255 : 0;
+            }
+        }
+        ret = stbi_write_png(path.c_str(), size.x * 32, size.y, 1, buf.data(), size.x * 32);
+    }
     else {
         mrDbgPrint("Texture2D::save(): unknown format\n");
     }
@@ -609,7 +622,7 @@ DXGI_FORMAT GetDXFormat(TextureFormat f)
     case TextureFormat::Ru8: return DXGI_FORMAT_R8_UNORM;
     case TextureFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_UNORM;
     case TextureFormat::Rf32: return DXGI_FORMAT_R32_FLOAT;
-    case TextureFormat::Ri32: return DXGI_FORMAT_R32_SINT;
+    case TextureFormat::Ri32: return DXGI_FORMAT_R32_UINT;
     default: return DXGI_FORMAT_UNKNOWN;
     }
 }
