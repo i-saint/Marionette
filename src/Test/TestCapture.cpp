@@ -25,7 +25,7 @@ TestCase(Texture)
     auto gfx = mr::CreateGfxInterfaceShared();
 
     if (auto tex = gfx->createTextureFromFile("EntireScreen.png")) {
-        tex->save("TextureSave.png");
+        tex->save("EntireScreen2.png");
     }
 }
 
@@ -35,8 +35,10 @@ TestCase(ScreenCapture)
 
     std::mutex mutex;
     std::condition_variable cond;
+    std::atomic<bool> ready{};
 
-    auto on_frame = [&cond](auto& frame) {
+    auto on_frame = [&cond, &ready](auto& frame) {
+        ready = true;
         cond.notify_one();
     };
 
@@ -45,12 +47,15 @@ TestCase(ScreenCapture)
     if (scap->startCapture(mr::GetPrimaryMonitor())) {
         for (int i = 0; i < 5; ++i) {
             std::unique_lock<std::mutex> lock(mutex);
-            cond.wait(lock);
+            ready = false;
+            cond.wait(lock, [&ready]() { return ready.load(); });
 
             auto frame = scap->getFrame();
             char filename[256];
             snprintf(filename, std::size(filename), "Frame%02d.png", i);
             frame.surface->save(filename);
+
+            testPrint("frame %d [%f]\n", i, float(double(frame.present_time) / 1000000.0));
         }
         scap->stopCapture();
     }

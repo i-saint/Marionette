@@ -467,10 +467,21 @@ std::future<bool> Texture2D::readAsync(const ReadCallback& callback)
 
 bool Texture2D::save(const std::string& path)
 {
-    bool ret = false;
-    read([this, path, &ret](const void* data, int pitch) {
+    std::vector<byte> buf;
+    int pitch{};
+
+    // copy data to temporary buffer to minimize map time
+    bool ret = read([&](const void* data, int pitch_) {
+        pitch = pitch_;
+        buf.resize(pitch * m_size.y);
+        memcpy(buf.data(), data, buf.size());
+        });
+
+    // write to file
+    if (ret) {
         auto size = getSize();
         auto format = getFormat();
+        auto data = buf.data();
         if (format == TextureFormat::RGBAu8) {
             ret = stbi_write_png(path.c_str(), size.x, size.y, 4, data, pitch);
         }
@@ -490,9 +501,9 @@ bool Texture2D::save(const std::string& path)
         }
         else {
             mrDbgPrint("Texture2D::save(): unknown format\n");
+            ret = false;
         }
-
-        });
+    }
     return ret;
 }
 
