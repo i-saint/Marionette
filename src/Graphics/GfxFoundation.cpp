@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "GfxFoundation.h"
+#include "Filter.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -41,8 +42,8 @@ static struct RegisterGfxInitializer
 {
     RegisterGfxInitializer()
     {
-        AddInitializeHandler([]() { GfxGlobals::initialize(); });
-        AddFinalizeHandler([]() { GfxGlobals::finalize(); });
+        AddInitializeHandler([]() { GfxGlobals::initializeInstance(); });
+        AddFinalizeHandler([]() { GfxGlobals::finalizeInstance(); });
     }
 } s_register_gfx;
 
@@ -54,17 +55,17 @@ static std::unique_ptr<GfxGlobals>& GetDeviceManagerPtr()
     return s_inst;
 }
 
-bool GfxGlobals::initialize()
+bool GfxGlobals::initializeInstance()
 {
     auto& inst = GetDeviceManagerPtr();
     if (!inst) {
         inst = std::make_unique<GfxGlobals>();
-        return true;
+        return inst->initialize();
     }
     return false;
 }
 
-bool GfxGlobals::finalize()
+bool GfxGlobals::finalizeInstance()
 {
     auto& inst = GetDeviceManagerPtr();
     if (inst) {
@@ -81,32 +82,6 @@ GfxGlobals* GfxGlobals::get()
 
 GfxGlobals::GfxGlobals()
 {
-    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#ifdef mrDebug
-    flags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-    com_ptr<ID3D11Device> device;
-    ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr);
-    if (device)
-        device->QueryInterface(IID_PPV_ARGS(&m_device));
-
-    if (m_device) {
-        com_ptr<ID3D11DeviceContext> context;
-        m_device->GetImmediateContext(context.put());
-        context->QueryInterface(IID_PPV_ARGS(&m_context));
-
-        m_device->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_fence));
-
-        {
-            D3D11_SAMPLER_DESC desc{};
-            desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-            desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-            desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-            desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-            desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-            m_device->CreateSamplerState(&desc, m_sampler.put());
-        }
-    }
 }
 
 GfxGlobals::~GfxGlobals()
@@ -122,6 +97,61 @@ GfxGlobals::~GfxGlobals()
 //        debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 //    }
 //#endif // mrDebug
+}
+
+bool GfxGlobals::initialize()
+{
+    // create device
+    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#ifdef mrDebug
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+    com_ptr<ID3D11Device> device;
+    ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr);
+    if (!device) {
+        return false;
+    }
+
+    device->QueryInterface(IID_PPV_ARGS(&m_device));
+    if (!m_device) {
+        return false;
+    }
+
+    // device context
+    com_ptr<ID3D11DeviceContext> context;
+    m_device->GetImmediateContext(context.put());
+    if (!context) {
+        return false;
+    }
+    context->QueryInterface(IID_PPV_ARGS(&m_context));
+    if (!m_context) {
+        return false;
+    }
+
+    // fence
+    m_device->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_fence));
+
+    // sampler
+    {
+        D3D11_SAMPLER_DESC desc{};
+        desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+        m_device->CreateSamplerState(&desc, m_sampler.put());
+    }
+
+    // shaders
+    {
+        m_cs_transform = std::make_shared<TransformCS>();
+        m_cs_binarize = std::make_shared<BinarizeCS>();
+        m_cs_contour = std::make_shared<ContourCS>();
+        m_cs_template_match = std::make_shared<TemplateMatchCS>();
+        m_cs_reduce_minmax = std::make_shared<ReduceMinMaxCS>();
+    }
+
+    return true;
 }
 
 bool GfxGlobals::valid() const
@@ -182,6 +212,18 @@ void GfxGlobals::unlock()
 {
     m_mutex.unlock();
 }
+
+#define DefCSGetter(Class, Member)\
+    template<> Class* GfxGlobals::getCS<Class>() { return Member.get(); }
+
+DefCSGetter(TransformCS, m_cs_transform);
+DefCSGetter(BinarizeCS, m_cs_binarize);
+DefCSGetter(ContourCS, m_cs_contour);
+DefCSGetter(TemplateMatchCS, m_cs_template_match);
+DefCSGetter(ReduceMinMaxCS, m_cs_reduce_minmax);
+
+#undef DefCSGetter
+
 
 
 
@@ -538,52 +580,52 @@ std::future<bool> Texture2D::saveAsync(const std::string& path)
 
 
 
-CSContext::~CSContext()
+ComputeShader::~ComputeShader()
 {
 
 }
 
-bool CSContext::initialize(const void* bin, size_t size)
+bool ComputeShader::initialize(const void* bin, size_t size)
 {
     mrGfxDevice()->CreateComputeShader(bin, size, nullptr, m_shader.put());
     return m_shader != nullptr;
 }
 
-void CSContext::setCBuffer(BufferPtr v, int slot)
+void ComputeShader::setCBuffer(BufferPtr v, int slot)
 {
     if (slot >= m_cbuffers.size())
         m_cbuffers.resize(slot + 1);
     m_cbuffers[slot] = v->ptr();
 }
 
-void CSContext::setSRV(DeviceResourcePtr v, int slot)
+void ComputeShader::setSRV(DeviceResourcePtr v, int slot)
 {
     if (slot >= m_srvs.size())
         m_srvs.resize(slot + 1);
     m_srvs[slot] = v->srv();
 }
 
-void CSContext::setUAV(DeviceResourcePtr v, int slot)
+void ComputeShader::setUAV(DeviceResourcePtr v, int slot)
 {
     if (slot >= m_uavs.size())
         m_uavs.resize(slot + 1);
     m_uavs[slot] = v->uav();
 }
 
-void CSContext::setSampler(ID3D11SamplerState* v, int slot)
+void ComputeShader::setSampler(ID3D11SamplerState* v, int slot)
 {
     if (slot >= m_samplers.size())
         m_samplers.resize(slot + 1);
     m_samplers[slot] = v;
 }
 
-std::vector<ID3D11Buffer*> CSContext::getConstants() { return m_cbuffers; }
-std::vector<ID3D11ShaderResourceView*> CSContext::getSRVs() { return m_srvs; }
-std::vector<ID3D11UnorderedAccessView*> CSContext::getUAVs() { return m_uavs; }
-std::vector<ID3D11SamplerState*> CSContext::getSamplers() { return m_samplers; }
+std::vector<ID3D11Buffer*> ComputeShader::getConstants() { return m_cbuffers; }
+std::vector<ID3D11ShaderResourceView*> ComputeShader::getSRVs() { return m_srvs; }
+std::vector<ID3D11UnorderedAccessView*> ComputeShader::getUAVs() { return m_uavs; }
+std::vector<ID3D11SamplerState*> ComputeShader::getSamplers() { return m_samplers; }
 
 
-void CSContext::dispatch(int x, int y, int z)
+void ComputeShader::dispatch(int x, int y, int z)
 {
     auto ctx = mrGfxContext();
     if (!m_cbuffers.empty())
@@ -609,7 +651,7 @@ void CSContext::dispatch(int x, int y, int z)
         ctx->CSSetSamplers(0, m_samplers.size(), (ID3D11SamplerState**)nulls);
 }
 
-void CSContext::clear()
+void ComputeShader::clear()
 {
     m_cbuffers.clear();
     m_srvs.clear();

@@ -25,16 +25,19 @@ TestCase(Filter)
 
     mr::ITexture2DPtr template_image = gfx->createTextureFromFile("template.png");
     if (template_image) {
-        mr::TransformParams trans;
-        trans.src = template_image;
-        trans.grayscale = true;
-       // trans.scale = 0.5f;
-        gfx->transform(trans);
+        std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        mr::ContourParams cont;
-        cont.src = trans.dst;
-        gfx->contour(cont);
-        std::swap(cont.dst, template_image);
+        auto trans = gfx->createTransform();
+        trans->setSrc(template_image);
+        trans->setGrayscale(true);
+        //trans->setScale(0.5f);
+        trans->dispatch();
+
+        auto contour = gfx->createContour();
+        contour->setSrc(trans->getDst());
+        contour->dispatch();
+
+        template_image = contour->getDst();
 
         async_ops.push_back(template_image->saveAsync("template_contour.png"));
     }
@@ -46,38 +49,38 @@ TestCase(Filter)
         auto time_begin = test::Now();
         mr::ITexture2DPtr src;
 
-        mr::TransformParams trans;
-        trans.src = tex;
-        trans.grayscale = true;
-        //trans.scale = 0.5f;
-        gfx->transform(trans);
-        src = trans.dst;
+        auto trans = gfx->createTransform();
+        trans->setSrc(tex);
+        trans->setGrayscale(true);
+        //trans->setScale(0.5f);
+        trans->dispatch();
+        src = trans->getDst();
 
-        mr::ContourParams cont;
-        cont.src = src;
-        cont.block_size = 5;
-        gfx->contour(cont);
-        src = cont.dst;
+        auto contour = gfx->createContour();
+        contour->setSrc(src);
+        contour->setBlockSize(5);
+        contour->dispatch();
+        src = contour->getDst();
 
-        mr::BinarizeParams bin;
-        bin.src = src;
-        bin.threshold = 0.10f;
-        gfx->binarize(bin);
-        //src = bin.dst;
+        auto binarize = gfx->createBinarize();
+        binarize->setSrc(src);
+        binarize->setThreshold(0.10f);
+        binarize->dispatch();
+        //src = binarize->getDst();
 
-        mr::TemplateMatchParams tmatch;
+        auto tmatch = gfx->createTemplateMatch();
         if (template_image) {
-            tmatch.src = src;
-            tmatch.template_image = template_image;
-            gfx->templateMatch(tmatch);
-            src = tmatch.dst;
+            tmatch->setSrc(src);
+            tmatch->setTemplate(template_image);
+            tmatch->dispatch();
+            src = tmatch->getDst();
         }
 
-        mr::ReduceMinmaxParams red;
-        red.src = src;
-        gfx->reduceMinMax(red);
+        auto rminmax = gfx->createReduceMinMax();
+        rminmax->setSrc(src);
+        rminmax->dispatch();
 
-        auto result = red.result.get();
+        auto result = rminmax->getResult().get();
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
@@ -85,14 +88,14 @@ TestCase(Filter)
         testPrint("Min: %f (%d, %d)\n", result.val_min, result.pos_min.x, result.pos_min.y);
         testPrint("Max: %f (%d, %d)\n", result.val_max, result.pos_max.x, result.pos_max.y);
 
-        if (trans.dst)
-            async_ops.push_back(trans.dst->saveAsync("grayscale.png"));
-        if (cont.dst)
-            async_ops.push_back(cont.dst->saveAsync("contour.png"));
-        if (bin.dst)
-            async_ops.push_back(bin.dst->saveAsync("binarize.png"));
-        if (tmatch.dst)
-            async_ops.push_back(tmatch.dst->saveAsync("match.png"));
+        if (auto rtrans = trans->getDst())
+            async_ops.push_back(rtrans->saveAsync("grayscale.png"));
+        if (auto rcont = contour->getDst())
+            async_ops.push_back(rcont->saveAsync("contour.png"));
+        if (auto rbin = binarize->getDst())
+            async_ops.push_back(rbin->saveAsync("binarize.png"));
+        if (auto rtmatch = tmatch->getDst())
+            async_ops.push_back(rtmatch->saveAsync("match.png"));
     }
     for (auto& a : async_ops)
         a.wait();

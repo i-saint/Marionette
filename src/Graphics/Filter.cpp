@@ -12,64 +12,90 @@
 
 #define mrBytecode(A) A, std::size(A)
 
+#define mrCheckDirty(...)\
+    if (__VA_ARGS__) { return; }\
+    m_dirty = true;
+
+
 namespace mr {
 
-IFilter::~IFilter()
+ICompute::~ICompute()
 {
 }
 
 
-Transform::Transform()
+TransformCS::TransformCS()
 {
-    m_ctx.initialize(mrBytecode(g_hlsl_Transform));
-    m_ctx.setSampler(mrGfxDefaultSampler());
+    m_cs.initialize(mrBytecode(g_hlsl_Transform));
+    m_cs.setSampler(mrGfxDefaultSampler());
 }
 
-void Transform::setSrcImage(Texture2DPtr v)
+void TransformCS::dispatch(ICSContext& ctx_)
 {
-    if (m_src == v)
-        return;
-    m_src = v;
-    m_ctx.setSRV(m_src);
+    auto& ctx = static_cast<TransformCtx&>(ctx_);
+    m_cs.setSRV(ctx.m_src);
+    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(ctx.m_const);
+    m_cs.dispatch(
+        ceildiv(ctx.m_size.x, 32),
+        ceildiv(ctx.m_size.y, 32));
 }
 
-void Transform::setDstImage(Texture2DPtr v)
+TransformCtxPtr TransformCS::createContext()
 {
-    if (m_dst == v)
-        return;
-    m_dst = v;
-    m_ctx.setUAV(m_dst);
+    return std::make_shared<TransformCtx>(this);
 }
 
-void Transform::setCopyRegion(int2 pos, int2 size)
+TransformCtx::TransformCtx(TransformCS* v)
+    : m_filter(v)
 {
-    if (pos == m_pos && size == m_size)
-        return;
-    m_pos = pos;
+}
+
+void TransformCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = i2c(v);
+}
+
+void TransformCtx::setDst(ITexture2DPtr v)
+{
+    m_dst = i2c(v);
+}
+
+void TransformCtx::setRect(int2 offset, int2 size)
+{
+    mrCheckDirty(offset == m_offset && size == m_size);
+    m_offset = offset;
     m_size = size;
-    m_dirty = true;
 }
 
-void Transform::setFlipRB(bool v)
+void TransformCtx::setScale(float v)
 {
-    if (m_flip_rb == v)
-        return;
-    m_flip_rb = v;
-    m_dirty = true;
+    mrCheckDirty(m_scale == v);
+    m_scale = v;
 }
 
-void Transform::setGrayscale(bool v)
+void TransformCtx::setGrayscale(bool v)
 {
-    if (m_grayscale == v)
-        return;
+    mrCheckDirty(m_grayscale == v);
     m_grayscale = v;
-    m_dirty = true;
 }
 
-void Transform::dispatch()
+ITexture2DPtr TransformCtx::getDst()
 {
-    if (!m_src || !m_dst)
+    return m_dst;
+}
+
+void TransformCtx::dispatch()
+{
+    if (!m_src)
         return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        if (m_scale != 1.0f)
+            size = int2(float2(size) * m_scale);
+        m_dst = Texture2D::create(size.x, size.y, m_grayscale ? TextureFormat::Ru8 : m_src->getFormat());
+    }
 
     if (m_dirty) {
         int2 src_size = m_src->getSize();
@@ -86,65 +112,79 @@ void Transform::dispatch()
             int grayscale;
         } params;
         params.pixel_size = 1.0f / float2(src_size);
-        params.pixel_offset = params.pixel_size * m_pos;
+        params.pixel_offset = params.pixel_size * m_offset;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
-        params.flip_rb = m_flip_rb ? 1 : 0;
+        params.flip_rb = 0;
         params.grayscale = m_grayscale ? 1 : 0;
 
         m_const = Buffer::createConstant(params);
-        m_ctx.setCBuffer(m_const);
-
         m_dirty = false;
     }
-
-    m_ctx.dispatch(
-        ceildiv(m_size.x, 32),
-        ceildiv(m_size.y, 32));
-}
-
-void Transform::clear()
-{
-    m_ctx.clear();
-    m_src = {};
-    m_dst = {};
-    m_const = {};
-    m_dirty = true;
+    m_filter->dispatch(*this);
 }
 
 
-Contour::Contour()
+
+ContourCS::ContourCS()
 {
-    m_ctx.initialize(mrBytecode(g_hlsl_Contour));
+    m_cs.initialize(mrBytecode(g_hlsl_Contour));
 }
 
-void Contour::setSrcImage(Texture2DPtr v)
+void ContourCS::dispatch(ICSContext& ctx_)
 {
-    if (m_src == v)
-        return;
-    m_src = v;
-    m_ctx.setSRV(m_src);
+    auto& ctx = static_cast<ContourCtx&>(ctx_);
+
+    m_cs.setSRV(ctx.m_src);
+    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(ctx.m_const);
+
+    auto size = ctx.m_dst->getSize();
+    m_cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
 }
 
-void Contour::setDstImage(Texture2DPtr v)
+ContourCtxPtr ContourCS::createContext()
 {
-    if (m_dst == v)
-        return;
-    m_dst = v;
-    m_ctx.setUAV(m_dst);
+    return std::make_shared<ContourCtx>(this);
+
 }
 
-void Contour::setBlockSize(int v)
+ContourCtx::ContourCtx(ContourCS* v)
+    : m_filter(v)
 {
-    if (m_block_size == v)
-        return;
+}
+
+void ContourCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = i2c(v);
+}
+
+void ContourCtx::setDst(ITexture2DPtr v)
+{
+    m_dst = i2c(v);
+}
+
+void ContourCtx::setBlockSize(int v)
+{
+    mrCheckDirty(v == m_block_size);
     m_block_size = v;
-    m_dirty = true;
 }
 
-void Contour::dispatch()
+ITexture2DPtr ContourCtx::getDst()
 {
-    if (!m_src || !m_dst)
+    return m_dst;
+}
+
+void ContourCtx::dispatch()
+{
+    if (!m_src)
         return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
+    }
 
     if (m_dirty) {
         struct
@@ -155,59 +195,73 @@ void Contour::dispatch()
         params.range = (m_block_size - 1) / 2;
 
         m_const = Buffer::createConstant(params);
-        m_ctx.setCBuffer(m_const);
-
         m_dirty = false;
     }
 
-    auto size = m_dst->getSize();
-    m_ctx.dispatch(
-        ceildiv(size.x, 32),
+    m_filter->dispatch(*this);
+}
+
+
+
+BinarizeCS::BinarizeCS()
+{
+    m_cs.initialize(mrBytecode(g_hlsl_Binarize));
+}
+
+void BinarizeCS::dispatch(ICSContext& ctx_)
+{
+    auto& ctx = static_cast<BinarizeCtx&>(ctx_);
+
+    m_cs.setSRV(ctx.m_src);
+    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(ctx.m_const);
+
+    auto size = ctx.m_dst->getSize();
+    m_cs.dispatch(
+        size.x,
         ceildiv(size.y, 32));
 }
 
-void Contour::clear()
+BinarizeCtxPtr BinarizeCS::createContext()
 {
-    m_ctx.clear();
-    m_src = {};
-    m_dst = {};
-    m_dirty = true;
+    return std::make_shared<BinarizeCtx>(this);
 }
 
-
-Binarize::Binarize()
+BinarizeCtx::BinarizeCtx(BinarizeCS* v)
+    : m_filter(v)
 {
-    m_ctx.initialize(mrBytecode(g_hlsl_Binarize));
 }
 
-void Binarize::setSrcImage(Texture2DPtr v)
+void BinarizeCtx::setSrc(ITexture2DPtr v)
 {
-    if (m_src == v)
-        return;
-    m_src = v;
-    m_ctx.setSRV(m_src);
+    m_src = i2c(v);
 }
 
-void Binarize::setDstImage(Texture2DPtr v)
+void BinarizeCtx::setDst(ITexture2DPtr v)
 {
-    if (m_dst == v)
-        return;
-    m_dst = v;
-    m_ctx.setUAV(m_dst);
+    m_dst = i2c(v);
 }
 
-void Binarize::setThreshold(float v)
+void BinarizeCtx::setThreshold(float v)
 {
-    if (m_threshold == v)
-        return;
+    mrCheckDirty(v == m_threshold);
     m_threshold = v;
-    m_dirty = true;
 }
 
-void Binarize::dispatch()
+ITexture2DPtr BinarizeCtx::getDst()
 {
-    if (!m_src || !m_dst)
+    return m_dst;
+}
+
+void BinarizeCtx::dispatch()
+{
+    if (!m_src)
         return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        m_dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32);
+    }
 
     if (m_dirty) {
         struct
@@ -218,153 +272,171 @@ void Binarize::dispatch()
         params.threshold = m_threshold;
 
         m_const = Buffer::createConstant(params);
-        m_ctx.setCBuffer(m_const);
-
         m_dirty = false;
     }
 
-    auto size = m_dst->getSize();
-    m_ctx.dispatch(
-        size.x,
-        ceildiv(size.y, 32));
-}
-
-void Binarize::clear()
-{
-    m_ctx.clear();
-    m_src = {};
-    m_dst = {};
-    m_dirty = true;
+    m_filter->dispatch(*this);
 }
 
 
-TemplateMatch::TemplateMatch()
+
+TemplateMatchCS::TemplateMatchCS()
 {
-    m_ctx_grayscale.initialize(mrBytecode(g_hlsl_TemplateMatch_Grayscale));
-    m_ctx_binary.initialize(mrBytecode(g_hlsl_TemplateMatch_Binary));
+    m_cs_grayscale.initialize(mrBytecode(g_hlsl_TemplateMatch_Grayscale));
+    m_cs_binary.initialize(mrBytecode(g_hlsl_TemplateMatch_Binary));
 }
 
-void TemplateMatch::setSrcImage(Texture2DPtr v)
+void TemplateMatchCS::dispatch(ICSContext& ctx_)
 {
-    if (m_src == v)
-        return;
-    m_src = v;
-}
+    auto& ctx = static_cast<TemplateMatchCtx&>(ctx_);
+    auto& src = ctx.m_src;
+    auto& dst = ctx.m_dst;
+    auto& tmp = ctx.m_template;
 
-void TemplateMatch::setDstImage(Texture2DPtr v)
-{
-    if (m_dst == v)
-        return;
-    m_dst = v;
-}
+    auto size = dst->getSize();
+    if (src->getFormat() == TextureFormat::Ru8) {
+        m_cs_grayscale.setSRV(src, 0);
+        m_cs_grayscale.setSRV(tmp, 1);
+        m_cs_grayscale.setUAV(dst);
 
-void TemplateMatch::setTemplateImage(Texture2DPtr v)
-{
-    if (m_template == v)
-        return;
-    m_template = v;
-}
-
-void TemplateMatch::dispatch()
-{
-    if (!m_src || !m_dst)
-        return;
-
-    auto size = m_dst->getSize();
-    if (m_src->getFormat() == TextureFormat::Ru8) {
-        m_ctx_grayscale.setSRV(m_src, 0);
-        m_ctx_grayscale.setSRV(m_template, 1);
-        m_ctx_grayscale.setUAV(m_dst);
-
-        m_ctx_grayscale.dispatch(
+        m_cs_grayscale.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }
-    else if (m_src->getFormat() == TextureFormat::Ri32) {
-        m_ctx_binary.setSRV(m_src, 0);
-        m_ctx_binary.setSRV(m_template, 1);
-        m_ctx_binary.setUAV(m_dst);
+    else if (src->getFormat() == TextureFormat::Ri32) {
+        m_cs_binary.setSRV(src, 0);
+        m_cs_binary.setSRV(tmp, 1);
+        m_cs_binary.setUAV(dst);
 
-        m_ctx_binary.dispatch(
+        m_cs_binary.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }
 }
 
-void TemplateMatch::clear()
+TemplateMatchCtxPtr TemplateMatchCS::createContext()
 {
-    m_ctx_grayscale.clear();
-    m_ctx_binary.clear();
+    return std::make_shared<TemplateMatchCtx>(this);
+}
 
-    m_src = {};
-    m_dst = {};
-    m_template = {};
+TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
+    : m_filter(v)
+{
+}
+
+void TemplateMatchCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = i2c(v);
+}
+
+void TemplateMatchCtx::setDst(ITexture2DPtr v)
+{
+    m_dst = i2c(v);
+}
+
+void TemplateMatchCtx::setTemplate(ITexture2DPtr v)
+{
+    m_template = i2c(v);
+}
+
+ITexture2DPtr TemplateMatchCtx::getDst()
+{
+    return m_dst;
+}
+
+void TemplateMatchCtx::dispatch()
+{
+    if (!m_src || !m_template)
+        return;
+    if (m_src->getFormat() != m_template->getFormat()) {
+        mrDbgPrint("*** GfxInterface::templateMatch(): format mismatch ***\n");
+        return;
+    }
+
+    if (!m_dst) {
+        if (m_src->getFormat() == TextureFormat::Ru8) {
+            auto size = m_src->getSize() - m_template->getSize();
+            m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
+        }
+        else if (m_src->getFormat() == TextureFormat::Ri32) {
+            auto size = m_src->getSize() - m_template->getSize();
+            m_dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Rf32);
+        }
+        if (!m_dst)
+            return;
+    }
+
+    m_filter->dispatch(*this);
 }
 
 
-ReduceMinMax::ReduceMinMax()
+
+ReduceMinMaxCS::ReduceMinMaxCS()
 {
-    m_ctx1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
-    m_ctx2.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass2));
+    m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
+    m_cs_pass2.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass2));
 }
 
-void ReduceMinMax::setSrcImage(Texture2DPtr v)
+void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 {
-    m_src = v;
+    auto& ctx = static_cast<ReduceMinMaxCtx&>(ctx_);
+    using result_t = IReduceMinMax::Result;
+
+    m_cs_pass1.setSRV(ctx.m_src);
+    m_cs_pass1.setUAV(ctx.m_dst);
+    m_cs_pass2.setSRV(ctx.m_src);
+    m_cs_pass2.setUAV(ctx.m_dst);
+
+    auto image_size = ctx.m_src->getSize();
+    m_cs_pass1.dispatch(1, image_size.y);
+    m_cs_pass2.dispatch(1, 1);
+    DispatchCopy(ctx.m_staging, ctx.m_dst, sizeof(result_t));
+
+    // deferred getter
+    ctx.m_result = std::async(std::launch::deferred, [&ctx]() {
+        result_t ret{};
+        MapRead(ctx.m_staging->ptr(), [&ret](const void* v) {
+            ret = *(result_t*)v;
+            });
+        return ret;
+        });
 }
 
-void ReduceMinMax::dispatch()
+ReduceMinMaxCtxPtr ReduceMinMaxCS::createContext()
+{
+    return std::make_shared<ReduceMinMaxCtx>(this);
+}
+
+ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
+    : m_filter(v)
+{
+}
+
+void ReduceMinMaxCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = i2c(v);
+}
+
+std::future<IReduceMinMax::Result>& ReduceMinMaxCtx::getResult()
+{
+    return m_result;
+}
+
+void ReduceMinMaxCtx::dispatch()
 {
     if (!m_src)
         return;
 
-    struct Result
-    {
-        int2 pos_min;
-        int2 pos_max;
-        float val_min;
-        float val_max;
-        int pad[2];
-    };
-    mrCheck16(Result);
+    using result_t = IReduceMinMax::Result;
+    size_t rsize = m_src->getSize().y * sizeof(result_t);
+    if (!m_dst || m_dst->getSize() != rsize) {
+        m_dst = Buffer::createStructured(rsize, sizeof(result_t));
+    }
+    if (!m_staging) {
+        m_staging = Buffer::createStaging(sizeof(result_t));
+    }
 
-    size_t rsize = m_src->getSize().y * sizeof(Result);
-    if (!m_dst || m_dst->getSize() != rsize)
-        m_dst = Buffer::createStructured(rsize, sizeof(Result));
-    if(!m_staging)
-        m_staging = Buffer::createStaging(sizeof(Result));
-
-    m_ctx1.setSRV(m_src);
-    m_ctx1.setUAV(m_dst);
-    m_ctx2.setSRV(m_src);
-    m_ctx2.setUAV(m_dst);
-
-    auto image_size = m_src->getSize();
-    m_ctx1.dispatch(1, image_size.y);
-    m_ctx2.dispatch(1, 1);
-    DispatchCopy(m_staging, m_dst, sizeof(Result));
-
-}
-
-void ReduceMinMax::clear()
-{
-    m_src = {};
-    m_dst = {};
-    m_staging = {};
-
-    m_ctx1.clear();
-    m_ctx2.clear();
-}
-
-std::future<ReduceMinmaxResult> ReduceMinMax::getResult()
-{
-    return std::async(std::launch::deferred, [this]() {
-        ReduceMinmaxResult ret{};
-        MapRead(m_staging->ptr(), [&ret](const void* v) {
-            ret = *(ReduceMinmaxResult*)v;
-            });
-        return ret;
-        });
+    m_filter->dispatch(*this);
 }
 
 } // namespace mr

@@ -11,6 +11,20 @@ using winrt::com_ptr;
 
 namespace mr {
 
+#define DeclCS(Name) class Name##CS; class Name##Ctx; mrDeclPtr(Name##CS); mrDeclPtr(Name##Ctx);
+
+DeclCS(Transform);
+DeclCS(Binarize);
+DeclCS(Contour);
+DeclCS(TemplateMatch);
+
+DeclCS(ReduceTotal);
+DeclCS(ReduceCountBits);
+DeclCS(ReduceMinMax);
+
+#undef DeclCS
+
+
 // thin wrapper for Windows' event
 class FenceEvent
 {
@@ -29,8 +43,8 @@ private:
 class GfxGlobals
 {
 public:
-    static bool initialize();
-    static bool finalize();
+    static bool initializeInstance();
+    static bool finalizeInstance();
     static GfxGlobals* get();
 
     bool valid() const;
@@ -54,10 +68,14 @@ public:
         body();
     }
 
+    template<class CS>
+    CS* getCS();
+
 public:
     GfxGlobals();
     ~GfxGlobals();
     GfxGlobals(const GfxGlobals&) = delete;
+    bool initialize();
 
 private:
     com_ptr<ID3D11Device5> m_device;
@@ -71,6 +89,12 @@ private:
 
     std::mutex m_mutex;
 
+    // shaders
+    TransformCSPtr m_cs_transform;
+    BinarizeCSPtr m_cs_binarize;
+    ContourCSPtr m_cs_contour;
+    TemplateMatchCSPtr m_cs_template_match;
+    ReduceMinMaxCSPtr m_cs_reduce_minmax;
 };
 #define mrGfxGlobals() GfxGlobals::get()
 #define mrGfxDevice() mrGfxGlobals()->getDevice()
@@ -80,6 +104,7 @@ private:
 #define mrGfxSync(...) mrGfxGlobals()->sync(__VA_ARGS__)
 #define mrGfxLock(Body) mrGfxGlobals()->lock(Body)
 #define mrGfxLockScope() std::lock_guard<GfxGlobals> _gfx_lock(*mrGfxGlobals())
+#define mrGfxGetCS(Class) mrGfxGlobals()->getCS<Class>()
 
 
 class DeviceResource;
@@ -173,10 +198,10 @@ private:
 };
 
 
-class CSContext
+class ComputeShader
 {
 public:
-    virtual ~CSContext();
+    virtual ~ComputeShader();
 
     bool initialize(const void *bin, size_t size);
 
@@ -201,6 +226,14 @@ private:
     std::vector<ID3D11SamplerState*> m_samplers;
 };
 
+class ICompute
+{
+public:
+    virtual ~ICompute();
+    virtual void dispatch(ICSContext& ctx) = 0;
+};
+
+
 TextureFormat GetMRFormat(DXGI_FORMAT f);
 DXGI_FORMAT GetDXFormat(TextureFormat f);
 
@@ -210,6 +243,11 @@ void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset = 0);
 void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = int2::zero());
 bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& callback);
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
+
+inline Texture2DPtr i2c(ITexture2DPtr& c)
+{
+    return std::static_pointer_cast<Texture2D>(c);
+}
 
 template<class To, class From>
 inline com_ptr<To> As(From* ptr)

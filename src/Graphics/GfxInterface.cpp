@@ -16,11 +16,11 @@ public:
     ITexture2DPtr createTextureFromFile(const char* path) override;
     IScreenCapturePtr createScreenCapture() override;
 
-    void transform(TransformParams& v) override;
-    void binarize(BinarizeParams& v) override;
-    void contour(ContourParams& v) override;
-    void templateMatch(TemplateMatchParams& v) override;
-    void reduceMinMax(ReduceMinmaxParams& v) override;
+    ITransformPtr createTransform() override;
+    IBinarizePtr createBinarize() override;
+    IContourPtr createContour() override;
+    ITemplateMatchPtr createTemplateMatch() override;
+    IReduceMinMaxPtr createReduceMinMax() override;
 
     void flush() override;
     void sync(int timeout_ms) override;
@@ -29,12 +29,6 @@ public:
     void unlock() override;
 
 private:
-    // filters
-    Transform m_transform;
-    Binarize m_binarize;
-    Contour m_contour;
-    TemplateMatch m_template_match;
-    ReduceMinMax m_reduce_minmax;
 };
 
 
@@ -67,96 +61,31 @@ IScreenCapturePtr GfxInterface::createScreenCapture()
 }
 
 
-inline std::shared_ptr<Texture2D> i2c(std::shared_ptr<ITexture2D>& c)
+ITransformPtr GfxInterface::createTransform()
 {
-    return std::static_pointer_cast<Texture2D>(c);
+    return mrGfxGetCS(TransformCS)->createContext();
 }
 
-void GfxInterface::transform(TransformParams& v)
+IBinarizePtr GfxInterface::createBinarize()
 {
-    if (!v.src)
-        return;
-    if (!v.dst) {
-        auto size = v.src->getSize();
-        if (v.scale != 1.0f)
-            size = int2(float2(size) * v.scale);
-        v.dst = Texture2D::create(size.x, size.y, v.grayscale ? TextureFormat::Ru8 : v.src->getFormat());
-    }
-
-    m_transform.setSrcImage(i2c(v.src));
-    m_transform.setDstImage(i2c(v.dst));
-    m_transform.setCopyRegion(v.offset, v.size);
-    m_transform.setFlipRB(v.flip_rb);
-    m_transform.setGrayscale(v.grayscale);
-    m_transform.dispatch();
+    return mrGfxGetCS(BinarizeCS)->createContext();
 }
 
-void GfxInterface::binarize(BinarizeParams& v)
+IContourPtr GfxInterface::createContour()
 {
-    if (!v.src)
-        return;
-    if (!v.dst) {
-        auto size = v.src->getSize();
-        v.dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32);
-    }
-
-    m_binarize.setSrcImage(i2c(v.src));
-    m_binarize.setDstImage(i2c(v.dst));
-    m_binarize.setThreshold(v.threshold);
-    m_binarize.dispatch();
+    return mrGfxGetCS(ContourCS)->createContext();
 }
 
-void GfxInterface::contour(ContourParams& v)
+ITemplateMatchPtr GfxInterface::createTemplateMatch()
 {
-    if (!v.src)
-        return;
-    if (!v.dst) {
-        auto size = v.src->getSize();
-        v.dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
-    }
-
-    m_contour.setSrcImage(i2c(v.src));
-    m_contour.setDstImage(i2c(v.dst));
-    m_contour.setBlockSize(v.block_size);
-    m_contour.dispatch();
+    return mrGfxGetCS(TemplateMatchCS)->createContext();
 }
 
-void GfxInterface::templateMatch(TemplateMatchParams& v)
+IReduceMinMaxPtr GfxInterface::createReduceMinMax()
 {
-    if (!v.src || !v.template_image)
-        return;
-    if (v.src->getFormat() != v.template_image->getFormat()) {
-        mrDbgPrint("*** GfxInterface::templateMatch(): format mismatch ***\n");
-        return;
-    }
-    if (!v.dst) {
-        if (v.src->getFormat() == TextureFormat::Ru8) {
-            auto size = v.src->getSize() - v.template_image->getSize();
-            v.dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
-        }
-        else if (v.src->getFormat() == TextureFormat::Ri32) {
-            auto size = v.src->getSize() - v.template_image->getSize();
-            v.dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Rf32);
-        }
-        if (!v.dst)
-            return;
-    }
-
-    m_template_match.setSrcImage(i2c(v.src));
-    m_template_match.setTemplateImage(i2c(v.template_image));
-    m_template_match.setDstImage(i2c(v.dst));
-    m_template_match.dispatch();
+    return mrGfxGetCS(ReduceMinMaxCS)->createContext();
 }
 
-void GfxInterface::reduceMinMax(ReduceMinmaxParams& v)
-{
-    if (!v.src)
-        return;
-
-    m_reduce_minmax.setSrcImage(i2c(v.src));
-    m_reduce_minmax.dispatch();
-    v.result = m_reduce_minmax.getResult();
-}
 
 void GfxInterface::flush()
 {

@@ -56,7 +56,7 @@ private:
     std::mutex m_mutex;
 
     Texture2DPtr m_frame_buffer;
-    Transform m_transform;
+    TransformCtxPtr m_transform;
 
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
@@ -121,6 +121,9 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 
     mrProfile("GraphicsCapture::start()");
     try {
+        if (!m_transform)
+            m_transform = mrGfxGetCS(TransformCS)->createContext();
+
         if (!m_device_rt) {
             auto dxgi = As<IDXGIDevice>(mrGfxDevice());
             com_ptr<::IInspectable> device_rt;
@@ -193,11 +196,11 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
             m_frame_buffer = Texture2D::create(size.Width, size.Height, TextureFormat::RGBAu8);
         }
 
-        m_transform.setSrcImage(src);
-        m_transform.setDstImage(m_frame_buffer);
-        m_transform.setCopyRegion({ 0, 0 }, { size.Width, size.Height });
+        m_transform->setSrc(src);
+        m_transform->setDst(m_frame_buffer);
+        m_transform->setRect({ 0, 0 }, { size.Width, size.Height });
         mrGfxLock([this]() {
-            m_transform.dispatch();
+            m_transform->dispatch();
             });
 
         FrameInfo tmp{ m_frame_buffer, time };

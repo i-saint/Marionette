@@ -250,51 +250,73 @@ public:
 mrDeclPtr(IScreenCapture);
 
 
-struct TransformParams
+class ICSContext
 {
-    ITexture2DPtr dst; // out. will be created if null
-    ITexture2DPtr src;
-    int2 offset = int2::zero();
-    int2 size = int2::zero();
-    float scale = 1.0f;
-    bool flip_rb = false;
-    bool grayscale = false;
+public:
+    virtual ~ICSContext() {}
+    virtual void dispatch() = 0;
 };
 
-struct BinarizeParams
+class ITransform : public ICSContext
 {
-    ITexture2DPtr dst; // out. will be created if null
-    ITexture2DPtr src;
-    float threshold = 0.5f;
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setRect(int2 pos, int2 size) = 0;
+    virtual void setScale(float v) = 0;
+    virtual void setGrayscale(bool v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
 };
+mrDeclPtr(ITransform);
 
-struct ContourParams
+class IBinarize : public ICSContext
 {
-    ITexture2DPtr dst; // out. will be created if null
-    ITexture2DPtr src;
-    int block_size = 5;
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setThreshold(float v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
 };
+mrDeclPtr(IBinarize);
 
-struct TemplateMatchParams
+class IContour : public ICSContext
 {
-    ITexture2DPtr dst; // out. will be created if null
-    ITexture2DPtr src;
-    ITexture2DPtr template_image;
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setBlockSize(int v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
 };
+mrDeclPtr(IContour);
 
-struct ReduceMinmaxResult
+class ITemplateMatch : public ICSContext
 {
-    int2 pos_min{};
-    int2 pos_max{};
-    float val_min{};
-    float val_max{};
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setTemplate(ITexture2DPtr v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
 };
+mrDeclPtr(ITemplateMatch);
 
-struct ReduceMinmaxParams
+class IReduceMinMax : public ICSContext
 {
-    std::future<ReduceMinmaxResult> result; // out
-    ITexture2DPtr src;
+public:
+    struct Result
+    {
+        int2 pos_min{};
+        int2 pos_max{};
+        float val_min{};
+        float val_max{};
+        int2 pad;
+    };
+
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual std::future<Result>& getResult() = 0;
 };
+mrDeclPtr(IReduceMinMax);
+
+
 
 class IGfxInterface
 {
@@ -306,11 +328,11 @@ public:
     virtual ITexture2DPtr createTextureFromFile(const char* path) = 0;
     virtual IScreenCapturePtr createScreenCapture() = 0;
 
-    virtual void transform(TransformParams& v) = 0;
-    virtual void binarize(BinarizeParams& v) = 0;
-    virtual void contour(ContourParams& v) = 0;
-    virtual void templateMatch(TemplateMatchParams& v) = 0;
-    virtual void reduceMinMax(ReduceMinmaxParams& v) = 0;
+    virtual ITransformPtr createTransform() = 0;
+    virtual IBinarizePtr createBinarize() = 0;
+    virtual IContourPtr createContour() = 0;
+    virtual ITemplateMatchPtr createTemplateMatch() = 0;
+    virtual IReduceMinMaxPtr createReduceMinMax() = 0;
 
     virtual void flush() = 0;
     virtual void sync(int timeout_ms = 1000) = 0;
@@ -321,7 +343,7 @@ public:
     template<class Body>
     inline void lock(const Body& body)
     {
-        std::lock_guard lock(*this);
+        std::lock_guard<IGfxInterface> lock(*this);
         body();
     }
 };

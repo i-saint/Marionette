@@ -3,131 +3,192 @@
 
 namespace mr {
 
-class IFilter
+class TransformCS : public ICompute
 {
 public:
-    virtual ~IFilter();
-    virtual void dispatch() = 0;
-    virtual void clear() = 0;
-
-protected:
-
-};
-
-
-class Transform : public IFilter
-{
-public:
-    Transform();
-    void setSrcImage(Texture2DPtr v);
-    void setDstImage(Texture2DPtr v);
-    void setCopyRegion(int2 pos, int2 size);
-    void setFlipRB(bool v);
-    void setGrayscale(bool v);
-
-    void dispatch() override;
-    void clear() override;
+    TransformCS();
+    void dispatch(ICSContext& ctx) override;
+    TransformCtxPtr createContext();
 
 private:
+    ComputeShader m_cs;
+};
+
+class TransformCtx : public ITransform
+{
+public:
+    TransformCtx(TransformCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setRect(int2 o, int2 s) override;
+    void setScale(float v) override;
+    void setGrayscale(bool v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    TransformCS* m_filter{};
     Texture2DPtr m_src;
-    Texture2DPtr m_dst;
+    Texture2DPtr m_dst; // out. will be created if null
     BufferPtr m_const;
 
-    int2 m_pos{};
-    int2 m_size{};
-    bool m_flip_rb = false;
+    int2 m_offset = int2::zero();
+    int2 m_size = int2::zero();
+    float m_scale = 1.0f;
     bool m_grayscale = false;
     bool m_dirty = true;
-
-    CSContext m_ctx;
 };
 
 
-class Contour : public IFilter
+class ContourCS : public ICompute
 {
 public:
-    Contour();
-    void setSrcImage(Texture2DPtr v);
-    void setDstImage(Texture2DPtr v);
-    void setBlockSize(int v);
-
-    void dispatch() override;
-    void clear() override;
+    ContourCS();
+    void dispatch(ICSContext& ctx) override;
+    ContourCtxPtr createContext();
 
 private:
+    ComputeShader m_cs;
+};
+
+class ContourCtx : public IContour
+{
+public:
+    ContourCtx(ContourCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setBlockSize(int v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    ContourCS* m_filter{};
+    Texture2DPtr m_dst; // out. will be created if null
     Texture2DPtr m_src;
-    Texture2DPtr m_dst;
     BufferPtr m_const;
 
     int m_block_size = 5;
     bool m_dirty = true;
-
-    CSContext m_ctx;
 };
 
 
-class Binarize : public IFilter
+class BinarizeCS : public ICompute
 {
 public:
-    Binarize();
-    void setSrcImage(Texture2DPtr v);
-    void setDstImage(Texture2DPtr v);
-    void setThreshold(float v);
-
-    void dispatch() override;
-    void clear() override;
+    BinarizeCS();
+    void dispatch(ICSContext& ctx) override;
+    BinarizeCtxPtr createContext();
 
 private:
+    ComputeShader m_cs;
+};
+
+class BinarizeCtx : public IBinarize
+{
+public:
+    BinarizeCtx(BinarizeCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setThreshold(float v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    BinarizeCS* m_filter{};
+    Texture2DPtr m_dst; // out. will be created if null
     Texture2DPtr m_src;
-    Texture2DPtr m_dst;
     BufferPtr m_const;
 
     float m_threshold = 0.5f;
     bool m_dirty = true;
-
-    CSContext m_ctx;
 };
 
 
-class TemplateMatch : public IFilter
+class TemplateMatchCS : public ICompute
 {
 public:
-    TemplateMatch();
-    void setSrcImage(Texture2DPtr v);
-    void setDstImage(Texture2DPtr v);
-    void setTemplateImage(Texture2DPtr v);
-
-    void dispatch() override;
-    void clear() override;
+    TemplateMatchCS();
+    void dispatch(ICSContext& ctx) override;
+    TemplateMatchCtxPtr createContext();
 
 private:
+    ComputeShader m_cs_grayscale;
+    ComputeShader m_cs_binary;
+};
+
+class TemplateMatchCtx : public ITemplateMatch
+{
+public:
+    TemplateMatchCtx(TemplateMatchCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setTemplate(ITexture2DPtr v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    TemplateMatchCS* m_filter{};
+    Texture2DPtr m_dst; // out. will be created if null
     Texture2DPtr m_src;
     Texture2DPtr m_template;
-    Texture2DPtr m_dst;
-
-    CSContext m_ctx_grayscale;
-    CSContext m_ctx_binary;
 };
 
 
-class ReduceMinMax : public IFilter
+
+class ReduceTotalCS : public ICompute
 {
 public:
-    ReduceMinMax();
-    void setSrcImage(Texture2DPtr v);
-
-    void dispatch() override;
-    void clear() override;
-
-    std::future<ReduceMinmaxResult> getResult();
+    ReduceTotalCS();
+    void dispatch(ICSContext& ctx) override;
+    ReduceTotalCtxPtr createContext();
 
 private:
+    ComputeShader m_pass1;
+    ComputeShader m_pass2;
+};
+
+class ReduceCountBitsCS : public ICompute
+{
+public:
+    ReduceCountBitsCS();
+    void dispatch(ICSContext& ctx) override;
+    ReduceCountBitsCtxPtr createContext();
+
+private:
+    ComputeShader m_pass1;
+    ComputeShader m_pass2;
+};
+
+
+class ReduceMinMaxCS : public ICompute
+{
+public:
+
+    ReduceMinMaxCS();
+    void dispatch(ICSContext& ctx) override;
+    ReduceMinMaxCtxPtr createContext();
+
+private:
+    ComputeShader m_cs_pass1;
+    ComputeShader m_cs_pass2;
+};
+
+class ReduceMinMaxCtx : public IReduceMinMax
+{
+public:
+    mrCheck16(Result);
+
+    ReduceMinMaxCtx(ReduceMinMaxCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    std::future<Result>& getResult() override;
+    void dispatch() override;
+
+public:
+    ReduceMinMaxCS* m_filter{};
     Texture2DPtr m_src;
     BufferPtr m_dst;
     BufferPtr m_staging;
-
-    CSContext m_ctx1;
-    CSContext m_ctx2;
+    std::future<Result> m_result;
 };
 
 
