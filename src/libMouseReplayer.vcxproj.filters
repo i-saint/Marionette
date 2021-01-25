@@ -47,6 +47,7 @@
     <ClInclude Include="Graphics\ScreenCapture.h">
       <Filter>Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="ref_ptr.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">

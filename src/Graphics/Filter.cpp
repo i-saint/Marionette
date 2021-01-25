@@ -41,9 +41,9 @@ void TransformCS::dispatch(ICSContext& ctx_)
         ceildiv(ctx.m_size.y, 32));
 }
 
-TransformCtx* TransformCS::createContext_()
+TransformCtxPtr TransformCS::createContext()
 {
-    return new TransformCtx(this);
+    return make_ref<TransformCtx>(this);
 }
 
 TransformCtx::TransformCtx(TransformCS* v)
@@ -51,14 +51,14 @@ TransformCtx::TransformCtx(TransformCS* v)
 {
 }
 
-void TransformCtx::setSrc(ITexture2DPtr v)
+void TransformCtx::setSrc(ITexture2D* v)
 {
-    m_src = i2c(v);
+    m_src = cast(v);
 }
 
-void TransformCtx::setDst(ITexture2DPtr v)
+void TransformCtx::setDst(ITexture2D* v)
 {
-    m_dst = i2c(v);
+    m_dst = cast(v);
 }
 
 void TransformCtx::setRect(int2 offset, int2 size)
@@ -144,9 +144,9 @@ void ContourCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-ContourCtx* ContourCS::createContext_()
+ContourCtxPtr ContourCS::createContext()
 {
-    return new ContourCtx(this);
+    return make_ref<ContourCtx>(this);
 
 }
 
@@ -155,14 +155,14 @@ ContourCtx::ContourCtx(ContourCS* v)
 {
 }
 
-void ContourCtx::setSrc(ITexture2DPtr v)
+void ContourCtx::setSrc(ITexture2D* v)
 {
-    m_src = i2c(v);
+    m_src = cast(v);
 }
 
-void ContourCtx::setDst(ITexture2DPtr v)
+void ContourCtx::setDst(ITexture2D* v)
 {
-    m_dst = i2c(v);
+    m_dst = cast(v);
 }
 
 void ContourCtx::setBlockSize(int v)
@@ -222,9 +222,9 @@ void BinarizeCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-BinarizeCtx* BinarizeCS::createContext_()
+BinarizeCtxPtr BinarizeCS::createContext()
 {
-    return new BinarizeCtx(this);
+    return make_ref<BinarizeCtx>(this);
 }
 
 BinarizeCtx::BinarizeCtx(BinarizeCS* v)
@@ -232,14 +232,14 @@ BinarizeCtx::BinarizeCtx(BinarizeCS* v)
 {
 }
 
-void BinarizeCtx::setSrc(ITexture2DPtr v)
+void BinarizeCtx::setSrc(ITexture2D* v)
 {
-    m_src = i2c(v);
+    m_src = cast(v);
 }
 
-void BinarizeCtx::setDst(ITexture2DPtr v)
+void BinarizeCtx::setDst(ITexture2D* v)
 {
-    m_dst = i2c(v);
+    m_dst = cast(v);
 }
 
 void BinarizeCtx::setThreshold(float v)
@@ -314,9 +314,9 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
     }
 }
 
-TemplateMatchCtx* TemplateMatchCS::createContext_()
+TemplateMatchCtxPtr TemplateMatchCS::createContext()
 {
-    return new TemplateMatchCtx(this);
+    return make_ref<TemplateMatchCtx>(this);
 }
 
 TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
@@ -324,19 +324,19 @@ TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
 {
 }
 
-void TemplateMatchCtx::setSrc(ITexture2DPtr v)
+void TemplateMatchCtx::setSrc(ITexture2D* v)
 {
-    m_src = i2c(v);
+    m_src = cast(v);
 }
 
-void TemplateMatchCtx::setDst(ITexture2DPtr v)
+void TemplateMatchCtx::setDst(ITexture2D* v)
 {
-    m_dst = i2c(v);
+    m_dst = cast(v);
 }
 
-void TemplateMatchCtx::setTemplate(ITexture2DPtr v)
+void TemplateMatchCtx::setTemplate(ITexture2D* v)
 {
-    m_template = i2c(v);
+    m_template = cast(v);
 }
 
 ITexture2DPtr TemplateMatchCtx::getDst()
@@ -392,9 +392,9 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     ctx.m_dst->download(sizeof(IReduceMinMax::Result));
 }
 
-ReduceMinMaxCtx* ReduceMinMaxCS::createContext_()
+ReduceMinMaxCtxPtr ReduceMinMaxCS::createContext()
 {
-    return new ReduceMinMaxCtx(this);
+    return make_ref<ReduceMinMaxCtx>(this);
 }
 
 ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
@@ -402,9 +402,9 @@ ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
 {
 }
 
-void ReduceMinMaxCtx::setSrc(ITexture2DPtr v)
+void ReduceMinMaxCtx::setSrc(ITexture2D* v)
 {
-    m_src = i2c(v);
+    m_src = cast(v);
 }
 
 IReduceMinMax::Result ReduceMinMaxCtx::getResult()

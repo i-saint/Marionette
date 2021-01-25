@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "MouseReplayer.h"
+#include "Internal.h"
 
 namespace mr {
 
@@ -25,10 +25,9 @@ private:
 };
 #endif
 
-class Player : public IPlayer
+class Player : public RefCount<IPlayer>
 {
 public:
-    void release() override;
     bool start(uint32_t loop) override;
     bool stop() override;
     bool isPlaying() const override;
@@ -108,11 +107,6 @@ cv::Mat* ImageManager::get(int handle)
 #endif
 
 
-
-void Player::release()
-{
-    delete this;
-}
 
 bool Player::start(uint32_t loop)
 {

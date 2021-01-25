@@ -26,13 +26,40 @@ private:
 
 
 template<class T>
-class ImplRelease : public T
+class RefCount : public T
 {
 public:
-    void release() override
+    // forbid copy
+    RefCount(const RefCount& v) = delete;
+    RefCount& operator=(const RefCount& v) = delete;
+
+    RefCount() {}
+
+    int addRef() override
+    {
+        return ++m_ref;
+    }
+
+    int release() override
+    {
+        int ret = --m_ref;
+        if (ret == 0)
+            onRefCountZero();
+        return ret;
+    }
+
+    int getRef() const override
+    {
+        return m_ref;
+    }
+
+    virtual void onRefCountZero()
     {
         delete this;
     }
+
+protected:
+    std::atomic_int m_ref{ 0 };
 };
 
 void AddInitializeHandler(const std::function<void()>& v);

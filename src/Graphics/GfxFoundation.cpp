@@ -144,11 +144,11 @@ bool GfxGlobals::initialize()
 
     // shaders
     {
-        m_cs_transform = std::make_shared<TransformCS>();
-        m_cs_binarize = std::make_shared<BinarizeCS>();
-        m_cs_contour = std::make_shared<ContourCS>();
-        m_cs_template_match = std::make_shared<TemplateMatchCS>();
-        m_cs_reduce_minmax = std::make_shared<ReduceMinMaxCS>();
+        m_cs_transform = make_ref<TransformCS>();
+        m_cs_binarize = make_ref<BinarizeCS>();
+        m_cs_contour = make_ref<ContourCS>();
+        m_cs_template_match = make_ref<TemplateMatchCS>();
+        m_cs_reduce_minmax = make_ref<ReduceMinMaxCS>();
     }
 
     return true;
@@ -229,7 +229,7 @@ DefCSGetter(ReduceMinMaxCS, m_cs_reduce_minmax);
 
 BufferPtr Buffer::createConstant(uint32_t size, const void* data)
 {
-    auto ret = std::make_shared<Buffer>();
+    auto ret = make_ref<Buffer>();
 
     ret->m_size = size;
     {
@@ -244,7 +244,7 @@ BufferPtr Buffer::createConstant(uint32_t size, const void* data)
 
 BufferPtr Buffer::createStructured(uint32_t size, uint32_t stride, const void* data)
 {
-    auto ret = std::make_shared<Buffer>();
+    auto ret = make_ref<Buffer>();
 
     ret->m_size = size;
     ret->m_stride = stride;
@@ -345,12 +345,12 @@ bool Buffer::read(const ReadCallback& callback, int size)
 }
 
 
-Texture2D* Texture2D::create_(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t pitch)
+Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t pitch)
 {
     if (w <= 0 || h <= 0)
         return nullptr;
 
-    auto ret = std::make_unique<Texture2D>();
+    auto ret = make_ref<Texture2D>();
     ret->m_size = { (int)w, (int)h };
     ret->m_format = format;
     auto dxformat = GetDXFormat(format);
@@ -377,21 +377,21 @@ Texture2D* Texture2D::create_(uint32_t w, uint32_t h, TextureFormat format, cons
             mrGfxDevice()->CreateUnorderedAccessView(ret->m_texture.get(), &desc, ret->m_uav.put());
         }
     }
-    return ret->valid() ? ret.release() : nullptr;
+    return ret->valid() ? ret : nullptr;
 }
 
-Texture2D* Texture2D::create_(const char* path)
+Texture2DPtr Texture2D::create(const char* path)
 {
-    Texture2D* ret{};
+    Texture2DPtr ret;
 
     int w, h, ch;
     byte* data = stbi_load(path, &w, &h, &ch, 0);
     if (data) {
         if (ch == 1) {
-            ret = create_(w, h, TextureFormat::Ru8, data, w * 1);
+            ret = create(w, h, TextureFormat::Ru8, data, w * 1);
         }
         else if (ch == 4) {
-            ret = create_(w, h, TextureFormat::RGBAu8, data, w * 4);
+            ret = create(w, h, TextureFormat::RGBAu8, data, w * 4);
         }
         else if (ch == 3) {
             std::vector<byte> tmp(w * h * 4);
@@ -407,7 +407,7 @@ Texture2D* Texture2D::create_(const char* path)
                     d += 4;
                 }
             }
-            ret = create_(w, h, TextureFormat::RGBAu8, tmp.data(), w * 4);
+            ret = create(w, h, TextureFormat::RGBAu8, tmp.data(), w * 4);
         }
 
         stbi_image_free(data);
@@ -417,7 +417,7 @@ Texture2D* Texture2D::create_(const char* path)
 
 Texture2DPtr Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
 {
-    auto ret = std::make_shared<Texture2D>();
+    auto ret = make_ref<Texture2D>();
 
     D3D11_TEXTURE2D_DESC desc{};
     v->GetDesc(&desc);
@@ -450,11 +450,6 @@ bool Texture2D::operator==(const Texture2D& v) const
 bool Texture2D::operator!=(const Texture2D& v) const
 {
     return v.m_texture != m_texture;
-}
-
-void Texture2D::release()
-{
-    delete this;
 }
 
 bool Texture2D::valid() const
@@ -585,32 +580,27 @@ std::future<bool> Texture2D::saveAsync(const std::string& path)
 
 
 
-ComputeShader::~ComputeShader()
-{
-
-}
-
 bool ComputeShader::initialize(const void* bin, size_t size)
 {
     mrGfxDevice()->CreateComputeShader(bin, size, nullptr, m_shader.put());
     return m_shader != nullptr;
 }
 
-void ComputeShader::setCBuffer(BufferPtr v, int slot)
+void ComputeShader::setCBuffer(Buffer* v, int slot)
 {
     if (slot >= m_cbuffers.size())
         m_cbuffers.resize(slot + 1);
     m_cbuffers[slot] = v->ptr();
 }
 
-void ComputeShader::setSRV(DeviceResourcePtr v, int slot)
+void ComputeShader::setSRV(DeviceResource* v, int slot)
 {
     if (slot >= m_srvs.size())
         m_srvs.resize(slot + 1);
     m_srvs[slot] = v->srv();
 }
 
-void ComputeShader::setUAV(DeviceResourcePtr v, int slot)
+void ComputeShader::setUAV(DeviceResource* v, int slot)
 {
     if (slot >= m_uavs.size())
         m_uavs.resize(slot + 1);

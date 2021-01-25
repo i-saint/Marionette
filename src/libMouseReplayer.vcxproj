@@ -35,6 +35,7 @@
     <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ref_ptr.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="setup.vcxproj">

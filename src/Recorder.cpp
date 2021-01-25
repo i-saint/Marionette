@@ -3,11 +3,10 @@
 
 namespace mr {
 
-class Recorder : public IRecorder
+class Recorder : public RefCount<IRecorder>
 {
 public:
     ~Recorder() override;
-    void release() override;
     bool start() override;
     bool stop() override;
     bool isRecording() const override;
@@ -29,11 +28,6 @@ private:
 Recorder::~Recorder()
 {
     stop();
-}
-
-void Recorder::release()
-{
-    delete this;
 }
 
 bool Recorder::start()

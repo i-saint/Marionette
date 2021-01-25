@@ -25,13 +25,12 @@ using namespace winrt::Windows::Graphics::Capture;
 
 namespace mr {
 
-class GraphicsCapture : public IScreenCapture
+class GraphicsCapture : public RefCount<IScreenCapture>
 {
 public:
     GraphicsCapture();
     ~GraphicsCapture() override;
 
-    void release() override;
     bool valid() const override;
     FrameInfo getFrame() override;
 
@@ -107,11 +106,6 @@ GraphicsCapture::FrameInfo GraphicsCapture::getFrame()
         ret = m_frame_info;
     }
     return ret;
-}
-
-void GraphicsCapture::release()
-{
-    delete this;
 }
 
 template<class CreateCaptureItem>

@@ -5,12 +5,11 @@
 #ifdef mrWithDesktopDuplicationAPI
 namespace mr {
 
-class DesktopDuplication : public IScreenCapture
+class DesktopDuplication : public RefCount<IScreenCapture>
 {
 public:
     ~DesktopDuplication() override;
 
-    void release() override;
     bool valid() const override;
 
     bool initializeDuplication(HMONITOR hmon);
@@ -39,11 +38,6 @@ private:
 DesktopDuplication::~DesktopDuplication()
 {
     stopCapture();
-}
-
-void DesktopDuplication::release()
-{
-    delete this;
 }
 
 bool DesktopDuplication::valid() const

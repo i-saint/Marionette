@@ -23,7 +23,7 @@ TestCase(Filter)
 
     auto gfx = mr::CreateGfxInterface();
 
-    mr::ITexture2DPtr template_image = gfx->createTextureFromFile("template.png");
+    auto template_image = gfx->createTextureFromFile("template.png");
     if (template_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
