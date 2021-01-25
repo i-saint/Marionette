@@ -380,7 +380,6 @@ ReduceMinMaxCS::ReduceMinMaxCS()
 void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceMinMaxCtx&>(ctx_);
-    using result_t = IReduceMinMax::Result;
 
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
@@ -390,16 +389,7 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     auto image_size = ctx.m_src->getSize();
     m_cs_pass1.dispatch(1, image_size.y);
     m_cs_pass2.dispatch(1, 1);
-    DispatchCopy(ctx.m_staging, ctx.m_dst, sizeof(result_t));
-
-    // deferred getter
-    ctx.m_result = std::async(std::launch::deferred, [&ctx]() {
-        result_t ret{};
-        MapRead(ctx.m_staging->ptr(), [&ret](const void* v) {
-            ret = *(result_t*)v;
-            });
-        return ret;
-        });
+    ctx.m_dst->download(sizeof(IReduceMinMax::Result));
 }
 
 ReduceMinMaxCtx* ReduceMinMaxCS::createContext_()
@@ -417,9 +407,16 @@ void ReduceMinMaxCtx::setSrc(ITexture2DPtr v)
     m_src = i2c(v);
 }
 
-std::future<IReduceMinMax::Result>& ReduceMinMaxCtx::getResult()
+IReduceMinMax::Result ReduceMinMaxCtx::getResult()
 {
-    return m_result;
+    Result ret{};
+    if (!m_dst)
+        return ret;
+
+    m_dst->map([&ret](const void* v) {
+        ret = *(Result*)v;
+        });
+    return ret;
 }
 
 void ReduceMinMaxCtx::dispatch()
@@ -431,9 +428,6 @@ void ReduceMinMaxCtx::dispatch()
     size_t rsize = m_src->getSize().y * sizeof(result_t);
     if (!m_dst || m_dst->getSize() != rsize) {
         m_dst = Buffer::createStructured(rsize, sizeof(result_t));
-    }
-    if (!m_staging) {
-        m_staging = Buffer::createStaging(sizeof(result_t));
     }
 
     m_cs->dispatch(*this);

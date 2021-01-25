@@ -28,11 +28,11 @@ void Compare(inout Result r, uint2 p, float v)
 Result Compare(Result a, Result b)
 {
     Result r = a;
-    if (b.vmin < r.vmin) {
+    if (b.vmin < r.vmin || (b.vmin == r.vmin && b.pmin.y < r.pmin.y)) {
         r.vmin = b.vmin;
         r.pmin = b.pmin;
     }
-    if (b.vmax > r.vmax) {
+    if (b.vmax > r.vmax || (b.vmax == r.vmax && b.pmax.y < r.pmax.y)) {
         r.vmax = b.vmax;
         r.pmax = b.pmax;
     }

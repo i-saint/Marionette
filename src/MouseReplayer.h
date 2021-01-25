@@ -21,8 +21,9 @@ struct releaser
         return std::shared_ptr<T>(F##_(), releaser<T>());\
     }
 
-#define mrMkPtr(T, ...)\
-    T##Ptr(__VA_ARGS__, releaser<T>())
+#define mrMkPtr(...)\
+    using T = std::remove_pointer_t<decltype(__VA_ARGS__)>;\
+    return std::shared_ptr<T>(__VA_ARGS__, releaser<T>())
 
 
 using millisec = uint64_t;
@@ -217,7 +218,9 @@ public:
     virtual TextureFormat getFormat() const = 0;
 
     using ReadCallback = std::function<void(const void* data, int pitch)>;
-    virtual bool read(const ReadCallback& callback) = 0;
+    virtual void download() = 0;
+    virtual bool map(const ReadCallback& callback) = 0;
+    virtual bool read(const ReadCallback& callback) = 0; // download() & map()
 
     virtual bool save(const std::string& path) = 0;
     virtual std::future<bool> saveAsync(const std::string& path) = 0;
@@ -317,7 +320,7 @@ public:
     };
 
     virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual std::future<Result>& getResult() = 0;
+    virtual Result getResult() = 0;
 };
 mrDeclPtr(IReduceMinMax);
 
@@ -327,15 +330,15 @@ class IGfxInterface
 public:
     virtual void release() = 0;
 
-    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) { return mrMkPtr(ITexture2D, createTexture_(w, h, f, data, pitch)); }
-    ITexture2DPtr createTextureFromFile(const char* path) { return mrMkPtr(ITexture2D, createTextureFromFile_(path)); }
-    IScreenCapturePtr createScreenCapture() { return mrMkPtr(IScreenCapture, createScreenCapture_()); }
+    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) { mrMkPtr(createTexture_(w, h, f, data, pitch)); }
+    ITexture2DPtr createTextureFromFile(const char* path) { mrMkPtr(createTextureFromFile_(path)); }
+    IScreenCapturePtr createScreenCapture() { mrMkPtr(createScreenCapture_()); }
 
-    ITransformPtr createTransform() { return mrMkPtr(ITransform, createTransform_()); }
-    IBinarizePtr createBinarize() { return mrMkPtr(IBinarize, createBinarize_()); }
-    IContourPtr createContour() { return mrMkPtr(IContour, createContour_()); }
-    ITemplateMatchPtr createTemplateMatch() { return mrMkPtr(ITemplateMatch, createTemplateMatch_()); }
-    IReduceMinMaxPtr createReduceMinMax() { return mrMkPtr(IReduceMinMax, createReduceMinMax_()); }
+    ITransformPtr createTransform() { mrMkPtr(createTransform_()); }
+    IBinarizePtr createBinarize() { mrMkPtr(createBinarize_()); }
+    IContourPtr createContour() { mrMkPtr(createContour_()); }
+    ITemplateMatchPtr createTemplateMatch() { mrMkPtr(createTemplateMatch_()); }
+    IReduceMinMaxPtr createReduceMinMax() { mrMkPtr(createReduceMinMax_()); }
 
     virtual void flush() = 0;
     virtual void sync(int timeout_ms = 1000) = 0;

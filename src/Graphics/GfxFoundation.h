@@ -131,7 +131,6 @@ class Buffer : public DeviceResource
 public:
     static BufferPtr createConstant(uint32_t size, const void* data);
     static BufferPtr createStructured(uint32_t size, uint32_t stride, const void* data = nullptr);
-    static BufferPtr createStaging(uint32_t size, uint32_t stride = 0);
 
     template<class T>
     static inline std::shared_ptr<Buffer> createConstant(const T& v)
@@ -151,7 +150,9 @@ public:
     int getStride() const;
 
     using ReadCallback = std::function<void(const void* data)>;
-    bool read(const ReadCallback& callback);
+    void download(int size = 0);
+    bool map(const ReadCallback& callback);
+    bool read(const ReadCallback& callback, int size = 0); // download() & map()
 
 private:
     int m_size{};
@@ -168,8 +169,8 @@ class Texture2D : public DeviceResource, public ITexture2D
 public:
     static Texture2D* create_(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0);
     static Texture2D* create_(const char* path);
-    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0) { return mrMkPtr(Texture2D, create_(w, h, format, data, pitch)); }
-    static Texture2DPtr create(const char* path) { return mrMkPtr(Texture2D, create_(path)); }
+    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0) { mrMkPtr(create_(w, h, format, data, pitch)); }
+    static Texture2DPtr create(const char* path) { mrMkPtr(create_(path)); }
     static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;
@@ -184,6 +185,8 @@ public:
     int2 getSize() const override;
     TextureFormat getFormat() const override;
 
+    void download() override;
+    bool map(const ReadCallback& callback) override;
     bool read(const ReadCallback& callback) override;
 
     static bool saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch);
@@ -240,9 +243,8 @@ TextureFormat GetMRFormat(DXGI_FORMAT f);
 DXGI_FORMAT GetDXFormat(TextureFormat f);
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src);
-void DispatchCopy(DeviceResourcePtr dst, DeviceResourcePtr src);
-void DispatchCopy(BufferPtr dst, BufferPtr src, int size, int offset = 0);
-void DispatchCopy(Texture2DPtr dst, Texture2DPtr src, int2 size, int2 offset = int2::zero());
+void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int size, int src_offset = 0, int dst_offset = 0);
+void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int2 size, int2 src_offset = int2::zero(), int2 dst_offset = int2::zero());
 bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& callback);
 bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback);
 

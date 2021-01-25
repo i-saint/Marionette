@@ -80,7 +80,7 @@ TestCase(Filter)
         rminmax->setSrc(src);
         rminmax->dispatch();
 
-        auto result = rminmax->getResult().get();
+        auto result = rminmax->getResult();
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));

@@ -9,7 +9,7 @@ public:
     TransformCS();
     void dispatch(ICSContext& ctx) override;
     TransformCtx* createContext_();
-    TransformCtxPtr createContext() { return mrMkPtr(TransformCtx, createContext_()); }
+    TransformCtxPtr createContext() { mrMkPtr(createContext_()); }
 
 private:
     ComputeShader m_cs;
@@ -47,7 +47,7 @@ public:
     ContourCS();
     void dispatch(ICSContext& ctx) override;
     ContourCtx* createContext_();
-    ContourCtxPtr createContext() { return mrMkPtr(ContourCtx, createContext_()); }
+    ContourCtxPtr createContext() { mrMkPtr(createContext_()); }
 
 private:
     ComputeShader m_cs;
@@ -80,7 +80,7 @@ public:
     BinarizeCS();
     void dispatch(ICSContext& ctx) override;
     BinarizeCtx* createContext_();
-    BinarizeCtxPtr createContext() { return mrMkPtr(BinarizeCtx, createContext_()); }
+    BinarizeCtxPtr createContext() { mrMkPtr(createContext_()); }
 
 private:
     ComputeShader m_cs;
@@ -113,7 +113,7 @@ public:
     TemplateMatchCS();
     void dispatch(ICSContext& ctx) override;
     TemplateMatchCtx* createContext_();
-    TemplateMatchCtxPtr createContext() { return mrMkPtr(TemplateMatchCtx, createContext_()); }
+    TemplateMatchCtxPtr createContext() { mrMkPtr(createContext_()); }
 
 private:
     ComputeShader m_cs_grayscale;
@@ -172,7 +172,7 @@ public:
     ReduceMinMaxCS();
     void dispatch(ICSContext& ctx) override;
     ReduceMinMaxCtx* createContext_();
-    ReduceMinMaxCtxPtr createContext() { return mrMkPtr(ReduceMinMaxCtx, createContext_()); }
+    ReduceMinMaxCtxPtr createContext() { mrMkPtr(createContext_()); }
 
 private:
     ComputeShader m_cs_pass1;
@@ -186,15 +186,13 @@ public:
 
     ReduceMinMaxCtx(ReduceMinMaxCS* v);
     void setSrc(ITexture2DPtr v) override;
-    std::future<Result>& getResult() override;
+    Result getResult() override;
     void dispatch() override;
 
 public:
     ReduceMinMaxCS* m_cs{};
     Texture2DPtr m_src;
     BufferPtr m_dst;
-    BufferPtr m_staging;
-    std::future<Result> m_result;
 };
 
 
