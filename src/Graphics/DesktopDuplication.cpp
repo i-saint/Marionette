@@ -177,7 +177,7 @@ void DesktopDuplication::captureLoop()
     }
 }
 
-IScreenCapture* CreateDesktopDuplication()
+IScreenCapture* CreateDesktopDuplication_()
 {
     return new DesktopDuplication();
 }

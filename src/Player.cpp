@@ -350,7 +350,7 @@ void Player::setMatchTarget(MatchTarget v)
     m_match_target = v;
 }
 
-mrAPI IPlayer* CreatePlayer()
+mrAPI IPlayer* CreatePlayer_()
 {
     return new Player();
 }

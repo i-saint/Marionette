@@ -349,12 +349,12 @@ bool Buffer::read(const ReadCallback& callback)
 }
 
 
-Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t stride)
+Texture2D* Texture2D::create_(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t pitch)
 {
     if (w <= 0 || h <= 0)
         return nullptr;
 
-    auto ret = std::make_shared<Texture2D>();
+    auto ret = std::make_unique<Texture2D>();
     ret->m_size = { (int)w, (int)h };
     ret->m_format = format;
     auto dxformat = GetDXFormat(format);
@@ -362,7 +362,7 @@ Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, con
         D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, dxformat, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 
-        D3D11_SUBRESOURCE_DATA sd{ data, stride, 0 };
+        D3D11_SUBRESOURCE_DATA sd{ data, pitch, 0 };
         mrGfxDevice()->CreateTexture2D(&desc, data ? &sd : nullptr, ret->m_texture.put());
     }
     if (ret->m_texture) {
@@ -381,21 +381,21 @@ Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, con
             mrGfxDevice()->CreateUnorderedAccessView(ret->m_texture.get(), &desc, ret->m_uav.put());
         }
     }
-    return ret->valid() ? ret : nullptr;
+    return ret->valid() ? ret.release() : nullptr;
 }
 
-Texture2DPtr Texture2D::create(const char* path)
+Texture2D* Texture2D::create_(const char* path)
 {
-    Texture2DPtr ret;
+    Texture2D* ret{};
 
     int w, h, ch;
     byte* data = stbi_load(path, &w, &h, &ch, 0);
     if (data) {
         if (ch == 1) {
-            ret = create(w, h, TextureFormat::Ru8, data, w * 1);
+            ret = create_(w, h, TextureFormat::Ru8, data, w * 1);
         }
         else if (ch == 4) {
-            ret = create(w, h, TextureFormat::RGBAu8, data, w * 4);
+            ret = create_(w, h, TextureFormat::RGBAu8, data, w * 4);
         }
         else if (ch == 3) {
             std::vector<byte> tmp(w * h * 4);
@@ -411,7 +411,7 @@ Texture2DPtr Texture2D::create(const char* path)
                     d += 4;
                 }
             }
-            ret = create(w, h, TextureFormat::RGBAu8, tmp.data(), w * 4);
+            ret = create_(w, h, TextureFormat::RGBAu8, tmp.data(), w * 4);
         }
 
         stbi_image_free(data);
@@ -419,7 +419,7 @@ Texture2DPtr Texture2D::create(const char* path)
     return ret;
 }
 
-std::shared_ptr<Texture2D> Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
+Texture2DPtr Texture2D::wrap(com_ptr<ID3D11Texture2D>& v)
 {
     auto ret = std::make_shared<Texture2D>();
 

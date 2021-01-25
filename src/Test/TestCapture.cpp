@@ -21,7 +21,7 @@ TestCase(Filter)
 
     std::vector<std::future<bool>> async_ops;
 
-    auto gfx = mr::CreateGfxInterfaceShared();
+    auto gfx = mr::CreateGfxInterface();
 
     mr::ITexture2DPtr template_image = gfx->createTextureFromFile("template.png");
     if (template_image) {
@@ -103,7 +103,7 @@ TestCase(Filter)
 
 TestCase(ScreenCapture)
 {
-    auto gfx = mr::CreateGfxInterfaceShared();
+    auto gfx = mr::CreateGfxInterface();
 
     std::mutex mutex;
     std::condition_variable cond;

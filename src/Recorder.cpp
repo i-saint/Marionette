@@ -102,7 +102,7 @@ bool Recorder::save(const char* path) const
     return true;
 }
 
-mrAPI IRecorder* CreateRecorder()
+mrAPI IRecorder* CreateRecorder_()
 {
     return new Recorder();
 }

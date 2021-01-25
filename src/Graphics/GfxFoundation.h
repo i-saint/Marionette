@@ -166,8 +166,10 @@ private:
 class Texture2D : public DeviceResource, public ITexture2D
 {
 public:
-    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t stride = 0);
-    static Texture2DPtr create(const char* path);
+    static Texture2D* create_(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0);
+    static Texture2D* create_(const char* path);
+    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0) { return mrMkPtr(Texture2D, create_(w, h, format, data, pitch)); }
+    static Texture2DPtr create(const char* path) { return mrMkPtr(Texture2D, create_(path)); }
     static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
     bool operator==(const Texture2D& v) const;

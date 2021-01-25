@@ -9,7 +9,7 @@ namespace mr {
 
 #ifdef mrWithDesktopDuplicationAPI
 
-IScreenCapture* CreateDesktopDuplication();
+IScreenCapture* CreateDesktopDuplication_();
 mrDefShared(CreateDesktopDuplication);
 
 #endif // mrWithDesktopDuplicationAPI
@@ -18,7 +18,7 @@ mrDefShared(CreateDesktopDuplication);
 #ifdef mrWithWindowsGraphicsCapture
 
 bool IsWindowsGraphicsCaptureSupported();
-IScreenCapture* CreateGraphicsCapture();
+IScreenCapture* CreateGraphicsCapture_();
 mrDefShared(CreateGraphicsCapture);
 
 #endif // mrWithWindowsGraphicsCapture

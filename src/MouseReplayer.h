@@ -5,9 +5,28 @@
 
 namespace mr {
 
+template<class T>
+struct releaser
+{
+    void operator()(T* p) { p->release(); }
+};
+
+#define mrDeclPtr(T)\
+     using T##Ptr = std::shared_ptr<T>;
+
+#define mrDefShared(F)\
+    inline auto F##()\
+    {\
+        using T = std::remove_pointer_t<decltype(F##_())>;\
+        return std::shared_ptr<T>(F##_(), releaser<T>());\
+    }
+
+#define mrMkPtr(T, ...)\
+    T##Ptr(__VA_ARGS__, releaser<T>())
+
+
 using millisec = uint64_t;
 using nanosec = uint64_t;
-
 
 #ifdef mrDebug
     #define mrEnableProfile
@@ -90,8 +109,8 @@ enum class MatchTarget
 class IRecorder
 {
 public:
-    virtual ~IRecorder() {}
     virtual void release() = 0;
+
     virtual bool start() = 0;
     virtual bool stop() = 0;
     virtual bool isRecording() const = 0;
@@ -99,60 +118,46 @@ public:
     virtual bool save(const char* path) const = 0;
 
     virtual void addRecord(const OpRecord& rec) = 0;
+
+protected:
+    virtual ~IRecorder() {}
 };
+mrDeclPtr(IRecorder);
+mrAPI IRecorder* CreateRecorder_();
+mrDefShared(CreateRecorder);
 
 class IPlayer
 {
 public:
-    virtual ~IPlayer() {}
     virtual void release() = 0;
+
     virtual bool start(uint32_t loop = 1) = 0;
     virtual bool stop() = 0;
     virtual bool isPlaying() const = 0;
     virtual bool update() = 0;
     virtual bool load(const char* path) = 0;
     virtual void setMatchTarget(MatchTarget v) = 0;
+
+protected:
+    virtual ~IPlayer() {}
 };
-
-mrAPI IRecorder* CreateRecorder();
-mrAPI IPlayer* CreatePlayer();
-
-
-// utils
-
-template<class T>
-struct releaser
-{
-    void operator()(T* p) { p->release(); }
-};
-
-#define mrDeclPtr(T) using T##Ptr = std::shared_ptr<T>;
-
-#define mrDefShared(F)\
-    inline auto F##Shared()\
-    {\
-        using T = std::remove_pointer_t<decltype(F())>;\
-        return std::shared_ptr<T>(F(), releaser<T>());\
-    }
-
-
-mrDeclPtr(IRecorder);
 mrDeclPtr(IPlayer);
-
-mrDefShared(CreateRecorder);
+mrAPI IPlayer* CreatePlayer_();
 mrDefShared(CreatePlayer);
 
 
 class IInputReceiver
 {
 public:
-    virtual ~IInputReceiver() {}
     virtual bool valid() const = 0;
     virtual void update() = 0;
     virtual int addHandler(OpRecordHandler v) = 0;
     virtual void removeHandler(int i) = 0;
     virtual int addRecorder(OpRecordHandler v) = 0;
     virtual void removeRecorder(int i) = 0;
+
+protected:
+    virtual ~IInputReceiver() {}
 };
 mrAPI IInputReceiver* GetReceiver();
 
@@ -206,7 +211,6 @@ enum class TextureFormat
 class ITexture2D
 {
 public:
-    virtual ~ITexture2D() {};
     virtual void release() = 0;
 
     virtual int2 getSize() const = 0;
@@ -217,15 +221,12 @@ public:
 
     virtual bool save(const std::string& path) = 0;
     virtual std::future<bool> saveAsync(const std::string& path) = 0;
+
+protected:
+    virtual ~ITexture2D() {};
 };
 mrDeclPtr(ITexture2D);
 
-
-struct ScreenCaptureParams
-{
-    float scale_factor = 1.0f;
-    bool grayscale = false;
-};
 
 class IScreenCapture
 {
@@ -237,15 +238,16 @@ public:
     };
     using Callback = std::function<void(FrameInfo&)>;
 
-    virtual ~IScreenCapture() {};
     virtual void release() = 0;
     virtual bool valid() const = 0;
     virtual bool startCapture(HWND hwnd) = 0;
     virtual bool startCapture(HMONITOR hmon) = 0;
     virtual void stopCapture() = 0;
     virtual FrameInfo getFrame() = 0;
-
     virtual void setOnFrameArrived(const Callback& cb) = 0;
+
+protected:
+    virtual ~IScreenCapture() {};
 };
 mrDeclPtr(IScreenCapture);
 
@@ -253,8 +255,11 @@ mrDeclPtr(IScreenCapture);
 class ICSContext
 {
 public:
-    virtual ~ICSContext() {}
+    virtual void release() = 0;
     virtual void dispatch() = 0;
+
+protected:
+    virtual ~ICSContext() {}
 };
 
 class ITransform : public ICSContext
@@ -317,22 +322,20 @@ public:
 mrDeclPtr(IReduceMinMax);
 
 
-
 class IGfxInterface
 {
 public:
-    virtual ~IGfxInterface() {};
     virtual void release() = 0;
 
-    virtual ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) = 0;
-    virtual ITexture2DPtr createTextureFromFile(const char* path) = 0;
-    virtual IScreenCapturePtr createScreenCapture() = 0;
+    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data = nullptr, int pitch = 0) { return mrMkPtr(ITexture2D, createTexture_(w, h, f, data, pitch)); }
+    ITexture2DPtr createTextureFromFile(const char* path) { return mrMkPtr(ITexture2D, createTextureFromFile_(path)); }
+    IScreenCapturePtr createScreenCapture() { return mrMkPtr(IScreenCapture, createScreenCapture_()); }
 
-    virtual ITransformPtr createTransform() = 0;
-    virtual IBinarizePtr createBinarize() = 0;
-    virtual IContourPtr createContour() = 0;
-    virtual ITemplateMatchPtr createTemplateMatch() = 0;
-    virtual IReduceMinMaxPtr createReduceMinMax() = 0;
+    ITransformPtr createTransform() { return mrMkPtr(ITransform, createTransform_()); }
+    IBinarizePtr createBinarize() { return mrMkPtr(IBinarize, createBinarize_()); }
+    IContourPtr createContour() { return mrMkPtr(IContour, createContour_()); }
+    ITemplateMatchPtr createTemplateMatch() { return mrMkPtr(ITemplateMatch, createTemplateMatch_()); }
+    IReduceMinMaxPtr createReduceMinMax() { return mrMkPtr(IReduceMinMax, createReduceMinMax_()); }
 
     virtual void flush() = 0;
     virtual void sync(int timeout_ms = 1000) = 0;
@@ -341,16 +344,29 @@ public:
     virtual void unlock() = 0;
 
     template<class Body>
-    inline void lock(const Body& body)
+    void lock(const Body& body)
     {
         std::lock_guard<IGfxInterface> lock(*this);
         body();
     }
+
+protected:
+    virtual ~IGfxInterface() {};
+
+    virtual ITexture2D* createTexture_(int w, int h, TextureFormat f, const void* data, int pitch) = 0;
+    virtual ITexture2D* createTextureFromFile_(const char* path) = 0;
+    virtual IScreenCapture* createScreenCapture_() = 0;
+
+    virtual ITransform* createTransform_() = 0;
+    virtual IBinarize* createBinarize_() = 0;
+    virtual IContour* createContour_() = 0;
+    virtual ITemplateMatch* createTemplateMatch_() = 0;
+    virtual IReduceMinMax* createReduceMinMax_() = 0;
 };
 mrDeclPtr(IGfxInterface);
-
-mrAPI IGfxInterface* CreateGfxInterface();
+mrAPI IGfxInterface* CreateGfxInterface_();
 mrDefShared(CreateGfxInterface);
+
 
 using BitmapCallback = std::function<void(const void* data, int width, int height)>;
 mrAPI bool CaptureEntireScreen(const BitmapCallback& callback);

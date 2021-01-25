@@ -41,13 +41,13 @@ void TransformCS::dispatch(ICSContext& ctx_)
         ceildiv(ctx.m_size.y, 32));
 }
 
-TransformCtxPtr TransformCS::createContext()
+TransformCtx* TransformCS::createContext_()
 {
-    return std::make_shared<TransformCtx>(this);
+    return new TransformCtx(this);
 }
 
 TransformCtx::TransformCtx(TransformCS* v)
-    : m_filter(v)
+    : m_cs(v)
 {
 }
 
@@ -120,7 +120,7 @@ void TransformCtx::dispatch()
         m_const = Buffer::createConstant(params);
         m_dirty = false;
     }
-    m_filter->dispatch(*this);
+    m_cs->dispatch(*this);
 }
 
 
@@ -144,14 +144,14 @@ void ContourCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-ContourCtxPtr ContourCS::createContext()
+ContourCtx* ContourCS::createContext_()
 {
-    return std::make_shared<ContourCtx>(this);
+    return new ContourCtx(this);
 
 }
 
 ContourCtx::ContourCtx(ContourCS* v)
-    : m_filter(v)
+    : m_cs(v)
 {
 }
 
@@ -198,7 +198,7 @@ void ContourCtx::dispatch()
         m_dirty = false;
     }
 
-    m_filter->dispatch(*this);
+    m_cs->dispatch(*this);
 }
 
 
@@ -222,13 +222,13 @@ void BinarizeCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-BinarizeCtxPtr BinarizeCS::createContext()
+BinarizeCtx* BinarizeCS::createContext_()
 {
-    return std::make_shared<BinarizeCtx>(this);
+    return new BinarizeCtx(this);
 }
 
 BinarizeCtx::BinarizeCtx(BinarizeCS* v)
-    : m_filter(v)
+    : m_cs(v)
 {
 }
 
@@ -275,7 +275,7 @@ void BinarizeCtx::dispatch()
         m_dirty = false;
     }
 
-    m_filter->dispatch(*this);
+    m_cs->dispatch(*this);
 }
 
 
@@ -314,13 +314,13 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
     }
 }
 
-TemplateMatchCtxPtr TemplateMatchCS::createContext()
+TemplateMatchCtx* TemplateMatchCS::createContext_()
 {
-    return std::make_shared<TemplateMatchCtx>(this);
+    return new TemplateMatchCtx(this);
 }
 
 TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
-    : m_filter(v)
+    : m_cs(v)
 {
 }
 
@@ -366,7 +366,7 @@ void TemplateMatchCtx::dispatch()
             return;
     }
 
-    m_filter->dispatch(*this);
+    m_cs->dispatch(*this);
 }
 
 
@@ -402,13 +402,13 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
         });
 }
 
-ReduceMinMaxCtxPtr ReduceMinMaxCS::createContext()
+ReduceMinMaxCtx* ReduceMinMaxCS::createContext_()
 {
-    return std::make_shared<ReduceMinMaxCtx>(this);
+    return new ReduceMinMaxCtx(this);
 }
 
 ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
-    : m_filter(v)
+    : m_cs(v)
 {
 }
 
@@ -436,7 +436,7 @@ void ReduceMinMaxCtx::dispatch()
         m_staging = Buffer::createStaging(sizeof(result_t));
     }
 
-    m_filter->dispatch(*this);
+    m_cs->dispatch(*this);
 }
 
 } // namespace mr

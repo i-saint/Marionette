@@ -204,7 +204,7 @@ MouseReplayerApp& MouseReplayerApp::instance()
 void MouseReplayerApp::start()
 {
     mr::LoadKeymap("keymap.txt", [this](mr::Key k, std::string path) {
-        auto player = mr::CreatePlayerShared();
+        auto player = mr::CreatePlayer();
         if (player->load(path.c_str())) {
             player->setMatchTarget(mr::MatchTarget::ForegroundWindow);
             m_keymap[k] = player;
@@ -287,7 +287,7 @@ bool MouseReplayerApp::toggleRecording()
         return false;
     }
     else {
-        m_recorder = mr::CreateRecorderShared();
+        m_recorder = mr::CreateRecorder();
         m_recorder->start();
 
         ::SetDlgItemTextW(m_hwnd, IDC_BUTTON_RECORDING, mrTStop);
@@ -309,7 +309,7 @@ bool MouseReplayerApp::togglePlaying()
         return false;
     }
     else {
-        m_player = mr::CreatePlayerShared();
+        m_player = mr::CreatePlayer();
         m_player->load(m_data_path.c_str());
         m_player->start();
 

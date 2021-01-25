@@ -224,7 +224,7 @@ bool IsWindowsGraphicsCaptureSupported()
     return GraphicsCaptureSession::IsSupported();
 }
 
-IScreenCapture* CreateGraphicsCapture()
+IScreenCapture* CreateGraphicsCapture_()
 {
     if (!IsWindowsGraphicsCaptureSupported())
         return nullptr;

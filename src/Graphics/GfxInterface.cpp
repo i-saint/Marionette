@@ -12,15 +12,15 @@ public:
     ~GfxInterface() override;
     void release() override;
 
-    ITexture2DPtr createTexture(int w, int h, TextureFormat f, const void* data, int pitch) override;
-    ITexture2DPtr createTextureFromFile(const char* path) override;
-    IScreenCapturePtr createScreenCapture() override;
+    ITexture2D* createTexture_(int w, int h, TextureFormat f, const void* data, int pitch) override;
+    ITexture2D* createTextureFromFile_(const char* path) override;
+    IScreenCapture* createScreenCapture_() override;
 
-    ITransformPtr createTransform() override;
-    IBinarizePtr createBinarize() override;
-    IContourPtr createContour() override;
-    ITemplateMatchPtr createTemplateMatch() override;
-    IReduceMinMaxPtr createReduceMinMax() override;
+    ITransform* createTransform_() override;
+    IBinarize* createBinarize_() override;
+    IContour* createContour_() override;
+    ITemplateMatch* createTemplateMatch_() override;
+    IReduceMinMax* createReduceMinMax_() override;
 
     void flush() override;
     void sync(int timeout_ms) override;
@@ -45,45 +45,45 @@ void GfxInterface::release()
     delete this;
 }
 
-ITexture2DPtr GfxInterface::createTexture(int w, int h, TextureFormat f, const void* data, int pitch)
+ITexture2D* GfxInterface::createTexture_(int w, int h, TextureFormat f, const void* data, int pitch)
 {
-    return Texture2D::create(w, h, f, data, pitch);
+    return Texture2D::create_(w, h, f, data, pitch);
 }
 
-ITexture2DPtr GfxInterface::createTextureFromFile(const char* path)
+ITexture2D* GfxInterface::createTextureFromFile_(const char* path)
 {
-    return Texture2D::create(path);
+    return Texture2D::create_(path);
 }
 
-IScreenCapturePtr GfxInterface::createScreenCapture()
+IScreenCapture* GfxInterface::createScreenCapture_()
 {
-    return CreateGraphicsCaptureShared();
+    return CreateGraphicsCapture_();
 }
 
 
-ITransformPtr GfxInterface::createTransform()
+ITransform* GfxInterface::createTransform_()
 {
-    return mrGfxGetCS(TransformCS)->createContext();
+    return mrGfxGetCS(TransformCS)->createContext_();
 }
 
-IBinarizePtr GfxInterface::createBinarize()
+IBinarize* GfxInterface::createBinarize_()
 {
-    return mrGfxGetCS(BinarizeCS)->createContext();
+    return mrGfxGetCS(BinarizeCS)->createContext_();
 }
 
-IContourPtr GfxInterface::createContour()
+IContour* GfxInterface::createContour_()
 {
-    return mrGfxGetCS(ContourCS)->createContext();
+    return mrGfxGetCS(ContourCS)->createContext_();
 }
 
-ITemplateMatchPtr GfxInterface::createTemplateMatch()
+ITemplateMatch* GfxInterface::createTemplateMatch_()
 {
-    return mrGfxGetCS(TemplateMatchCS)->createContext();
+    return mrGfxGetCS(TemplateMatchCS)->createContext_();
 }
 
-IReduceMinMaxPtr GfxInterface::createReduceMinMax()
+IReduceMinMax* GfxInterface::createReduceMinMax_()
 {
-    return mrGfxGetCS(ReduceMinMaxCS)->createContext();
+    return mrGfxGetCS(ReduceMinMaxCS)->createContext_();
 }
 
 
@@ -107,7 +107,7 @@ void GfxInterface::unlock()
     mrGfxGlobals()->unlock();
 }
 
-mrAPI IGfxInterface* CreateGfxInterface()
+mrAPI IGfxInterface* CreateGfxInterface_()
 {
     return new GfxInterface();
 }

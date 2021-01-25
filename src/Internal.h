@@ -25,6 +25,16 @@ private:
 };
 
 
+template<class T>
+class ImplRelease : public T
+{
+public:
+    void release() override
+    {
+        delete this;
+    }
+};
+
 void AddInitializeHandler(const std::function<void()>& v);
 void AddFinalizeHandler(const std::function<void()>& v);
 
