@@ -73,6 +73,24 @@
     <FxCompile Include="Graphics\Shaders\Binarize.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceCountBits.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceCountBits_Pass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceCountBits_Pass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_Pass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_Pass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
