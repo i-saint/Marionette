@@ -5,7 +5,7 @@ RWTexture2D<uint> g_result : register(u0);
 
 uint lshift(uint a, uint b, uint s)
 {
-    return (a >> s) | (b << (32 - s));
+    return s == 0 ? a : (a >> s) | (b << (32 - s));
 }
 
 [numthreads(32, 32, 1)]
