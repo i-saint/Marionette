@@ -39,7 +39,7 @@ TransformCS::TransformCS()
 
 void TransformCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<TransformCtx&>(ctx_);
+    auto& ctx = static_cast<Transform&>(ctx_);
     m_cs.setSRV(ctx.m_src);
     m_cs.setUAV(ctx.m_dst);
     m_cs.setCBuffer(ctx.m_const);
@@ -48,51 +48,51 @@ void TransformCS::dispatch(ICSContext& ctx_)
         ceildiv(ctx.m_size.y, 32));
 }
 
-TransformCtxPtr TransformCS::createContext()
+TransformPtr TransformCS::createContext()
 {
-    return make_ref<TransformCtx>(this);
+    return make_ref<Transform>(this);
 }
 
-TransformCtx::TransformCtx(TransformCS* v)
+Transform::Transform(TransformCS* v)
     : m_cs(v)
 {
 }
 
-void TransformCtx::setSrc(ITexture2DPtr v)
+void Transform::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void TransformCtx::setDst(ITexture2DPtr v)
+void Transform::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void TransformCtx::setRect(int2 offset, int2 size)
+void Transform::setRect(int2 offset, int2 size)
 {
     mrCheckDirty(offset == m_offset && size == m_size);
     m_offset = offset;
     m_size = size;
 }
 
-void TransformCtx::setScale(float v)
+void Transform::setScale(float v)
 {
     mrCheckDirty(m_scale == v);
     m_scale = v;
 }
 
-void TransformCtx::setGrayscale(bool v)
+void Transform::setGrayscale(bool v)
 {
     mrCheckDirty(m_grayscale == v);
     m_grayscale = v;
 }
 
-ITexture2DPtr TransformCtx::getDst()
+ITexture2DPtr Transform::getDst()
 {
     return m_dst;
 }
 
-void TransformCtx::dispatch()
+void Transform::dispatch()
 {
     if (!m_src)
         return;
@@ -139,7 +139,7 @@ ContourCS::ContourCS()
 
 void ContourCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<ContourCtx&>(ctx_);
+    auto& ctx = static_cast<Contour&>(ctx_);
 
     m_cs.setSRV(ctx.m_src);
     m_cs.setUAV(ctx.m_dst);
@@ -151,39 +151,39 @@ void ContourCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-ContourCtxPtr ContourCS::createContext()
+ContourPtr ContourCS::createContext()
 {
-    return make_ref<ContourCtx>(this);
+    return make_ref<Contour>(this);
 
 }
 
-ContourCtx::ContourCtx(ContourCS* v)
+Contour::Contour(ContourCS* v)
     : m_cs(v)
 {
 }
 
-void ContourCtx::setSrc(ITexture2DPtr v)
+void Contour::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void ContourCtx::setDst(ITexture2DPtr v)
+void Contour::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void ContourCtx::setBlockSize(int v)
+void Contour::setBlockSize(int v)
 {
     mrCheckDirty(v == m_block_size);
     m_block_size = v;
 }
 
-ITexture2DPtr ContourCtx::getDst()
+ITexture2DPtr Contour::getDst()
 {
     return m_dst;
 }
 
-void ContourCtx::dispatch()
+void Contour::dispatch()
 {
     if (!m_src)
         return;
@@ -217,7 +217,7 @@ BinarizeCS::BinarizeCS()
 
 void BinarizeCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<BinarizeCtx&>(ctx_);
+    auto& ctx = static_cast<Binarize&>(ctx_);
 
     m_cs.setSRV(ctx.m_src);
     m_cs.setUAV(ctx.m_dst);
@@ -229,38 +229,38 @@ void BinarizeCS::dispatch(ICSContext& ctx_)
         ceildiv(size.y, 32));
 }
 
-BinarizeCtxPtr BinarizeCS::createContext()
+BinarizePtr BinarizeCS::createContext()
 {
-    return make_ref<BinarizeCtx>(this);
+    return make_ref<Binarize>(this);
 }
 
-BinarizeCtx::BinarizeCtx(BinarizeCS* v)
+Binarize::Binarize(BinarizeCS* v)
     : m_cs(v)
 {
 }
 
-void BinarizeCtx::setSrc(ITexture2DPtr v)
+void Binarize::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void BinarizeCtx::setDst(ITexture2DPtr v)
+void Binarize::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void BinarizeCtx::setThreshold(float v)
+void Binarize::setThreshold(float v)
 {
     mrCheckDirty(v == m_threshold);
     m_threshold = v;
 }
 
-ITexture2DPtr BinarizeCtx::getDst()
+ITexture2DPtr Binarize::getDst()
 {
     return m_dst;
 }
 
-void BinarizeCtx::dispatch()
+void Binarize::dispatch()
 {
     if (!m_src)
         return;
@@ -295,7 +295,7 @@ TemplateMatchCS::TemplateMatchCS()
 
 void TemplateMatchCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<TemplateMatchCtx&>(ctx_);
+    auto& ctx = static_cast<TemplateMatch&>(ctx_);
     auto& src = ctx.m_src;
     auto& dst = ctx.m_dst;
     auto& tmp = ctx.m_template;
@@ -321,37 +321,37 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
     }
 }
 
-TemplateMatchCtxPtr TemplateMatchCS::createContext()
+TemplateMatchPtr TemplateMatchCS::createContext()
 {
-    return make_ref<TemplateMatchCtx>(this);
+    return make_ref<TemplateMatch>(this);
 }
 
-TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
+TemplateMatch::TemplateMatch(TemplateMatchCS* v)
     : m_cs(v)
 {
 }
 
-void TemplateMatchCtx::setSrc(ITexture2DPtr v)
+void TemplateMatch::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void TemplateMatchCtx::setDst(ITexture2DPtr v)
+void TemplateMatch::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void TemplateMatchCtx::setTemplate(ITexture2DPtr v)
+void TemplateMatch::setTemplate(ITexture2DPtr v)
 {
     m_template = cast(v);
 }
 
-ITexture2DPtr TemplateMatchCtx::getDst()
+ITexture2DPtr TemplateMatch::getDst()
 {
     return m_dst;
 }
 
-void TemplateMatchCtx::dispatch()
+void TemplateMatch::dispatch()
 {
     if (!m_src || !m_template)
         return;
@@ -386,7 +386,7 @@ ReduceTotalCS::ReduceTotalCS()
 
 void ReduceTotalCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<ReduceTotalCtx&>(ctx_);
+    auto& ctx = static_cast<ReduceTotal&>(ctx_);
 
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
@@ -399,22 +399,22 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
     ctx.m_dst->download(sizeof(float4));
 }
 
-ReduceTotalCtxPtr ReduceTotalCS::createContext()
+ReduceTotalPtr ReduceTotalCS::createContext()
 {
-    return make_ref<ReduceTotalCtx>(this);
+    return make_ref<ReduceTotal>(this);
 }
 
-ReduceTotalCtx::ReduceTotalCtx(ReduceTotalCS* v)
+ReduceTotal::ReduceTotal(ReduceTotalCS* v)
     : m_cs(v)
 {
 }
 
-void ReduceTotalCtx::setSrc(ITexture2DPtr v)
+void ReduceTotal::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-float ReduceTotalCtx::getResult()
+float ReduceTotal::getResult()
 {
     float ret{};
     if (!m_dst)
@@ -426,7 +426,7 @@ float ReduceTotalCtx::getResult()
     return ret;
 }
 
-void ReduceTotalCtx::dispatch()
+void ReduceTotal::dispatch()
 {
     if (!m_src)
         return;
@@ -450,7 +450,7 @@ ReduceCountBitsCS::ReduceCountBitsCS()
 
 void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<ReduceCountBitsCtx&>(ctx_);
+    auto& ctx = static_cast<ReduceCountBits&>(ctx_);
 
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
@@ -462,22 +462,22 @@ void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
     m_cs_pass2.dispatch(1, 1);
 }
 
-ReduceCountBitsCtxPtr ReduceCountBitsCS::createContext()
+ReduceCountBitsPtr ReduceCountBitsCS::createContext()
 {
-    return make_ref<ReduceCountBitsCtx>(this);
+    return make_ref<ReduceCountBits>(this);
 }
 
-ReduceCountBitsCtx::ReduceCountBitsCtx(ReduceCountBitsCS* v)
+ReduceCountBits::ReduceCountBits(ReduceCountBitsCS* v)
     : m_cs(v)
 {
 }
 
-void ReduceCountBitsCtx::setSrc(ITexture2DPtr v)
+void ReduceCountBits::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-uint32_t ReduceCountBitsCtx::getResult()
+uint32_t ReduceCountBits::getResult()
 {
     uint32_t ret{};
     if (!m_dst)
@@ -489,7 +489,7 @@ uint32_t ReduceCountBitsCtx::getResult()
     return ret;
 }
 
-void ReduceCountBitsCtx::dispatch()
+void ReduceCountBits::dispatch()
 {
     if (!m_src)
         return;
@@ -513,7 +513,7 @@ ReduceMinMaxCS::ReduceMinMaxCS()
 
 void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<ReduceMinMaxCtx&>(ctx_);
+    auto& ctx = static_cast<ReduceMinMax&>(ctx_);
 
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
@@ -525,22 +525,22 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     m_cs_pass2.dispatch(1, 1);
 }
 
-ReduceMinMaxCtxPtr ReduceMinMaxCS::createContext()
+ReduceMinMaxPtr ReduceMinMaxCS::createContext()
 {
-    return make_ref<ReduceMinMaxCtx>(this);
+    return make_ref<ReduceMinMax>(this);
 }
 
-ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
+ReduceMinMax::ReduceMinMax(ReduceMinMaxCS* v)
     : m_cs(v)
 {
 }
 
-void ReduceMinMaxCtx::setSrc(ITexture2DPtr v)
+void ReduceMinMax::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-IReduceMinMax::Result ReduceMinMaxCtx::getResult()
+IReduceMinMax::Result ReduceMinMax::getResult()
 {
     Result ret{};
     if (!m_dst)
@@ -552,7 +552,7 @@ IReduceMinMax::Result ReduceMinMaxCtx::getResult()
     return ret;
 }
 
-void ReduceMinMaxCtx::dispatch()
+void ReduceMinMax::dispatch()
 {
     if (!m_src)
         return;

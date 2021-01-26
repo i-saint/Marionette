@@ -27,3 +27,5 @@
 #include <random>
 #include <regex>
 #include <iterator>
+#include <span>
+#include <bit>

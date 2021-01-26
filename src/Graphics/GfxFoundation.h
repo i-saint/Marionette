@@ -16,7 +16,7 @@ mrDeclPtr(Buffer);
 mrDeclPtr(Texture2D);
 
 
-#define mrDeclCS(Name) mrDeclPtr(Name##CS); mrDeclPtr(Name##Ctx);
+#define mrDeclCS(Name) mrDeclPtr(Name); mrDeclPtr(Name##CS);
 
 mrDeclCS(Transform);
 mrDeclCS(Binarize);
@@ -222,7 +222,7 @@ public:
     std::vector<ID3D11UnorderedAccessView*> getUAVs();
     std::vector<ID3D11SamplerState*> getSamplers();
 
-    void dispatch(int x, int y = 1, int z = 1);
+    void dispatch(int x = 1, int y = 1, int z = 1);
     void clear();
 
 private:

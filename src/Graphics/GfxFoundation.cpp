@@ -142,18 +142,6 @@ bool GfxGlobals::initialize()
         m_device->CreateSamplerState(&desc, m_sampler.put());
     }
 
-    // shaders
-    {
-        m_cs_transform = make_ref<TransformCS>();
-        m_cs_binarize = make_ref<BinarizeCS>();
-        m_cs_contour = make_ref<ContourCS>();
-        m_cs_template_match = make_ref<TemplateMatchCS>();
-
-        m_cs_reduce_total = make_ref<ReduceTotalCS>();
-        m_cs_reduce_count_bits = make_ref<ReduceCountBitsCS>();
-        m_cs_reduce_minmax = make_ref<ReduceMinMaxCS>();
-    }
-
     return true;
 }
 
@@ -216,8 +204,8 @@ void GfxGlobals::unlock()
     m_mutex.unlock();
 }
 
-#define DefCSGetter(Class, Member)\
-    template<> Class* GfxGlobals::getCS<Class>() { return Member.get(); }
+#define DefCSGetter(CS, Obj)\
+    template<> CS* GfxGlobals::getCS<CS>() { if(!Obj) Obj=make_ref<CS>(); return Obj.get(); }
 
 DefCSGetter(TransformCS, m_cs_transform);
 DefCSGetter(BinarizeCS, m_cs_binarize);

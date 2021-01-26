@@ -55,7 +55,7 @@ private:
     std::mutex m_mutex;
 
     Texture2DPtr m_frame_buffer;
-    TransformCtxPtr m_transform;
+    TransformPtr m_transform;
 
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };

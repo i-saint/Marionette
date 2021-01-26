@@ -8,16 +8,16 @@ class TransformCS : public ICompute
 public:
     TransformCS();
     void dispatch(ICSContext& ctx) override;
-    TransformCtxPtr createContext();
+    TransformPtr createContext();
 
 private:
     ComputeShader m_cs;
 };
 
-class TransformCtx : public RefCount<ITransform>
+class Transform : public RefCount<ITransform>
 {
 public:
-    TransformCtx(TransformCS* v);
+    Transform(TransformCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setRect(int2 o, int2 s) override;
@@ -45,16 +45,16 @@ class ContourCS : public ICompute
 public:
     ContourCS();
     void dispatch(ICSContext& ctx) override;
-    ContourCtxPtr createContext();
+    ContourPtr createContext();
 
 private:
     ComputeShader m_cs;
 };
 
-class ContourCtx : public RefCount<IContour>
+class Contour : public RefCount<IContour>
 {
 public:
-    ContourCtx(ContourCS* v);
+    Contour(ContourCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setBlockSize(int v) override;
@@ -77,16 +77,16 @@ class BinarizeCS : public ICompute
 public:
     BinarizeCS();
     void dispatch(ICSContext& ctx) override;
-    BinarizeCtxPtr createContext();
+    BinarizePtr createContext();
 
 private:
     ComputeShader m_cs;
 };
 
-class BinarizeCtx : public RefCount<IBinarize>
+class Binarize : public RefCount<IBinarize>
 {
 public:
-    BinarizeCtx(BinarizeCS* v);
+    Binarize(BinarizeCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setThreshold(float v) override;
@@ -109,17 +109,17 @@ class TemplateMatchCS : public ICompute
 public:
     TemplateMatchCS();
     void dispatch(ICSContext& ctx) override;
-    TemplateMatchCtxPtr createContext();
+    TemplateMatchPtr createContext();
 
 private:
     ComputeShader m_cs_grayscale;
     ComputeShader m_cs_binary;
 };
 
-class TemplateMatchCtx : public RefCount<ITemplateMatch>
+class TemplateMatch : public RefCount<ITemplateMatch>
 {
 public:
-    TemplateMatchCtx(TemplateMatchCS* v);
+    TemplateMatch(TemplateMatchCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setTemplate(ITexture2DPtr v) override;
@@ -140,17 +140,17 @@ class ReduceTotalCS : public ICompute
 public:
     ReduceTotalCS();
     void dispatch(ICSContext& ctx) override;
-    ReduceTotalCtxPtr createContext();
+    ReduceTotalPtr createContext();
 
 private:
     ComputeShader m_cs_pass1;
     ComputeShader m_cs_pass2;
 };
 
-class ReduceTotalCtx : public RefCount<IReduceTotal>
+class ReduceTotal : public RefCount<IReduceTotal>
 {
 public:
-    ReduceTotalCtx(ReduceTotalCS* v);
+    ReduceTotal(ReduceTotalCS* v);
     void setSrc(ITexture2DPtr v) override;
     float getResult() override;
     void dispatch() override;
@@ -167,17 +167,17 @@ class ReduceCountBitsCS : public ICompute
 public:
     ReduceCountBitsCS();
     void dispatch(ICSContext& ctx) override;
-    ReduceCountBitsCtxPtr createContext();
+    ReduceCountBitsPtr createContext();
 
 private:
     ComputeShader m_cs_pass1;
     ComputeShader m_cs_pass2;
 };
 
-class ReduceCountBitsCtx : public RefCount<IReduceCountBits>
+class ReduceCountBits : public RefCount<IReduceCountBits>
 {
 public:
-    ReduceCountBitsCtx(ReduceCountBitsCS* v);
+    ReduceCountBits(ReduceCountBitsCS* v);
     void setSrc(ITexture2DPtr v) override;
     uint32_t getResult() override;
     void dispatch() override;
@@ -195,19 +195,19 @@ public:
 
     ReduceMinMaxCS();
     void dispatch(ICSContext& ctx) override;
-    ReduceMinMaxCtxPtr createContext();
+    ReduceMinMaxPtr createContext();
 
 private:
     ComputeShader m_cs_pass1;
     ComputeShader m_cs_pass2;
 };
 
-class ReduceMinMaxCtx : public RefCount<IReduceMinMax>
+class ReduceMinMax : public RefCount<IReduceMinMax>
 {
 public:
     mrCheck16(Result);
 
-    ReduceMinMaxCtx(ReduceMinMaxCS* v);
+    ReduceMinMax(ReduceMinMaxCS* v);
     void setSrc(ITexture2DPtr v) override;
     Result getResult() override;
     void dispatch() override;
