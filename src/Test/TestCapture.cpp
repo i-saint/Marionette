@@ -2,6 +2,9 @@
 #include "Test.h"
 #include "MouseReplayer.h"
 
+using mr::unorm8;
+using mr::int2;
+
 static void SetDllSearchPath()
 {
     auto bin_path = mr::GetCurrentModuleDirectory() + "\\bin";
@@ -16,19 +19,27 @@ testRegisterInitializer(mr,
 
 mr::IReduceTotal::Result Total_Reference(mr::ITexture2DPtr src)
 {
-    auto process_line = [](const mr::unorm8* data, size_t size) {
-        float ret{};
-        for (auto v : std::span{ data, data + size })
-            ret += v;
-        return ret;
+    auto reduce = [&src]<class T, class U>(T& ret, const U* data_, int pitch) {
+        auto size = src->getSize();
+        for (int y = 0; y < size.y; ++y) {
+            auto data = (const U*)((const byte*)data_ + (pitch * y));
+            for (auto v : std::span{ data, data + size.x })
+                ret += v;
+        }
     };
 
     mr::IReduceTotal::Result ret{};
-    src->read([&](const void* data_, int pitch) {
-        auto size = src->getSize();
-        for (int i = 0; i < size.y; ++i) {
-            auto data = (const mr::unorm8*)((const byte*)data_ + (pitch * i));
-            ret.valf += process_line(data, size.x);
+    src->read([&](const void* data, int pitch) {
+        switch (src->getFormat()) {
+        case mr::TextureFormat::Ru8:
+            reduce(ret.valf, (const unorm8*)data, pitch);
+            break;
+        case mr::TextureFormat::Rf32:
+            reduce(ret.valf, (const float*)data, pitch);
+            break;
+        case mr::TextureFormat::Ri32:
+            reduce(ret.vali, (const uint32_t*)data, pitch);
+            break;
         }
         });
     return ret;
@@ -56,30 +67,37 @@ uint32_t CountBits_Reference(mr::ITexture2DPtr src)
 
 mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
 {
-    mr::IReduceMinMax::Result ret{};
-    auto size = src->getSize();
-
-    auto process_line = [&](const float* data, int y) {
-        if (y == 0)
-            ret.valf.min = ret.valf.max = data[0];
-
-        for (int x = 0; x < size.x; ++x) {
-            auto v = data[x];
-            if (v < ret.valf.min) {
-                ret.valf.min = v;
-                ret.pos_min = {x, y};
-            }
-            if (v > ret.valf.max) {
-                ret.valf.max = v;
-                ret.pos_max = { x, y };
+    auto reduce = [&src]<class T, class U>(T& vmin, T& vmax, int2& pmin, int2& pmax, const U * data_, int pitch) {
+        auto size = src->getSize();
+        vmin = vmax = data_[0];
+        for (int y = 0; y < size.y; ++y) {
+            auto data = (const U*)((const byte*)data_ + (pitch * y));
+            for (int x = 0; x < size.x; ++x) {
+                auto v = data[x];
+                if (v < vmin) {
+                    vmin = v;
+                    pmin = { x, y };
+                }
+                if (v > vmax) {
+                    vmax = v;
+                    pmax = { x, y };
+                }
             }
         }
     };
 
-    src->read([&](const void* data_, int pitch) {
-        for (int i = 0; i < size.y; ++i) {
-            auto data = (const float*)((const byte*)data_ + (pitch * i));
-            process_line(data, i);
+    mr::IReduceMinMax::Result ret{};
+    src->read([&](const void* data, int pitch) {
+        switch (src->getFormat()) {
+        case mr::TextureFormat::Ru8:
+            reduce(ret.valf_min, ret.valf_max, ret.pos_min, ret.pos_max, (const unorm8*)data, pitch);
+            break;
+        case mr::TextureFormat::Rf32:
+            reduce(ret.valf_min, ret.valf_max, ret.pos_min, ret.pos_max, (const float*)data, pitch);
+            break;
+        case mr::TextureFormat::Ri32:
+            reduce(ret.vali_min, ret.vali_max, ret.pos_min, ret.pos_max, (const uint32_t*)data, pitch);
+            break;
         }
         });
     return ret;
@@ -212,12 +230,12 @@ TestCase(Filter)
         if (rmatch) {
             auto print = [&](auto r) {
                 if (rmatch->getFormat() == mr::TextureFormat::Ri32) {
-                    testPrint("  Min: %d (%d, %d)\n", r.vali.min, r.pos_min.x, r.pos_min.y);
-                    testPrint("  Max: %d (%d, %d)\n", r.vali.max, r.pos_max.x, r.pos_max.y);
+                    testPrint("  Min: %d (%d, %d)\n", r.vali_min, r.pos_min.x, r.pos_min.y);
+                    testPrint("  Max: %d (%d, %d)\n", r.vali_max, r.pos_max.x, r.pos_max.y);
                 }
                 else {
-                    testPrint("  Min: %f (%d, %d)\n", r.valf.min, r.pos_min.x, r.pos_min.y);
-                    testPrint("  Max: %f (%d, %d)\n", r.valf.max, r.pos_max.x, r.pos_max.y);
+                    testPrint("  Min: %f (%d, %d)\n", r.valf_min, r.pos_min.x, r.pos_min.y);
+                    testPrint("  Max: %f (%d, %d)\n", r.valf_max, r.pos_max.x, r.pos_max.y);
                 }
             };
 

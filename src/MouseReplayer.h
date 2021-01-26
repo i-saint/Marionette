@@ -337,14 +337,12 @@ public:
         int2 pos_min{};
         int2 pos_max{};
         union {
-            struct {
-                float min;
-                float max;
-            } valf;
-            struct {
-                uint32_t min;
-                uint32_t max;
-            } vali;
+            float valf_min;
+            uint32_t vali_min;
+        };
+        union {
+            float valf_max;
+            uint32_t vali_max;
         };
         int2 pad;
     };

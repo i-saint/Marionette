@@ -394,15 +394,20 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceTotal&>(ctx_);
 
-    m_cs_fpass1.setSRV(ctx.m_src);
-    m_cs_fpass1.setUAV(ctx.m_dst);
-    m_cs_fpass2.setSRV(ctx.m_src);
-    m_cs_fpass2.setUAV(ctx.m_dst);
+    auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
+        auto size = ctx.m_src->getSize();
+        pass1.setSRV(ctx.m_src);
+        pass1.setUAV(ctx.m_dst);
+        pass2.setSRV(ctx.m_src);
+        pass2.setUAV(ctx.m_dst);
+        pass1.dispatch(1, size.y);
+        pass2.dispatch(1, 1);
+    };
 
-    auto image_size = ctx.m_src->getSize();
-    m_cs_fpass1.dispatch(1, image_size.y);
-    m_cs_fpass2.dispatch(1, 1);
-    ctx.m_dst->download(sizeof(float4));
+    if (IsIntFormat(ctx.m_src->getFormat()))
+        do_dispatch(m_cs_ipass1, m_cs_ipass2);
+    else
+        do_dispatch(m_cs_fpass1, m_cs_fpass2);
 }
 
 ReduceTotalPtr ReduceTotalCS::createContext()
@@ -523,14 +528,20 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceMinMax&>(ctx_);
 
-    m_cs_fpass1.setSRV(ctx.m_src);
-    m_cs_fpass1.setUAV(ctx.m_dst);
-    m_cs_fpass2.setSRV(ctx.m_src);
-    m_cs_fpass2.setUAV(ctx.m_dst);
+    auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
+        auto size = ctx.m_src->getSize();
+        pass1.setSRV(ctx.m_src);
+        pass1.setUAV(ctx.m_dst);
+        pass2.setSRV(ctx.m_src);
+        pass2.setUAV(ctx.m_dst);
+        pass1.dispatch(1, size.y);
+        pass2.dispatch(1, 1);
+    };
 
-    auto image_size = ctx.m_src->getSize();
-    m_cs_fpass1.dispatch(1, image_size.y);
-    m_cs_fpass2.dispatch(1, 1);
+    if (IsIntFormat(ctx.m_src->getFormat()))
+        do_dispatch(m_cs_ipass1, m_cs_ipass2);
+    else
+        do_dispatch(m_cs_fpass1, m_cs_fpass2);
 }
 
 ReduceMinMaxPtr ReduceMinMaxCS::createContext()

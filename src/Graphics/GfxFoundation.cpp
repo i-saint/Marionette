@@ -672,6 +672,11 @@ DXGI_FORMAT GetDXFormat(TextureFormat f)
     }
 }
 
+bool IsIntFormat(TextureFormat f)
+{
+    return f == mr::TextureFormat::Ri32;
+}
+
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src)
 {
     mrGfxContext()->CopyResource(dst, src);

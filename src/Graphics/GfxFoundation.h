@@ -243,6 +243,7 @@ public:
 
 TextureFormat GetMRFormat(DXGI_FORMAT f);
 DXGI_FORMAT GetDXFormat(TextureFormat f);
+bool IsIntFormat(TextureFormat f);
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src);
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int size, int src_offset = 0, int dst_offset = 0);
