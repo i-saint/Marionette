@@ -18,8 +18,8 @@ class TransformCtx : public RefCount<ITransform>
 {
 public:
     TransformCtx(TransformCS* v);
-    void setSrc(ITexture2D* v) override;
-    void setDst(ITexture2D* v) override;
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
     void setRect(int2 o, int2 s) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
@@ -55,8 +55,8 @@ class ContourCtx : public RefCount<IContour>
 {
 public:
     ContourCtx(ContourCS* v);
-    void setSrc(ITexture2D* v) override;
-    void setDst(ITexture2D* v) override;
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
     void setBlockSize(int v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
@@ -87,8 +87,8 @@ class BinarizeCtx : public RefCount<IBinarize>
 {
 public:
     BinarizeCtx(BinarizeCS* v);
-    void setSrc(ITexture2D* v) override;
-    void setDst(ITexture2D* v) override;
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
     void setThreshold(float v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
@@ -120,15 +120,15 @@ class TemplateMatchCtx : public RefCount<ITemplateMatch>
 {
 public:
     TemplateMatchCtx(TemplateMatchCS* v);
-    void setSrc(ITexture2D* v) override;
-    void setDst(ITexture2D* v) override;
-    void setTemplate(ITexture2D* v) override;
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setTemplate(ITexture2DPtr v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     TemplateMatchCS* m_cs{};
-    Texture2DPtr m_dst; // out. will be created if null
+    Texture2DPtr m_dst;
     Texture2DPtr m_src;
     Texture2DPtr m_template;
 };
@@ -179,7 +179,7 @@ public:
     mrCheck16(Result);
 
     ReduceMinMaxCtx(ReduceMinMaxCS* v);
-    void setSrc(ITexture2D* v) override;
+    void setSrc(ITexture2DPtr v) override;
     Result getResult() override;
     void dispatch() override;
 

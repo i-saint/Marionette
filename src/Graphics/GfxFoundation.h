@@ -11,18 +11,23 @@ using winrt::com_ptr;
 
 namespace mr {
 
-#define DeclCS(Name) class Name##CS; class Name##Ctx; mrDeclPtr(Name##CS); mrDeclPtr(Name##Ctx);
+mrDeclPtr(DeviceResource);
+mrDeclPtr(Buffer);
+mrDeclPtr(Texture2D);
 
-DeclCS(Transform);
-DeclCS(Binarize);
-DeclCS(Contour);
-DeclCS(TemplateMatch);
 
-DeclCS(ReduceTotal);
-DeclCS(ReduceCountBits);
-DeclCS(ReduceMinMax);
+#define mrDeclCS(Name) mrDeclPtr(Name##CS); mrDeclPtr(Name##Ctx);
 
-#undef DeclCS
+mrDeclCS(Transform);
+mrDeclCS(Binarize);
+mrDeclCS(Contour);
+mrDeclCS(TemplateMatch);
+
+mrDeclCS(ReduceTotal);
+mrDeclCS(ReduceCountBits);
+mrDeclCS(ReduceMinMax);
+
+#undef mrDeclCS
 
 
 // thin wrapper for Windows' event
@@ -111,13 +116,6 @@ private:
     inline T& cast(I& v) { return static_cast<T&>(v); }
 
 
-
-class DeviceResource;
-class Buffer;
-class Texture2D;
-mrDeclPtr(DeviceResource);
-mrDeclPtr(Buffer);
-mrDeclPtr(Texture2D);
 
 
 

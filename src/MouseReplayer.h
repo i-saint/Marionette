@@ -7,7 +7,8 @@
 namespace mr {
 
 #define mrDeclPtr(T)\
-     using T##Ptr = ref_ptr<T>;
+    class T;\
+    using T##Ptr = ref_ptr<T>;
 
 #define mrDefShared(F)\
     inline auto F##()\
@@ -98,6 +99,20 @@ enum class MatchTarget
 };
 
 
+mrDeclPtr(IRecorder);
+mrDeclPtr(IPlayer);
+
+mrDeclPtr(IGfxInterface);
+mrDeclPtr(ITexture2D);
+mrDeclPtr(IBuffer);
+mrDeclPtr(IScreenCapture);
+
+mrDeclPtr(ITransform);
+mrDeclPtr(IBinarize);
+mrDeclPtr(IContour);
+mrDeclPtr(ITemplateMatch);
+mrDeclPtr(IReduceMinMax);
+
 
 class IObject
 {
@@ -121,7 +136,6 @@ public:
 
     virtual void addRecord(const OpRecord& rec) = 0;
 };
-mrDeclPtr(IRecorder);
 mrAPI IRecorder* CreateRecorder_();
 mrDefShared(CreateRecorder);
 
@@ -136,7 +150,6 @@ public:
     virtual bool load(const char* path) = 0;
     virtual void setMatchTarget(MatchTarget v) = 0;
 };
-mrDeclPtr(IPlayer);
 mrAPI IPlayer* CreatePlayer_();
 mrDefShared(CreatePlayer);
 
@@ -217,7 +230,6 @@ public:
     virtual bool save(const std::string& path) = 0;
     virtual std::future<bool> saveAsync(const std::string& path) = 0;
 };
-mrDeclPtr(ITexture2D);
 
 class IBuffer : public IObject
 {
@@ -230,7 +242,6 @@ public:
     virtual bool map(const ReadCallback& callback) = 0;
     virtual bool read(const ReadCallback& callback, int size = 0) = 0; // download() & map()
 };
-mrDeclPtr(IBuffer);
 
 
 class IScreenCapture : public IObject
@@ -250,7 +261,7 @@ public:
     virtual FrameInfo getFrame() = 0;
     virtual void setOnFrameArrived(const Callback& cb) = 0;
 };
-mrDeclPtr(IScreenCapture);
+
 
 
 class ICSContext : public IObject
@@ -262,44 +273,40 @@ public:
 class ITransform : public ICSContext
 {
 public:
-    virtual void setSrc(ITexture2D* v) = 0;
-    virtual void setDst(ITexture2D* v) = 0;
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setRect(int2 pos, int2 size) = 0;
     virtual void setScale(float v) = 0;
     virtual void setGrayscale(bool v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
-mrDeclPtr(ITransform);
 
 class IBinarize : public ICSContext
 {
 public:
-    virtual void setSrc(ITexture2D* v) = 0;
-    virtual void setDst(ITexture2D* v) = 0;
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setThreshold(float v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
-mrDeclPtr(IBinarize);
 
 class IContour : public ICSContext
 {
 public:
-    virtual void setSrc(ITexture2D* v) = 0;
-    virtual void setDst(ITexture2D* v) = 0;
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setBlockSize(int v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
-mrDeclPtr(IContour);
 
 class ITemplateMatch : public ICSContext
 {
 public:
-    virtual void setSrc(ITexture2D* v) = 0;
-    virtual void setDst(ITexture2D* v) = 0;
-    virtual void setTemplate(ITexture2D* v) = 0;
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
-mrDeclPtr(ITemplateMatch);
 
 class IReduceMinMax : public ICSContext
 {
@@ -313,10 +320,9 @@ public:
         int2 pad;
     };
 
-    virtual void setSrc(ITexture2D* v) = 0;
+    virtual void setSrc(ITexture2DPtr v) = 0;
     virtual Result getResult() = 0;
 };
-mrDeclPtr(IReduceMinMax);
 
 
 class IGfxInterface : public IObject
@@ -326,6 +332,7 @@ public:
     virtual ITexture2DPtr createTextureFromFile(const char* path) = 0;
     virtual IScreenCapturePtr createScreenCapture() = 0;
 
+    // filters
     virtual ITransformPtr createTransform() = 0;
     virtual IBinarizePtr createBinarize() = 0;
     virtual IContourPtr createContour() = 0;
@@ -345,7 +352,6 @@ public:
         body();
     }
 };
-mrDeclPtr(IGfxInterface);
 mrAPI IGfxInterface* CreateGfxInterface_();
 mrDefShared(CreateGfxInterface);
 

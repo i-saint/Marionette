@@ -51,12 +51,12 @@ TransformCtx::TransformCtx(TransformCS* v)
 {
 }
 
-void TransformCtx::setSrc(ITexture2D* v)
+void TransformCtx::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void TransformCtx::setDst(ITexture2D* v)
+void TransformCtx::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
@@ -155,12 +155,12 @@ ContourCtx::ContourCtx(ContourCS* v)
 {
 }
 
-void ContourCtx::setSrc(ITexture2D* v)
+void ContourCtx::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void ContourCtx::setDst(ITexture2D* v)
+void ContourCtx::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
@@ -232,12 +232,12 @@ BinarizeCtx::BinarizeCtx(BinarizeCS* v)
 {
 }
 
-void BinarizeCtx::setSrc(ITexture2D* v)
+void BinarizeCtx::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void BinarizeCtx::setDst(ITexture2D* v)
+void BinarizeCtx::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
@@ -324,17 +324,17 @@ TemplateMatchCtx::TemplateMatchCtx(TemplateMatchCS* v)
 {
 }
 
-void TemplateMatchCtx::setSrc(ITexture2D* v)
+void TemplateMatchCtx::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void TemplateMatchCtx::setDst(ITexture2D* v)
+void TemplateMatchCtx::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void TemplateMatchCtx::setTemplate(ITexture2D* v)
+void TemplateMatchCtx::setTemplate(ITexture2DPtr v)
 {
     m_template = cast(v);
 }
@@ -402,7 +402,7 @@ ReduceMinMaxCtx::ReduceMinMaxCtx(ReduceMinMaxCS* v)
 {
 }
 
-void ReduceMinMaxCtx::setSrc(ITexture2D* v)
+void ReduceMinMaxCtx::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
