@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "GfxFoundation.h"
-#include "Filter.h"
+#include "Shader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -613,7 +613,6 @@ std::vector<ID3D11ShaderResourceView*> ComputeShader::getSRVs() { return m_srvs;
 std::vector<ID3D11UnorderedAccessView*> ComputeShader::getUAVs() { return m_uavs; }
 std::vector<ID3D11SamplerState*> ComputeShader::getSamplers() { return m_samplers; }
 
-
 void ComputeShader::dispatch(int x, int y, int z)
 {
     auto ctx = mrGfxContext();
@@ -646,6 +645,11 @@ void ComputeShader::clear()
     m_srvs.clear();
     m_uavs.clear();
     m_samplers.clear();
+}
+
+
+ICompute::~ICompute()
+{
 }
 
 

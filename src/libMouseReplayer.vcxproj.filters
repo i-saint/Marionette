@@ -12,9 +12,6 @@
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\Filter.cpp">
-      <Filter>Graphics</Filter>
-    </ClCompile>
     <ClCompile Include="Graphics\GfxFoundation.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
@@ -27,14 +24,17 @@
     <ClCompile Include="Graphics\GfxInterface.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\Shaders\Filter.cpp">
+      <Filter>Graphics\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\Shaders\Reducer.cpp">
+      <Filter>Graphics\Shaders</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="Internal.h" />
-    <ClInclude Include="Graphics\Filter.h">
-      <Filter>Graphics</Filter>
-    </ClInclude>
     <ClInclude Include="Graphics\GfxFoundation.h">
       <Filter>Graphics</Filter>
     </ClInclude>
@@ -48,6 +48,9 @@
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="ref_ptr.h" />
+    <ClInclude Include="Graphics\Shader.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
@@ -102,6 +105,12 @@
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax_IPass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Normalize_I.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Normalize_F.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

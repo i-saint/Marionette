@@ -16,9 +16,10 @@ mrDeclPtr(Buffer);
 mrDeclPtr(Texture2D);
 
 
-#define mrDeclCS(Name) mrDeclPtr(Name); mrDeclPtr(Name##CS);
+#define mrDeclCS(Name) mrDeclPtr(Name##CS);
 
 mrDeclCS(Transform);
+mrDeclCS(Normalize);
 mrDeclCS(Binarize);
 mrDeclCS(Contour);
 mrDeclCS(TemplateMatch);

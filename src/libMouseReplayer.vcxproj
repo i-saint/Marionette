@@ -13,11 +13,12 @@
   <ItemGroup>
     <ClCompile Include="Foundation.cpp" />
     <ClCompile Include="Graphics\DesktopDuplication.cpp" />
-    <ClCompile Include="Graphics\Filter.cpp" />
     <ClCompile Include="Graphics\GDI.cpp" />
     <ClCompile Include="Graphics\GfxFoundation.cpp" />
     <ClCompile Include="Graphics\GfxInterface.cpp" />
     <ClCompile Include="Graphics\Image.cpp" />
+    <ClCompile Include="Graphics\Shaders\Filter.cpp" />
+    <ClCompile Include="Graphics\Shaders\Reducer.cpp" />
     <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />
     <ClCompile Include="InputReceiver.cpp" />
     <ClCompile Include="pch.cpp">
@@ -27,10 +28,10 @@
     <ClCompile Include="Recorder.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Graphics\Filter.h" />
     <ClInclude Include="Graphics\GfxFoundation.h" />
     <ClInclude Include="Graphics\Half.h" />
     <ClInclude Include="Graphics\ScreenCapture.h" />
+    <ClInclude Include="Graphics\Shader.h" />
     <ClInclude Include="Graphics\Vector.h" />
     <ClInclude Include="Internal.h" />
     <ClInclude Include="MouseReplayer.h" />
@@ -50,6 +51,18 @@
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Contour.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Normalize_F.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <VariableName>g_hlsl_%(Filename)</VariableName>
+      <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Normalize_I.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>

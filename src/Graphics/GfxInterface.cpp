@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Internal.h"
-#include "Filter.h"
+#include "Shader.h"
 #include "ScreenCapture.h"
 
 namespace mr {

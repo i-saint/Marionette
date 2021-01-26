@@ -283,6 +283,16 @@ public:
     virtual ITexture2DPtr getDst() = 0;
 };
 
+class INormalize : public ICSContext
+{
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setMax(float v) = 0;
+    virtual void setMax(uint32_t v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
+};
+
 class IBinarize : public ICSContext
 {
 public:
