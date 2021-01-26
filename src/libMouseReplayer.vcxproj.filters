@@ -62,15 +62,6 @@
     <FxCompile Include="Graphics\Shaders\Contour.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass1.hlsl">
-      <Filter>Graphics\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceMinMax_Pass2.hlsl">
-      <Filter>Graphics\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
-      <Filter>Graphics\Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Graphics\Shaders\Binarize.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
@@ -83,13 +74,34 @@
     <FxCompile Include="Graphics\Shaders\ReduceCountBits_Pass2.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceTotal_Pass1.hlsl">
-      <Filter>Graphics\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Graphics\Shaders\ReduceTotal_Pass2.hlsl">
-      <Filter>Graphics\Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceTotal.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_FPass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_FPass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_IPass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceTotal_IPass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_FPass1.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_FPass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_IPass2.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\ReduceMinMax_IPass1.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

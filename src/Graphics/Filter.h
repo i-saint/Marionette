@@ -143,8 +143,10 @@ public:
     ReduceTotalPtr createContext();
 
 private:
-    ComputeShader m_cs_pass1;
-    ComputeShader m_cs_pass2;
+    ComputeShader m_cs_fpass1;
+    ComputeShader m_cs_fpass2;
+    ComputeShader m_cs_ipass1;
+    ComputeShader m_cs_ipass2;
 };
 
 class ReduceTotal : public RefCount<IReduceTotal>
@@ -152,7 +154,7 @@ class ReduceTotal : public RefCount<IReduceTotal>
 public:
     ReduceTotal(ReduceTotalCS* v);
     void setSrc(ITexture2DPtr v) override;
-    float getResult() override;
+    Result getResult() override;
     void dispatch() override;
 
 public:
@@ -198,8 +200,10 @@ public:
     ReduceMinMaxPtr createContext();
 
 private:
-    ComputeShader m_cs_pass1;
-    ComputeShader m_cs_pass2;
+    ComputeShader m_cs_fpass1;
+    ComputeShader m_cs_fpass2;
+    ComputeShader m_cs_ipass1;
+    ComputeShader m_cs_ipass2;
 };
 
 class ReduceMinMax : public RefCount<IReduceMinMax>

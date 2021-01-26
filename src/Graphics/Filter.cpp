@@ -8,14 +8,18 @@
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
 
-#include "ReduceTotal_Pass1.hlsl.h"
-#include "ReduceTotal_Pass2.hlsl.h"
+#include "ReduceTotal_FPass1.hlsl.h"
+#include "ReduceTotal_FPass2.hlsl.h"
+#include "ReduceTotal_IPass1.hlsl.h"
+#include "ReduceTotal_IPass2.hlsl.h"
 
 #include "ReduceCountBits_Pass1.hlsl.h"
 #include "ReduceCountBits_Pass2.hlsl.h"
 
-#include "ReduceMinMax_Pass1.hlsl.h"
-#include "ReduceMinMax_Pass2.hlsl.h"
+#include "ReduceMinMax_FPass1.hlsl.h"
+#include "ReduceMinMax_FPass2.hlsl.h"
+#include "ReduceMinMax_IPass1.hlsl.h"
+#include "ReduceMinMax_IPass2.hlsl.h"
 
 #define mrBytecode(A) A, std::size(A)
 
@@ -380,22 +384,24 @@ void TemplateMatch::dispatch()
 
 ReduceTotalCS::ReduceTotalCS()
 {
-    m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceTotal_Pass1));
-    m_cs_pass2.initialize(mrBytecode(g_hlsl_ReduceTotal_Pass2));
+    m_cs_fpass1.initialize(mrBytecode(g_hlsl_ReduceTotal_FPass1));
+    m_cs_fpass2.initialize(mrBytecode(g_hlsl_ReduceTotal_FPass2));
+    m_cs_ipass1.initialize(mrBytecode(g_hlsl_ReduceTotal_IPass1));
+    m_cs_ipass2.initialize(mrBytecode(g_hlsl_ReduceTotal_IPass2));
 }
 
 void ReduceTotalCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceTotal&>(ctx_);
 
-    m_cs_pass1.setSRV(ctx.m_src);
-    m_cs_pass1.setUAV(ctx.m_dst);
-    m_cs_pass2.setSRV(ctx.m_src);
-    m_cs_pass2.setUAV(ctx.m_dst);
+    m_cs_fpass1.setSRV(ctx.m_src);
+    m_cs_fpass1.setUAV(ctx.m_dst);
+    m_cs_fpass2.setSRV(ctx.m_src);
+    m_cs_fpass2.setUAV(ctx.m_dst);
 
     auto image_size = ctx.m_src->getSize();
-    m_cs_pass1.dispatch(1, image_size.y);
-    m_cs_pass2.dispatch(1, 1);
+    m_cs_fpass1.dispatch(1, image_size.y);
+    m_cs_fpass2.dispatch(1, 1);
     ctx.m_dst->download(sizeof(float4));
 }
 
@@ -414,14 +420,14 @@ void ReduceTotal::setSrc(ITexture2DPtr v)
     m_src = cast(v);
 }
 
-float ReduceTotal::getResult()
+ReduceTotal::Result ReduceTotal::getResult()
 {
-    float ret{};
+    Result ret{};
     if (!m_dst)
         return ret;
 
     m_dst->map([&ret](const void* v) {
-        ret = *(float*)v;
+        ret = *(Result*)v;
         });
     return ret;
 }
@@ -507,22 +513,24 @@ void ReduceCountBits::dispatch()
 
 ReduceMinMaxCS::ReduceMinMaxCS()
 {
-    m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
-    m_cs_pass2.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass2));
+    m_cs_fpass1.initialize(mrBytecode(g_hlsl_ReduceMinMax_FPass1));
+    m_cs_fpass2.initialize(mrBytecode(g_hlsl_ReduceMinMax_FPass2));
+    m_cs_ipass1.initialize(mrBytecode(g_hlsl_ReduceMinMax_IPass1));
+    m_cs_ipass2.initialize(mrBytecode(g_hlsl_ReduceMinMax_IPass2));
 }
 
 void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceMinMax&>(ctx_);
 
-    m_cs_pass1.setSRV(ctx.m_src);
-    m_cs_pass1.setUAV(ctx.m_dst);
-    m_cs_pass2.setSRV(ctx.m_src);
-    m_cs_pass2.setUAV(ctx.m_dst);
+    m_cs_fpass1.setSRV(ctx.m_src);
+    m_cs_fpass1.setUAV(ctx.m_dst);
+    m_cs_fpass2.setSRV(ctx.m_src);
+    m_cs_fpass2.setUAV(ctx.m_dst);
 
     auto image_size = ctx.m_src->getSize();
-    m_cs_pass1.dispatch(1, image_size.y);
-    m_cs_pass2.dispatch(1, 1);
+    m_cs_fpass1.dispatch(1, image_size.y);
+    m_cs_fpass2.dispatch(1, 1);
 }
 
 ReduceMinMaxPtr ReduceMinMaxCS::createContext()
@@ -540,7 +548,7 @@ void ReduceMinMax::setSrc(ITexture2DPtr v)
     m_src = cast(v);
 }
 
-IReduceMinMax::Result ReduceMinMax::getResult()
+ReduceMinMax::Result ReduceMinMax::getResult()
 {
     Result ret{};
     if (!m_dst)

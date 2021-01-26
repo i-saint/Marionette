@@ -1,9 +1,9 @@
 #define BX 64
 
-Texture2D<float> g_image : register(t0);
-RWStructuredBuffer<float> g_result : register(u0);
+Texture2D<value_type> g_image : register(t0);
+RWStructuredBuffer<value_type> g_result : register(u0);
 
-groupshared float s_result[BX];
+groupshared value_type s_result[BX];
 
 
 void ReduceGroup(uint gi)
@@ -38,7 +38,7 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     uint w, h;
     g_image.GetDimensions(w, h);
 
-    float r = 0;
+    value_type r = 0;
     for (uint x = tid.x; x < w; x += BX)
         r += g_image[uint2(x, tid.y)];
     s_result[gi] = r;
@@ -57,7 +57,7 @@ void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     uint n, s;
     g_result.GetDimensions(n, s);
 
-    float r = 0;
+    value_type r = 0;
     for (uint x = tid.x; x < n; x += BX)
         r += g_result[x];
     s_result[gi] = r;

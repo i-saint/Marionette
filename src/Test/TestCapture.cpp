@@ -14,7 +14,7 @@ testRegisterInitializer(mr,
 
 
 
-float Total_Reference(mr::ITexture2DPtr src)
+mr::IReduceTotal::Result Total_Reference(mr::ITexture2DPtr src)
 {
     auto process_line = [](const mr::unorm8* data, size_t size) {
         float ret{};
@@ -23,12 +23,12 @@ float Total_Reference(mr::ITexture2DPtr src)
         return ret;
     };
 
-    float ret{};
+    mr::IReduceTotal::Result ret{};
     src->read([&](const void* data_, int pitch) {
         auto size = src->getSize();
         for (int i = 0; i < size.y; ++i) {
             auto data = (const mr::unorm8*)((const byte*)data_ + (pitch * i));
-            ret += process_line(data, size.x);
+            ret.valf += process_line(data, size.x);
         }
         });
     return ret;
@@ -61,16 +61,16 @@ mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
 
     auto process_line = [&](const float* data, int y) {
         if (y == 0)
-            ret.val_min = ret.val_max = data[0];
+            ret.valf.min = ret.valf.max = data[0];
 
         for (int x = 0; x < size.x; ++x) {
             auto v = data[x];
-            if (v < ret.val_min) {
-                ret.val_min = v;
+            if (v < ret.valf.min) {
+                ret.valf.min = v;
                 ret.pos_min = {x, y};
             }
-            if (v > ret.val_max) {
-                ret.val_max = v;
+            if (v > ret.valf.max) {
+                ret.valf.max = v;
                 ret.pos_max = { x, y };
             }
         }
@@ -122,7 +122,7 @@ mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src,
     return filter->getDst();
 }
 
-std::future<float> Total(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
+std::future<mr::IReduceTotal::Result> Total(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
 {
     auto filter = gfx->createReduceTotal();
     filter->setSrc(src);
@@ -175,8 +175,8 @@ TestCase(Filter)
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
 
-        testPrint("Total (ref): %f\n", Total_Reference(rcont));
-        testPrint("Total  (cs): %f\n", Total(gfx, rcont).get());
+        testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
+        testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);
 
         testPrint("CountBits (ref): %d\n", CountBits_Reference(rbin));
         testPrint("CountBits  (cs): %d\n", CountBits(gfx, rbin).get());
@@ -210,9 +210,15 @@ TestCase(Filter)
         testPrint("\n");
 
         if (rmatch) {
-            auto print = [](auto r) {
-                testPrint("  Min: %f (%d, %d)\n", r.val_min, r.pos_min.x, r.pos_min.y);
-                testPrint("  Max: %f (%d, %d)\n", r.val_max, r.pos_max.x, r.pos_max.y);
+            auto print = [&](auto r) {
+                if (rmatch->getFormat() == mr::TextureFormat::Ri32) {
+                    testPrint("  Min: %d (%d, %d)\n", r.vali.min, r.pos_min.x, r.pos_min.y);
+                    testPrint("  Max: %d (%d, %d)\n", r.vali.max, r.pos_max.x, r.pos_max.y);
+                }
+                else {
+                    testPrint("  Min: %f (%d, %d)\n", r.valf.min, r.pos_min.x, r.pos_min.y);
+                    testPrint("  Max: %f (%d, %d)\n", r.valf.max, r.pos_max.x, r.pos_max.y);
+                }
             };
 
             testPrint("MinMax (ref):\n");

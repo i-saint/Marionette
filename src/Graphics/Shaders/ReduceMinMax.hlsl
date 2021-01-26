@@ -3,17 +3,17 @@
 struct Result
 {
     uint2 pmin, pmax;
-    float vmin, vmax;
+    value_type vmin, vmax;
     int2 pad;
 };
 
-Texture2D<float> g_image : register(t0);
+Texture2D<value_type> g_image : register(t0);
 RWStructuredBuffer<Result> g_result : register(u0);
 
 groupshared Result s_result[BX];
 
 
-void Reduce(inout Result r, uint2 p, float v)
+void Reduce(inout Result r, uint2 p, value_type v)
 {
     if (v < r.vmin) {
         r.vmin = v;

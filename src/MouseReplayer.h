@@ -313,8 +313,13 @@ public:
 class IReduceTotal : public ICSContext
 {
 public:
+    union Result
+    {
+        float valf;
+        uint32_t vali;
+    };
     virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual float getResult() = 0;
+    virtual Result getResult() = 0;
 };
 
 class IReduceCountBits : public ICSContext
@@ -331,8 +336,16 @@ public:
     {
         int2 pos_min{};
         int2 pos_max{};
-        float val_min{};
-        float val_max{};
+        union {
+            struct {
+                float min;
+                float max;
+            } valf;
+            struct {
+                uint32_t min;
+                uint32_t max;
+            } vali;
+        };
         int2 pad;
     };
 
