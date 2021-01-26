@@ -99,6 +99,8 @@ private:
     BinarizeCSPtr m_cs_binarize;
     ContourCSPtr m_cs_contour;
     TemplateMatchCSPtr m_cs_template_match;
+    ReduceTotalCSPtr m_cs_reduce_total;
+    ReduceCountBitsCSPtr m_cs_reduce_count_bits;
     ReduceMinMaxCSPtr m_cs_reduce_minmax;
 };
 #define mrGfxGlobals() GfxGlobals::get()

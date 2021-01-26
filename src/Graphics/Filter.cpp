@@ -7,6 +7,13 @@
 #include "Binarize.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
+
+#include "ReduceTotal_Pass1.hlsl.h"
+#include "ReduceTotal_Pass2.hlsl.h"
+
+#include "ReduceCountBits_Pass1.hlsl.h"
+#include "ReduceCountBits_Pass2.hlsl.h"
+
 #include "ReduceMinMax_Pass1.hlsl.h"
 #include "ReduceMinMax_Pass2.hlsl.h"
 
@@ -371,6 +378,133 @@ void TemplateMatchCtx::dispatch()
 
 
 
+ReduceTotalCS::ReduceTotalCS()
+{
+    m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceTotal_Pass1));
+    m_cs_pass2.initialize(mrBytecode(g_hlsl_ReduceTotal_Pass2));
+}
+
+void ReduceTotalCS::dispatch(ICSContext& ctx_)
+{
+    auto& ctx = static_cast<ReduceTotalCtx&>(ctx_);
+
+    m_cs_pass1.setSRV(ctx.m_src);
+    m_cs_pass1.setUAV(ctx.m_dst);
+    m_cs_pass2.setSRV(ctx.m_src);
+    m_cs_pass2.setUAV(ctx.m_dst);
+
+    auto image_size = ctx.m_src->getSize();
+    m_cs_pass1.dispatch(1, image_size.y);
+    m_cs_pass2.dispatch(1, 1);
+    ctx.m_dst->download(sizeof(float4));
+}
+
+ReduceTotalCtxPtr ReduceTotalCS::createContext()
+{
+    return make_ref<ReduceTotalCtx>(this);
+}
+
+ReduceTotalCtx::ReduceTotalCtx(ReduceTotalCS* v)
+    : m_cs(v)
+{
+}
+
+void ReduceTotalCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = cast(v);
+}
+
+float ReduceTotalCtx::getResult()
+{
+    float ret{};
+    if (!m_dst)
+        return ret;
+
+    m_dst->map([&ret](const void* v) {
+        ret = *(float*)v;
+        });
+    return ret;
+}
+
+void ReduceTotalCtx::dispatch()
+{
+    if (!m_src)
+        return;
+
+    size_t rsize = m_src->getSize().y * sizeof(float);
+    if (!m_dst || m_dst->getSize() != rsize) {
+        m_dst = Buffer::createStructured(rsize, sizeof(float));
+    }
+
+    m_cs->dispatch(*this);
+    m_dst->download(sizeof(float));
+}
+
+
+
+ReduceCountBitsCS::ReduceCountBitsCS()
+{
+    m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceCountBits_Pass1));
+    m_cs_pass2.initialize(mrBytecode(g_hlsl_ReduceCountBits_Pass2));
+}
+
+void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
+{
+    auto& ctx = static_cast<ReduceCountBitsCtx&>(ctx_);
+
+    m_cs_pass1.setSRV(ctx.m_src);
+    m_cs_pass1.setUAV(ctx.m_dst);
+    m_cs_pass2.setSRV(ctx.m_src);
+    m_cs_pass2.setUAV(ctx.m_dst);
+
+    auto image_size = ctx.m_src->getSize();
+    m_cs_pass1.dispatch(1, image_size.y);
+    m_cs_pass2.dispatch(1, 1);
+}
+
+ReduceCountBitsCtxPtr ReduceCountBitsCS::createContext()
+{
+    return make_ref<ReduceCountBitsCtx>(this);
+}
+
+ReduceCountBitsCtx::ReduceCountBitsCtx(ReduceCountBitsCS* v)
+    : m_cs(v)
+{
+}
+
+void ReduceCountBitsCtx::setSrc(ITexture2DPtr v)
+{
+    m_src = cast(v);
+}
+
+uint32_t ReduceCountBitsCtx::getResult()
+{
+    uint32_t ret{};
+    if (!m_dst)
+        return ret;
+
+    m_dst->map([&ret](const void* v) {
+        ret = *(uint32_t*)v;
+        });
+    return ret;
+}
+
+void ReduceCountBitsCtx::dispatch()
+{
+    if (!m_src)
+        return;
+
+    size_t rsize = m_src->getSize().y * sizeof(uint32_t);
+    if (!m_dst || m_dst->getSize() != rsize) {
+        m_dst = Buffer::createStructured(rsize, sizeof(uint32_t));
+    }
+
+    m_cs->dispatch(*this);
+    m_dst->download(sizeof(uint32_t));
+}
+
+
+
 ReduceMinMaxCS::ReduceMinMaxCS()
 {
     m_cs_pass1.initialize(mrBytecode(g_hlsl_ReduceMinMax_Pass1));
@@ -389,7 +523,6 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     auto image_size = ctx.m_src->getSize();
     m_cs_pass1.dispatch(1, image_size.y);
     m_cs_pass2.dispatch(1, 1);
-    ctx.m_dst->download(sizeof(IReduceMinMax::Result));
 }
 
 ReduceMinMaxCtxPtr ReduceMinMaxCS::createContext()
@@ -424,13 +557,14 @@ void ReduceMinMaxCtx::dispatch()
     if (!m_src)
         return;
 
-    using result_t = IReduceMinMax::Result;
-    size_t rsize = m_src->getSize().y * sizeof(result_t);
+    size_t rsize = m_src->getSize().y * sizeof(Result);
     if (!m_dst || m_dst->getSize() != rsize) {
-        m_dst = Buffer::createStructured(rsize, sizeof(result_t));
+        m_dst = Buffer::createStructured(rsize, sizeof(Result));
     }
 
     m_cs->dispatch(*this);
+    m_dst->download(sizeof(Result));
 }
+
 
 } // namespace mr

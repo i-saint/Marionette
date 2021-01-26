@@ -16,6 +16,9 @@ public:
     IBinarizePtr createBinarize() override;
     IContourPtr createContour() override;
     ITemplateMatchPtr createTemplateMatch() override;
+
+    IReduceTotalPtr createReduceTotal() override;
+    IReduceCountBitsPtr createReduceCountBits() override;
     IReduceMinMaxPtr createReduceMinMax() override;
 
     void flush() override;
@@ -62,6 +65,16 @@ IContourPtr GfxInterface::createContour()
 ITemplateMatchPtr GfxInterface::createTemplateMatch()
 {
     return mrGfxGetCS(TemplateMatchCS)->createContext();
+}
+
+IReduceTotalPtr GfxInterface::createReduceTotal()
+{
+    return mrGfxGetCS(ReduceTotalCS)->createContext();
+}
+
+IReduceCountBitsPtr GfxInterface::createReduceCountBits()
+{
+    return mrGfxGetCS(ReduceCountBitsCS)->createContext();
 }
 
 IReduceMinMaxPtr GfxInterface::createReduceMinMax()

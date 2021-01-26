@@ -143,9 +143,24 @@ public:
     ReduceTotalCtxPtr createContext();
 
 private:
-    ComputeShader m_pass1;
-    ComputeShader m_pass2;
+    ComputeShader m_cs_pass1;
+    ComputeShader m_cs_pass2;
 };
+
+class ReduceTotalCtx : public RefCount<IReduceTotal>
+{
+public:
+    ReduceTotalCtx(ReduceTotalCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    float getResult() override;
+    void dispatch() override;
+
+public:
+    ReduceTotalCS* m_cs{};
+    Texture2DPtr m_src;
+    BufferPtr m_dst;
+};
+
 
 class ReduceCountBitsCS : public ICompute
 {
@@ -155,8 +170,22 @@ public:
     ReduceCountBitsCtxPtr createContext();
 
 private:
-    ComputeShader m_pass1;
-    ComputeShader m_pass2;
+    ComputeShader m_cs_pass1;
+    ComputeShader m_cs_pass2;
+};
+
+class ReduceCountBitsCtx : public RefCount<IReduceCountBits>
+{
+public:
+    ReduceCountBitsCtx(ReduceCountBitsCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    uint32_t getResult() override;
+    void dispatch() override;
+
+public:
+    ReduceCountBitsCS* m_cs{};
+    Texture2DPtr m_src;
+    BufferPtr m_dst;
 };
 
 

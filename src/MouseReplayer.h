@@ -111,6 +111,8 @@ mrDeclPtr(ITransform);
 mrDeclPtr(IBinarize);
 mrDeclPtr(IContour);
 mrDeclPtr(ITemplateMatch);
+mrDeclPtr(IReduceTotal);
+mrDeclPtr(IReduceCountBits);
 mrDeclPtr(IReduceMinMax);
 
 
@@ -308,6 +310,20 @@ public:
     virtual ITexture2DPtr getDst() = 0;
 };
 
+class IReduceTotal : public ICSContext
+{
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual float getResult() = 0;
+};
+
+class IReduceCountBits : public ICSContext
+{
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual uint32_t getResult() = 0;
+};
+
 class IReduceMinMax : public ICSContext
 {
 public:
@@ -337,6 +353,8 @@ public:
     virtual IBinarizePtr createBinarize() = 0;
     virtual IContourPtr createContour() = 0;
     virtual ITemplateMatchPtr createTemplateMatch() = 0;
+    virtual IReduceTotalPtr createReduceTotal() = 0;
+    virtual IReduceCountBitsPtr createReduceCountBits() = 0;
     virtual IReduceMinMaxPtr createReduceMinMax() = 0;
 
     virtual void flush() = 0;

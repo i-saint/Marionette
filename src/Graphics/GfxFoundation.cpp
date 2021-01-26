@@ -148,6 +148,9 @@ bool GfxGlobals::initialize()
         m_cs_binarize = make_ref<BinarizeCS>();
         m_cs_contour = make_ref<ContourCS>();
         m_cs_template_match = make_ref<TemplateMatchCS>();
+
+        m_cs_reduce_total = make_ref<ReduceTotalCS>();
+        m_cs_reduce_count_bits = make_ref<ReduceCountBitsCS>();
         m_cs_reduce_minmax = make_ref<ReduceMinMaxCS>();
     }
 
@@ -220,6 +223,9 @@ DefCSGetter(TransformCS, m_cs_transform);
 DefCSGetter(BinarizeCS, m_cs_binarize);
 DefCSGetter(ContourCS, m_cs_contour);
 DefCSGetter(TemplateMatchCS, m_cs_template_match);
+
+DefCSGetter(ReduceTotalCS, m_cs_reduce_total);
+DefCSGetter(ReduceCountBitsCS, m_cs_reduce_count_bits);
 DefCSGetter(ReduceMinMaxCS, m_cs_reduce_minmax);
 
 #undef DefCSGetter

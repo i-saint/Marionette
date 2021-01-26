@@ -304,6 +304,9 @@ using half4x4 = tmat4x4<half>;
 using int2 = tvec2<int>;
 using int3 = tvec3<int>;
 using int4 = tvec4<int>;
+using uint2 = tvec2<uint32_t>;
+using uint3 = tvec3<uint32_t>;
+using uint4 = tvec4<uint32_t>;
 
 using uint16x2 = tvec2<uint16_t>;
 using uint16x3 = tvec3<uint16_t>;
@@ -482,8 +485,8 @@ template<class T> inline tmat4x4<T>& operator*=(tmat4x4<T>& a, const tmat4x4<T> 
     return a;
 }
 
-inline int ceildiv(int v, int d) { return (v + (d - 1)) / d; }
-inline int clamp(int v, int vmin, int vmax) { return std::min(std::max(v, vmin), vmax); }
+template<class T> inline T ceildiv(T v, T d) { return (v + (d - 1)) / d; }
+template<class T> inline T clamp(T v, T vmin, T vmax) { return std::min(std::max(v, vmin), vmax); }
 
 #define SF(T)                                                                                       \
     inline T sign(T v) { return v < T(0.0) ? T(-1.0) : T(1.0); }                                    \
