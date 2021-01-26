@@ -13,7 +13,7 @@ RWStructuredBuffer<Result> g_result : register(u0);
 groupshared Result s_result[BX];
 
 
-void Compare(inout Result r, uint2 p, float v)
+void Reduce(inout Result r, uint2 p, float v)
 {
     if (v < r.vmin) {
         r.vmin = v;
@@ -25,7 +25,7 @@ void Compare(inout Result r, uint2 p, float v)
     }
 }
 
-Result Compare(Result a, Result b)
+Result Reduce(Result a, Result b)
 {
     Result r = a;
     if (b.vmin < r.vmin || (b.vmin == r.vmin && b.pmin.y < r.pmin.y)) {
@@ -41,14 +41,25 @@ Result Compare(Result a, Result b)
 
 void ReduceGroup(uint gi)
 {
-    if (gi < 32) {
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 32]);
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 16]);
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 8]);
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 4]);
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 2]);
-        s_result[gi] = Compare(s_result[gi], s_result[gi + 1]);
-    }
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 32)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 32]);
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 16)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 16]);
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 8)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 8]);
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 4)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 4]);
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 2)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 2]);
+    GroupMemoryBarrierWithGroupSync();
+    if (gi < 1)
+        s_result[gi] = Reduce(s_result[gi], s_result[gi + 1]);
+    GroupMemoryBarrierWithGroupSync();
 }
 
 
@@ -68,10 +79,9 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
     for (uint x = tid.x + BX; x < w; x += BX) {
         uint2 p = uint2(x, tid.y);
-        Compare(r, p, g_image[p]);
+        Reduce(r, p, g_image[p]);
     }
     s_result[gi] = r;
-    GroupMemoryBarrierWithGroupSync();
 
     ReduceGroup(gi);
     if (gi == 0) {
@@ -89,11 +99,9 @@ void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
     uint bx = min(tid.x, n - 1);
     Result r = g_result[bx];
-    for (uint x = tid.x + BX; x < n; x += BX) {
-        r = Compare(r, g_result[x]);
-    }
+    for (uint x = tid.x + BX; x < n; x += BX)
+        r = Reduce(r, g_result[x]);
     s_result[gi] = r;
-    GroupMemoryBarrierWithGroupSync();
 
     ReduceGroup(gi);
     if (gi == 0) {

@@ -54,6 +54,37 @@ uint32_t CountBits_Reference(mr::ITexture2DPtr src)
     return ret;
 }
 
+mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
+{
+    mr::IReduceMinMax::Result ret{};
+    auto size = src->getSize();
+
+    auto process_line = [&](const float* data, int y) {
+        if (y == 0)
+            ret.val_min = ret.val_max = data[0];
+
+        for (int x = 0; x < size.x; ++x) {
+            auto v = data[x];
+            if (v < ret.val_min) {
+                ret.val_min = v;
+                ret.pos_min = {x, y};
+            }
+            if (v > ret.val_max) {
+                ret.val_max = v;
+                ret.pos_max = { x, y };
+            }
+        }
+    };
+
+    src->read([&](const void* data_, int pitch) {
+        for (int i = 0; i < size.y; ++i) {
+            auto data = (const float*)((const byte*)data_ + (pitch * i));
+            process_line(data, i);
+        }
+        });
+    return ret;
+}
+
 mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale)
 {
     auto filter = gfx->createTransform();
@@ -149,6 +180,7 @@ TestCase(Filter)
 
         testPrint("CountBits (ref): %d\n", CountBits_Reference(rbin));
         testPrint("CountBits  (cs): %d\n", CountBits(gfx, rbin).get());
+        testPrint("\n");
     }
 
     auto tex = gfx->createTextureFromFile("EntireScreen.png");
@@ -175,9 +207,20 @@ TestCase(Filter)
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
+        testPrint("\n");
 
-        testPrint("Min: %f (%d, %d)\n", result.val_min, result.pos_min.x, result.pos_min.y);
-        testPrint("Max: %f (%d, %d)\n", result.val_max, result.pos_max.x, result.pos_max.y);
+        if (rmatch) {
+            auto print = [](auto r) {
+                testPrint("  Min: %f (%d, %d)\n", r.val_min, r.pos_min.x, r.pos_min.y);
+                testPrint("  Max: %f (%d, %d)\n", r.val_max, r.pos_max.x, r.pos_max.y);
+            };
+
+            testPrint("MinMax (ref):\n");
+            print(MinMax_Reference(rmatch));
+
+            testPrint("MinMax  (cs):\n");
+            print(result);
+        }
 
         if (rtrans)
             async_ops.push_back(rtrans->saveAsync("grayscale.png"));
