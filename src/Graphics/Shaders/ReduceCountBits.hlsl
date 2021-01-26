@@ -72,9 +72,8 @@ void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     g_result.GetDimensions(n, s);
 
     uint r = 0;
-    for (uint x = tid.x; x < n; x += BX) {
+    for (uint x = tid.x; x < n; x += BX)
         r += g_result[x];
-    }
     s_result[gi] = r;
 
     ReduceGroup(gi);

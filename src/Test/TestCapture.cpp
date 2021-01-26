@@ -14,11 +14,43 @@ testRegisterInitializer(mr,
 
 
 
-uint32_t CountBits(const uint32_t* data, size_t size)
+float Total_Reference(mr::ITexture2DPtr src)
 {
+    auto process_line = [](const mr::unorm8* data, size_t size) {
+        float ret{};
+        for (auto v : std::span{ data, data + size })
+            ret += v;
+        return ret;
+    };
+
+    float ret{};
+    src->read([&](const void* data_, int pitch) {
+        auto size = src->getSize();
+        for (int i = 0; i < size.y; ++i) {
+            auto data = (const mr::unorm8*)((const byte*)data_ + (pitch * i));
+            ret += process_line(data, size.x);
+        }
+        });
+    return ret;
+}
+
+uint32_t CountBits_Reference(mr::ITexture2DPtr src)
+{
+    auto process_line = [](const uint32_t* data, size_t size) {
+        uint32_t ret{};
+        for (auto v : std::span{ data, data + size })
+            ret += std::popcount(v);
+        return ret;
+    };
+
     uint32_t ret{};
-    for (auto v : std::span{ data, data + size })
-        ret += std::popcount(v);
+    src->read([&](const void* data_, int pitch) {
+        auto size = src->getSize();
+        for (int i = 0; i < size.y; ++i) {
+            auto data = (const uint32_t*)((const byte*)data_ + (pitch * i));
+            ret += process_line(data, size.x);
+        }
+        });
     return ret;
 }
 
@@ -112,17 +144,11 @@ TestCase(Filter)
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
 
-        uint32_t cbits1 = CountBits(gfx, rbin).get();
-        uint32_t cbits2{};
-        rbin->read([&cbits2, &rbin](const void* data_, int pitch) {
-            auto size = rbin->getSize();
-            for (int i = 0; i < size.y; ++i) {
-                auto data = (const uint32_t*)((const byte*)data_ + (pitch * i));
-                cbits2 += CountBits(data, size.x);
-            }
-            });
-        testPrint("cbits1: %d\n", cbits1);
-        testPrint("cbits2: %d\n", cbits2);
+        testPrint("Total (ref): %f\n", Total_Reference(rcont));
+        testPrint("Total  (cs): %f\n", Total(gfx, rcont).get());
+
+        testPrint("CountBits (ref): %d\n", CountBits_Reference(rbin));
+        testPrint("CountBits  (cs): %d\n", CountBits(gfx, rbin).get());
     }
 
     auto tex = gfx->createTextureFromFile("EntireScreen.png");
