@@ -208,6 +208,7 @@ void GfxGlobals::unlock()
     template<> CS* GfxGlobals::getCS<CS>() { if(!Obj) Obj=make_ref<CS>(); return Obj.get(); }
 
 DefCSGetter(TransformCS, m_cs_transform);
+DefCSGetter(NormalizeCS, m_cs_normalize);
 DefCSGetter(BinarizeCS, m_cs_binarize);
 DefCSGetter(ContourCS, m_cs_contour);
 DefCSGetter(TemplateMatchCS, m_cs_template_match);

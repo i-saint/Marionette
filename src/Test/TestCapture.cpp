@@ -140,6 +140,15 @@ mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src,
     return filter->getDst();
 }
 
+mr::ITexture2DPtr Normalize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float max)
+{
+    auto filter = gfx->createNormalize();
+    filter->setSrc(src);
+    filter->setMax(max);
+    filter->dispatch();
+    return filter->getDst();
+}
+
 std::future<mr::IReduceTotal::Result> Total(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
 {
     auto filter = gfx->createReduceTotal();
@@ -176,18 +185,19 @@ TestCase(Filter)
     std::vector<std::future<bool>> async_ops;
     const float scale = 1.0f;
     const int contour_block_size = 5;
-    const float binarize_threshold = 0.1f;
+    const float binarize_threshold = 0.2f;
 
     auto gfx = mr::CreateGfxInterface();
 
     auto template_image = gfx->createTextureFromFile("template.png");
+    uint32_t template_bits{};
     if (template_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         mr::ITexture2DPtr src, rtrans, rcont, rbin;
         src = rtrans = Transform(gfx, template_image, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
-        /*src =*/ rbin = Binarize(gfx, src, binarize_threshold);
+        src = rbin = Binarize(gfx, src, binarize_threshold);
         template_image = src;
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
@@ -196,8 +206,9 @@ TestCase(Filter)
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
         testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);
 
+        template_bits = CountBits(gfx, rbin).get();
         testPrint("CountBits (ref): %d\n", CountBits_Reference(rbin));
-        testPrint("CountBits  (cs): %d\n", CountBits(gfx, rbin).get());
+        testPrint("CountBits  (cs): %d\n", template_bits);
         testPrint("\n");
     }
 
@@ -211,10 +222,12 @@ TestCase(Filter)
 
         src = rtrans = Transform(gfx, tex, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
-        /*src =*/ rbin = Binarize(gfx, src, binarize_threshold);
+        src = rbin = Binarize(gfx, src, binarize_threshold);
 
         if (template_image) {
-            src = rmatch = TemplateMatch(gfx, src, template_image);
+            auto s = template_image->getSize();
+            src = TemplateMatch(gfx, src, template_image);
+            src = rmatch = Normalize(gfx, src, template_bits);
         }
 
         auto rminmax = gfx->createReduceMinMax();

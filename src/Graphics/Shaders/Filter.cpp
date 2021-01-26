@@ -3,8 +3,10 @@
 
 // shader binaries
 #include "Transform.hlsl.h"
-#include "Contour.hlsl.h"
+#include "Normalize_F.hlsl.h"
+#include "Normalize_I.hlsl.h"
 #include "Binarize.hlsl.h"
+#include "Contour.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
 
@@ -143,69 +145,75 @@ ITransformPtr TransformCS::createContext()
 
 
 
-class Contour : public RefCount<IContour>
+class Normalize : public RefCount<INormalize>
 {
 public:
-    Contour(ContourCS* v);
+    Normalize(NormalizeCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
-    void setBlockSize(int v) override;
+    void setMax(float v) override;
+    void setMax(uint32_t v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
-    ContourCS* m_cs{};
+    NormalizeCS* m_cs{};
     Texture2DPtr m_dst;
     Texture2DPtr m_src;
     BufferPtr m_const;
 
-    int m_block_size = 5;
+    float m_rmax= 1.0f;
     bool m_dirty = true;
 };
 
-Contour::Contour(ContourCS* v)
+Normalize::Normalize(NormalizeCS* v)
     : m_cs(v)
 {
 }
 
-void Contour::setSrc(ITexture2DPtr v)
+void Normalize::setSrc(ITexture2DPtr v)
 {
     m_src = cast(v);
 }
 
-void Contour::setDst(ITexture2DPtr v)
+void Normalize::setDst(ITexture2DPtr v)
 {
     m_dst = cast(v);
 }
 
-void Contour::setBlockSize(int v)
+void Normalize::setMax(float v_)
 {
-    mrCheckDirty(v == m_block_size);
-    m_block_size = v;
+    float v = 1.0f / v_;
+    mrCheckDirty(m_rmax == v);
+    m_rmax = v;
 }
 
-ITexture2DPtr Contour::getDst()
+void Normalize::setMax(uint32_t v_)
+{
+    setMax(float(v_));
+}
+
+ITexture2DPtr Normalize::getDst()
 {
     return m_dst;
 }
 
-void Contour::dispatch()
+void Normalize::dispatch()
 {
     if (!m_src)
         return;
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
     }
-
     if (m_dirty) {
         struct
         {
-            int range;
+            float rmax;
             int3 pad;
         } params{};
-        params.range = (m_block_size - 1) / 2;
+        params.rmax = m_rmax;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -214,29 +222,38 @@ void Contour::dispatch()
     m_cs->dispatch(*this);
 }
 
-ContourCS::ContourCS()
+NormalizeCS::NormalizeCS()
 {
-    m_cs.initialize(mrBytecode(g_hlsl_Contour));
+    m_cs_f.initialize(mrBytecode(g_hlsl_Normalize_F));
+    m_cs_i.initialize(mrBytecode(g_hlsl_Normalize_I));
 }
 
-void ContourCS::dispatch(ICSContext& ctx_)
+void NormalizeCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Contour&>(ctx_);
-
-    m_cs.setSRV(ctx.m_src);
-    m_cs.setUAV(ctx.m_dst);
-    m_cs.setCBuffer(ctx.m_const);
+    auto& ctx = static_cast<Normalize&>(ctx_);
 
     auto size = ctx.m_dst->getSize();
-    m_cs.dispatch(
-        ceildiv(size.x, 32),
-        ceildiv(size.y, 32));
+    if (IsIntFormat(ctx.m_src->getFormat())) {
+        m_cs_i.setCBuffer(ctx.m_const);
+        m_cs_i.setSRV(ctx.m_src);
+        m_cs_i.setUAV(ctx.m_dst);
+        m_cs_i.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
+    else {
+        m_cs_f.setCBuffer(ctx.m_const);
+        m_cs_f.setSRV(ctx.m_src);
+        m_cs_f.setUAV(ctx.m_dst);
+        m_cs_f.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
 }
 
-IContourPtr ContourCS::createContext()
+INormalizePtr NormalizeCS::createContext()
 {
-    return make_ref<Contour>(this);
-
+    return make_ref<Normalize>(this);
 }
 
 
@@ -336,6 +353,102 @@ void BinarizeCS::dispatch(ICSContext& ctx_)
 }
 
 
+class Contour : public RefCount<IContour>
+{
+public:
+    Contour(ContourCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setBlockSize(int v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    ContourCS* m_cs{};
+    Texture2DPtr m_dst;
+    Texture2DPtr m_src;
+    BufferPtr m_const;
+
+    int m_block_size = 5;
+    bool m_dirty = true;
+};
+
+Contour::Contour(ContourCS* v)
+    : m_cs(v)
+{
+}
+
+void Contour::setSrc(ITexture2DPtr v)
+{
+    m_src = cast(v);
+}
+
+void Contour::setDst(ITexture2DPtr v)
+{
+    m_dst = cast(v);
+}
+
+void Contour::setBlockSize(int v)
+{
+    mrCheckDirty(v == m_block_size);
+    m_block_size = v;
+}
+
+ITexture2DPtr Contour::getDst()
+{
+    return m_dst;
+}
+
+void Contour::dispatch()
+{
+    if (!m_src)
+        return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
+    }
+
+    if (m_dirty) {
+        struct
+        {
+            int range;
+            int3 pad;
+        } params{};
+        params.range = (m_block_size - 1) / 2;
+
+        m_const = Buffer::createConstant(params);
+        m_dirty = false;
+    }
+
+    m_cs->dispatch(*this);
+}
+
+ContourCS::ContourCS()
+{
+    m_cs.initialize(mrBytecode(g_hlsl_Contour));
+}
+
+void ContourCS::dispatch(ICSContext& ctx_)
+{
+    auto& ctx = static_cast<Contour&>(ctx_);
+
+    m_cs.setSRV(ctx.m_src);
+    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(ctx.m_const);
+
+    auto size = ctx.m_dst->getSize();
+    m_cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
+}
+
+IContourPtr ContourCS::createContext()
+{
+    return make_ref<Contour>(this);
+}
+
+
 class TemplateMatch : public RefCount<ITemplateMatch>
 {
 public:
@@ -394,7 +507,7 @@ void TemplateMatch::dispatch()
         }
         else if (m_src->getFormat() == TextureFormat::Ri32) {
             auto size = m_src->getSize() - m_template->getSize();
-            m_dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Rf32);
+            m_dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Ri32);
         }
         if (!m_dst)
             return;
@@ -421,7 +534,6 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
         m_cs_grayscale.setSRV(src, 0);
         m_cs_grayscale.setSRV(tmp, 1);
         m_cs_grayscale.setUAV(dst);
-
         m_cs_grayscale.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
@@ -430,7 +542,6 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
         m_cs_binary.setSRV(src, 0);
         m_cs_binary.setSRV(tmp, 1);
         m_cs_binary.setUAV(dst);
-
         m_cs_binary.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));

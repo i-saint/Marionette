@@ -108,6 +108,7 @@ mrDeclPtr(IBuffer);
 mrDeclPtr(IScreenCapture);
 
 mrDeclPtr(ITransform);
+mrDeclPtr(INormalize);
 mrDeclPtr(IBinarize);
 mrDeclPtr(IContour);
 mrDeclPtr(ITemplateMatch);
@@ -371,6 +372,7 @@ public:
 
     // filters
     virtual ITransformPtr createTransform() = 0;
+    virtual INormalizePtr createNormalize() = 0;
     virtual IBinarizePtr createBinarize() = 0;
     virtual IContourPtr createContour() = 0;
     virtual ITemplateMatchPtr createTemplateMatch() = 0;

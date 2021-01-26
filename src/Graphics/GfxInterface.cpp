@@ -13,6 +13,7 @@ public:
     IScreenCapturePtr createScreenCapture() override;
 
     ITransformPtr createTransform() override;
+    INormalizePtr createNormalize() override;
     IBinarizePtr createBinarize() override;
     IContourPtr createContour() override;
     ITemplateMatchPtr createTemplateMatch() override;
@@ -50,6 +51,11 @@ IScreenCapturePtr GfxInterface::createScreenCapture()
 ITransformPtr GfxInterface::createTransform()
 {
     return mrGfxGetCS(TransformCS)->createContext();
+}
+
+INormalizePtr GfxInterface::createNormalize()
+{
+    return mrGfxGetCS(NormalizeCS)->createContext();
 }
 
 IBinarizePtr GfxInterface::createBinarize()

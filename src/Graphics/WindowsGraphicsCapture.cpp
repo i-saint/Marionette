@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Internal.h"
 #include "ScreenCapture.h"
-#include "Filter.h"
+#include "Shader.h"
 
 
 #ifdef mrWithWindowsGraphicsCapture

@@ -49,42 +49,49 @@
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Contour.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Normalize_F.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Normalize_I.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\Transform.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Binary.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceCountBits.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -94,12 +101,14 @@
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceCountBits_Pass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceTotal.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -109,24 +118,28 @@
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceTotal_FPass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceTotal_IPass1.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceTotal_IPass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -136,24 +149,28 @@
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax_FPass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax_IPass1.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceMinMax_IPass2.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_hlsl_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <ObjectFileOutput />
     </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">

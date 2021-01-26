@@ -97,6 +97,7 @@ private:
 
     // shaders
     TransformCSPtr m_cs_transform;
+    NormalizeCSPtr m_cs_normalize;
     BinarizeCSPtr m_cs_binarize;
     ContourCSPtr m_cs_contour;
     TemplateMatchCSPtr m_cs_template_match;

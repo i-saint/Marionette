@@ -39,7 +39,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
             r += diff;
         }
     }
-    g_result[tid] = r / float(w * h);
+    g_result[tid] = r;
 }
 
 
@@ -60,6 +60,6 @@ void main(uint2 tid : SV_DispatchThreadID)
             r += diff;
         }
     }
-    g_result[tid] = r / float(w * h);
+    g_result[tid] = r;
 }
 #endif

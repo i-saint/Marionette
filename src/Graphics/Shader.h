@@ -15,6 +15,19 @@ private:
 };
 
 
+class NormalizeCS : public ICompute
+{
+public:
+    NormalizeCS();
+    void dispatch(ICSContext& ctx) override;
+    INormalizePtr createContext();
+
+private:
+    ComputeShader m_cs_f;
+    ComputeShader m_cs_i;
+};
+
+
 class BinarizeCS : public ICompute
 {
 public:
