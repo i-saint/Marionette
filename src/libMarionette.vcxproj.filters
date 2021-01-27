@@ -33,7 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="MouseReplayer.h" />
     <ClInclude Include="Internal.h" />
     <ClInclude Include="Graphics\GfxFoundation.h">
       <Filter>Graphics</Filter>
@@ -51,6 +50,7 @@
     <ClInclude Include="Graphics\Shader.h">
       <Filter>Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="Marionette.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
