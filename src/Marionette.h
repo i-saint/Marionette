@@ -279,8 +279,9 @@ public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setRect(int2 pos, int2 size) = 0;
-    virtual void setScale(float v) = 0;
+    virtual void setScale(float v) = 0; // ignored if dst is set
     virtual void setGrayscale(bool v) = 0;
+    virtual void setFiltering(bool v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
 

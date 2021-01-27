@@ -521,6 +521,7 @@ bool Texture2D::saveImpl(const std::string& path, int2 size, TextureFormat forma
         ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
     }
     else if (format == TextureFormat::Ri32) {
+        // binary image
         std::vector<byte> buf(size.x * 32 * size.y);
         for (int i = 0; i < size.y; ++i) {
             auto s = (const uint32_t*)((const byte*)data + (pitch * i));
@@ -528,7 +529,7 @@ bool Texture2D::saveImpl(const std::string& path, int2 size, TextureFormat forma
             for (int j = 0; j < size.x; ++j) {
                 uint32_t v = *s++;
                 for (int k = 0; k < 32; ++k)
-                    *d++ = (v & (1 << k)) ? 255 : 0;
+                    *d++ = (v & (1 << k)) ? 0xff : 0;
             }
         }
         ret = stbi_write_png(path.c_str(), size.x * 32, size.y, 1, buf.data(), size.x * 32);
@@ -684,11 +685,17 @@ bool IsIntFormat(TextureFormat f)
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src)
 {
+    if (!dst || !src)
+        return;
+
     mrGfxContext()->CopyResource(dst, src);
 }
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int size, int src_offset, int dst_offset)
 {
+    if (!dst || !src)
+        return;
+
     D3D11_BOX box{};
     box.left = src_offset;
     box.right = size;
@@ -699,6 +706,9 @@ void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int size, int src_of
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int2 size, int2 src_offset, int2 dst_offset)
 {
+    if (!dst || !src)
+        return;
+
     D3D11_BOX box{};
     box.left = src_offset.x;
     box.right = size.x;
@@ -710,6 +720,9 @@ void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int2 size, int2 src_
 
 bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& callback)
 {
+    if (!src)
+        return false;
+
     auto ctx = mrGfxContext();
     mrGfxFlush();
 
@@ -722,19 +735,22 @@ bool MapRead(ID3D11Buffer* src, const std::function<void(const void* data)>& cal
     return false;
 }
 
-bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, int pitch)>& callback)
+bool MapRead(ID3D11Texture2D* src, const std::function<void(const void* data, int pitch)>& callback)
 {
+    if (!src)
+        return false;
+
     auto ctx = mrGfxContext();
     mrGfxFlush();
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    if (SUCCEEDED(ctx->Map(buf, 0, D3D11_MAP_READ, 0, &mapped))) {
+    if (SUCCEEDED(ctx->Map(src, 0, D3D11_MAP_READ, 0, &mapped))) {
         D3D11_TEXTURE2D_DESC desc{};
-        buf->GetDesc(&desc);
+        src->GetDesc(&desc);
 
         callback(mapped.pData, mapped.RowPitch);
 
-        ctx->Unmap(buf, 0);
+        ctx->Unmap(src, 0);
         return true;
     }
     return false;
@@ -742,6 +758,9 @@ bool MapRead(ID3D11Texture2D* buf, const std::function<void(const void* data, in
 
 mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch, bool flip_y)
 {
+    if (!path || !data)
+        return false;
+
     if (pitch == 0) {
         switch (format) {
         case PixelFormat::Ru8: pitch = w * 1; break;

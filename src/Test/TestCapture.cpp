@@ -103,14 +103,19 @@ mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
     return ret;
 }
 
-mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale)
+mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale, bool filtering)
 {
     auto filter = gfx->createTransform();
     filter->setSrc(src);
-    filter->setGrayscale(grayscale);
     filter->setScale(scale);
+    filter->setGrayscale(grayscale);
+    filter->setFiltering(filtering);
     filter->dispatch();
     return filter->getDst();
+}
+mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale)
+{
+    return Transform(gfx, src, scale, grayscale, scale < 1.0f);
 }
 
 mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size = 5)
@@ -183,7 +188,7 @@ TestCase(Filter)
         });
 
     std::vector<std::future<bool>> async_ops;
-    const float scale = 1.0f;
+    const float scale = 0.5f;
     const int contour_block_size = 5;
     const float binarize_threshold = 0.2f;
 
@@ -213,6 +218,15 @@ TestCase(Filter)
     }
 
     auto tex = gfx->createTextureFromFile("EntireScreen.png");
+
+    if (tex) {
+        // filtering test
+        auto with_filter = Transform(gfx, tex, 0.5f, false, true);
+        auto without_filter = Transform(gfx, tex, 0.5f, false, false);
+        async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
+        async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
+    }
+
     if (tex) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 

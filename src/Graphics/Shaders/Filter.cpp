@@ -28,6 +28,7 @@ public:
     void setRect(int2 o, int2 s) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
+    void setFiltering(bool v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
 
@@ -41,6 +42,7 @@ public:
     int2 m_size = int2::zero();
     float m_scale = 1.0f;
     bool m_grayscale = false;
+    bool m_filtering = false;
     bool m_dirty = true;
 };
 
@@ -78,6 +80,12 @@ void Transform::setGrayscale(bool v)
     m_grayscale = v;
 }
 
+void Transform::setFiltering(bool v)
+{
+    mrCheckDirty(m_filtering == v);
+    m_filtering = v;
+}
+
 ITexture2DPtr Transform::getDst()
 {
     return m_dst;
@@ -106,14 +114,14 @@ void Transform::dispatch()
             float2 pixel_size;
             float2 pixel_offset;
             float2 sample_step;
-            int flip_rb;
             int grayscale;
+            int filtering;
         } params;
         params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_offset;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
-        params.flip_rb = 0;
         params.grayscale = m_grayscale ? 1 : 0;
+        params.filtering = m_filtering ? 1 : 0;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -130,12 +138,15 @@ TransformCS::TransformCS()
 void TransformCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<Transform&>(ctx_);
+
+    m_cs.setCBuffer(ctx.m_const);
     m_cs.setSRV(ctx.m_src);
     m_cs.setUAV(ctx.m_dst);
-    m_cs.setCBuffer(ctx.m_const);
+
+    int2 dst_size = ctx.m_dst->getSize();
     m_cs.dispatch(
-        ceildiv(ctx.m_size.x, 32),
-        ceildiv(ctx.m_size.y, 32));
+        ceildiv(dst_size.x, 32),
+        ceildiv(dst_size.y, 32));
 }
 
 ITransformPtr TransformCS::createContext()
