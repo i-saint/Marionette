@@ -20,13 +20,13 @@ void main(uint2 tid : SV_DispatchThreadID)
     g_image.GetDimensions(w, h);
 
     uint top = max(int(tid.y) - g_size, 0);
-    uint bottom = min(tid.y + g_size, h);
+    uint bottom = min(tid.y + g_size + 1, h);
 
     uint r = 0;
     for (uint b = 0; b < 32; ++b) {
         uint bx = tid.x * 32 + b;
         uint left = max(int(bx) - g_size, 0);
-        uint right = min(bx + g_size, w * 32);
+        uint right = min(bx + g_size + 1, w * 32);
 
         uint px = left / 32;
         uint shift = left % 32;

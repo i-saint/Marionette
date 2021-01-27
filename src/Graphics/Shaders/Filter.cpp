@@ -527,7 +527,7 @@ void Expand::dispatch()
             int range;
             int3 pad;
         } params{};
-        params.range = m_size / 2 - 1;
+        params.range = (m_size - 1) / 2;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
