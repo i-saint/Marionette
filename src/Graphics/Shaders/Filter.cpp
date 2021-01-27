@@ -7,6 +7,7 @@
 #include "Normalize_I.hlsl.h"
 #include "Binarize.hlsl.h"
 #include "Contour.hlsl.h"
+#include "Expand_Binary.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
 
@@ -457,6 +458,102 @@ void ContourCS::dispatch(ICSContext& ctx_)
 IContourPtr ContourCS::createContext()
 {
     return make_ref<Contour>(this);
+}
+
+
+class Expand : public RefCount<IExpand>
+{
+public:
+    Expand(ExpandCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    void setSize(int v) override;
+    ITexture2DPtr getDst() override;
+    void dispatch() override;
+
+public:
+    ExpandCS* m_cs{};
+    Texture2DPtr m_dst;
+    Texture2DPtr m_src;
+    BufferPtr m_const;
+
+    int m_size = 2;
+    bool m_dirty = true;
+};
+
+Expand::Expand(ExpandCS* v)
+    : m_cs(v)
+{
+}
+
+void Expand::setSrc(ITexture2DPtr v)
+{
+    m_src = cast(v);
+}
+
+void Expand::setDst(ITexture2DPtr v)
+{
+    m_dst = cast(v);
+}
+
+void Expand::setSize(int v)
+{
+    mrCheckDirty(v == m_size);
+    m_size = v;
+}
+
+ITexture2DPtr Expand::getDst()
+{
+    return m_dst;
+}
+
+void Expand::dispatch()
+{
+    if (!m_src)
+        return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32);
+    }
+
+    if (m_dirty) {
+        struct
+        {
+            int range;
+            int3 pad;
+        } params{};
+        params.range = m_size;
+
+        m_const = Buffer::createConstant(params);
+        m_dirty = false;
+    }
+
+    m_cs->dispatch(*this);
+}
+
+ExpandCS::ExpandCS()
+{
+    m_cs.initialize(mrBytecode(g_hlsl_Expand_Binary));
+}
+
+void ExpandCS::dispatch(ICSContext& ctx_)
+{
+    auto& ctx = static_cast<Expand&>(ctx_);
+
+    m_cs.setSRV(ctx.m_src);
+    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(ctx.m_const);
+
+    auto size = ctx.m_dst->getSize();
+    m_cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
+}
+
+IExpandPtr ExpandCS::createContext()
+{
+    return make_ref<Expand>(this);
 }
 
 

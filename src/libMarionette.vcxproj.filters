@@ -113,6 +113,9 @@
     <FxCompile Include="Graphics\Shaders\Normalize_F.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Expand_Binary.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

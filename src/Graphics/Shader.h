@@ -52,6 +52,18 @@ private:
 };
 
 
+class ExpandCS : public ICompute
+{
+public:
+    ExpandCS();
+    void dispatch(ICSContext& ctx) override;
+    IExpandPtr createContext();
+
+private:
+    ComputeShader m_cs;
+};
+
+
 class TemplateMatchCS : public ICompute
 {
 public:

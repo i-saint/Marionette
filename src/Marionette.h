@@ -107,15 +107,6 @@ mrDeclPtr(ITexture2D);
 mrDeclPtr(IBuffer);
 mrDeclPtr(IScreenCapture);
 
-mrDeclPtr(ITransform);
-mrDeclPtr(INormalize);
-mrDeclPtr(IBinarize);
-mrDeclPtr(IContour);
-mrDeclPtr(ITemplateMatch);
-mrDeclPtr(IReduceTotal);
-mrDeclPtr(IReduceCountBits);
-mrDeclPtr(IReduceMinMax);
-
 
 class IObject
 {
@@ -266,6 +257,21 @@ public:
 };
 
 
+#define mrEachCS(Body)\
+    Body(Transform)\
+    Body(Normalize)\
+    Body(Binarize)\
+    Body(Contour)\
+    Body(Expand)\
+    Body(TemplateMatch)\
+    Body(ReduceTotal)\
+    Body(ReduceCountBits)\
+    Body(ReduceMinMax)\
+
+#define Body(CS) mrDeclPtr(I##CS)
+mrEachCS(Body)
+#undef Body
+
 
 class ICSContext : public IObject
 {
@@ -301,6 +307,15 @@ public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setThreshold(float v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
+};
+
+class IExpand : public ICSContext
+{
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void setSize(int v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
 
@@ -372,14 +387,9 @@ public:
     virtual IScreenCapturePtr createScreenCapture() = 0;
 
     // filters
-    virtual ITransformPtr createTransform() = 0;
-    virtual INormalizePtr createNormalize() = 0;
-    virtual IBinarizePtr createBinarize() = 0;
-    virtual IContourPtr createContour() = 0;
-    virtual ITemplateMatchPtr createTemplateMatch() = 0;
-    virtual IReduceTotalPtr createReduceTotal() = 0;
-    virtual IReduceCountBitsPtr createReduceCountBits() = 0;
-    virtual IReduceMinMaxPtr createReduceMinMax() = 0;
+#define Body(CS) virtual I##CS##Ptr create##CS() = 0;
+    mrEachCS(Body)
+#undef Body
 
     virtual void flush() = 0;
     virtual void sync(int timeout_ms = 1000) = 0;

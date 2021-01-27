@@ -12,15 +12,9 @@ public:
     ITexture2DPtr createTextureFromFile(const char* path) override;
     IScreenCapturePtr createScreenCapture() override;
 
-    ITransformPtr createTransform() override;
-    INormalizePtr createNormalize() override;
-    IBinarizePtr createBinarize() override;
-    IContourPtr createContour() override;
-    ITemplateMatchPtr createTemplateMatch() override;
-
-    IReduceTotalPtr createReduceTotal() override;
-    IReduceCountBitsPtr createReduceCountBits() override;
-    IReduceMinMaxPtr createReduceMinMax() override;
+#define Body(Name) I##Name##Ptr create##Name() override;
+mrEachCS(Body)
+#undef Body
 
     void flush() override;
     void sync(int timeout_ms) override;
@@ -47,46 +41,9 @@ IScreenCapturePtr GfxInterface::createScreenCapture()
     return CreateGraphicsCapture();
 }
 
-
-ITransformPtr GfxInterface::createTransform()
-{
-    return mrGfxGetCS(TransformCS)->createContext();
-}
-
-INormalizePtr GfxInterface::createNormalize()
-{
-    return mrGfxGetCS(NormalizeCS)->createContext();
-}
-
-IBinarizePtr GfxInterface::createBinarize()
-{
-    return mrGfxGetCS(BinarizeCS)->createContext();
-}
-
-IContourPtr GfxInterface::createContour()
-{
-    return mrGfxGetCS(ContourCS)->createContext();
-}
-
-ITemplateMatchPtr GfxInterface::createTemplateMatch()
-{
-    return mrGfxGetCS(TemplateMatchCS)->createContext();
-}
-
-IReduceTotalPtr GfxInterface::createReduceTotal()
-{
-    return mrGfxGetCS(ReduceTotalCS)->createContext();
-}
-
-IReduceCountBitsPtr GfxInterface::createReduceCountBits()
-{
-    return mrGfxGetCS(ReduceCountBitsCS)->createContext();
-}
-
-IReduceMinMaxPtr GfxInterface::createReduceMinMax()
-{
-    return mrGfxGetCS(ReduceMinMaxCS)->createContext();
-}
+#define Body(Name) I##Name##Ptr GfxInterface::create##Name() { return mrGfxGetCS(Name##CS)->createContext(); }
+mrEachCS(Body)
+#undef Body
 
 
 void GfxInterface::flush()

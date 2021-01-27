@@ -14,20 +14,9 @@ mrDeclPtr(DeviceResource);
 mrDeclPtr(Buffer);
 mrDeclPtr(Texture2D);
 
-
-#define mrDeclCS(Name) mrDeclPtr(Name##CS);
-
-mrDeclCS(Transform);
-mrDeclCS(Normalize);
-mrDeclCS(Binarize);
-mrDeclCS(Contour);
-mrDeclCS(TemplateMatch);
-
-mrDeclCS(ReduceTotal);
-mrDeclCS(ReduceCountBits);
-mrDeclCS(ReduceMinMax);
-
-#undef mrDeclCS
+#define Body(Name) mrDeclPtr(Name##CS);
+mrEachCS(Body)
+#undef Body
 
 
 // thin wrapper for Windows' event
@@ -95,14 +84,9 @@ private:
     std::mutex m_mutex;
 
     // shaders
-    TransformCSPtr m_cs_transform;
-    NormalizeCSPtr m_cs_normalize;
-    BinarizeCSPtr m_cs_binarize;
-    ContourCSPtr m_cs_contour;
-    TemplateMatchCSPtr m_cs_template_match;
-    ReduceTotalCSPtr m_cs_reduce_total;
-    ReduceCountBitsCSPtr m_cs_reduce_count_bits;
-    ReduceMinMaxCSPtr m_cs_reduce_minmax;
+#define Body(Name) Name##CSPtr m_cs_##Name;
+    mrEachCS(Body)
+#undef Body
 };
 #define mrGfxGlobals() GfxGlobals::get()
 #define mrGfxDevice() mrGfxGlobals()->getDevice()
