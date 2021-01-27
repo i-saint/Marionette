@@ -47,50 +47,14 @@ public:
     bool m_dirty = true;
 };
 
-Transform::Transform(TransformCS* v)
-    : m_cs(v)
-{
-}
-
-void Transform::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void Transform::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void Transform::setRect(int2 offset, int2 size)
-{
-    mrCheckDirty(offset == m_offset && size == m_size);
-    m_offset = offset;
-    m_size = size;
-}
-
-void Transform::setScale(float v)
-{
-    mrCheckDirty(m_scale == v);
-    m_scale = v;
-}
-
-void Transform::setGrayscale(bool v)
-{
-    mrCheckDirty(m_grayscale == v);
-    m_grayscale = v;
-}
-
-void Transform::setFiltering(bool v)
-{
-    mrCheckDirty(m_filtering == v);
-    m_filtering = v;
-}
-
-ITexture2DPtr Transform::getDst()
-{
-    return m_dst;
-}
+Transform::Transform(TransformCS* v) : m_cs(v) {}
+void Transform::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void Transform::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Transform::setRect(int2 offset, int2 size) { mrCheckDirty(offset == m_offset && size == m_size); m_offset = offset; m_size = size; }
+void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
+void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
+void Transform::setFiltering(bool v) { mrCheckDirty(m_filtering == v); m_filtering = v; }
+ITexture2DPtr Transform::getDst() { return m_dst; }
 
 void Transform::dispatch()
 {
@@ -178,37 +142,12 @@ public:
     bool m_dirty = true;
 };
 
-Normalize::Normalize(NormalizeCS* v)
-    : m_cs(v)
-{
-}
-
-void Normalize::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void Normalize::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void Normalize::setMax(float v_)
-{
-    float v = 1.0f / v_;
-    mrCheckDirty(m_rmax == v);
-    m_rmax = v;
-}
-
-void Normalize::setMax(uint32_t v_)
-{
-    setMax(float(v_));
-}
-
-ITexture2DPtr Normalize::getDst()
-{
-    return m_dst;
-}
+Normalize::Normalize(NormalizeCS* v) : m_cs(v) {}
+void Normalize::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void Normalize::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Normalize::setMax(float v_) { float v = 1.0f / v_; mrCheckDirty(m_rmax == v); m_rmax = v; }
+void Normalize::setMax(uint32_t v_) { setMax(float(v_)); }
+ITexture2DPtr Normalize::getDst() { return m_dst; }
 
 void Normalize::dispatch()
 {
@@ -294,31 +233,11 @@ IBinarizePtr BinarizeCS::createContext()
     return make_ref<Binarize>(this);
 }
 
-Binarize::Binarize(BinarizeCS* v)
-    : m_cs(v)
-{
-}
-
-void Binarize::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void Binarize::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void Binarize::setThreshold(float v)
-{
-    mrCheckDirty(v == m_threshold);
-    m_threshold = v;
-}
-
-ITexture2DPtr Binarize::getDst()
-{
-    return m_dst;
-}
+Binarize::Binarize(BinarizeCS* v) : m_cs(v) {}
+void Binarize::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void Binarize::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Binarize::setThreshold(float v) { mrCheckDirty(v == m_threshold); m_threshold = v; }
+ITexture2DPtr Binarize::getDst() { return m_dst; }
 
 void Binarize::dispatch()
 {
@@ -385,31 +304,11 @@ public:
     bool m_dirty = true;
 };
 
-Contour::Contour(ContourCS* v)
-    : m_cs(v)
-{
-}
-
-void Contour::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void Contour::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void Contour::setBlockSize(int v)
-{
-    mrCheckDirty(v == m_block_size);
-    m_block_size = v;
-}
-
-ITexture2DPtr Contour::getDst()
-{
-    return m_dst;
-}
+Contour::Contour(ContourCS* v) : m_cs(v) {}
+void Contour::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void Contour::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Contour::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
+ITexture2DPtr Contour::getDst() { return m_dst; }
 
 void Contour::dispatch()
 {
@@ -481,31 +380,11 @@ public:
     bool m_dirty = true;
 };
 
-Expand::Expand(ExpandCS* v)
-    : m_cs(v)
-{
-}
-
-void Expand::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void Expand::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void Expand::setSize(int v)
-{
-    mrCheckDirty(v == m_size);
-    m_size = v;
-}
-
-ITexture2DPtr Expand::getDst()
-{
-    return m_dst;
-}
+Expand::Expand(ExpandCS* v) : m_cs(v) {}
+void Expand::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void Expand::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Expand::setSize(int v) { mrCheckDirty(v == m_size); m_size = v; }
+ITexture2DPtr Expand::getDst() { return m_dst; }
 
 void Expand::dispatch()
 {
@@ -568,6 +447,7 @@ public:
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setTemplate(ITexture2DPtr v) override;
+    void setMask(ITexture2DPtr v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
 
@@ -576,32 +456,15 @@ public:
     Texture2DPtr m_dst;
     Texture2DPtr m_src;
     Texture2DPtr m_template;
+    Texture2DPtr m_mask;
 };
 
-TemplateMatch::TemplateMatch(TemplateMatchCS* v)
-    : m_cs(v)
-{
-}
-
-void TemplateMatch::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
-
-void TemplateMatch::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
-
-void TemplateMatch::setTemplate(ITexture2DPtr v)
-{
-    m_template = cast(v);
-}
-
-ITexture2DPtr TemplateMatch::getDst()
-{
-    return m_dst;
-}
+TemplateMatch::TemplateMatch(TemplateMatchCS* v) : m_cs(v) {}
+void TemplateMatch::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+void TemplateMatch::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void TemplateMatch::setTemplate(ITexture2DPtr v) { m_template = cast(v); }
+void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
+ITexture2DPtr TemplateMatch::getDst() { return m_dst; }
 
 void TemplateMatch::dispatch()
 {
@@ -640,21 +503,24 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
     auto& src = ctx.m_src;
     auto& dst = ctx.m_dst;
     auto& tmp = ctx.m_template;
+    auto& mask = ctx.m_mask;
 
     auto size = dst->getSize();
-    if (src->getFormat() == TextureFormat::Ru8) {
-        m_cs_grayscale.setSRV(src, 0);
-        m_cs_grayscale.setSRV(tmp, 1);
-        m_cs_grayscale.setUAV(dst);
-        m_cs_grayscale.dispatch(
+    if (IsIntFormat(src->getFormat())) {
+        m_cs_binary.setSRV(src, 0);
+        m_cs_binary.setSRV(tmp, 1);
+        m_cs_binary.setSRV(mask, 2);
+        m_cs_binary.setUAV(dst);
+        m_cs_binary.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }
-    else if (src->getFormat() == TextureFormat::Ri32) {
-        m_cs_binary.setSRV(src, 0);
-        m_cs_binary.setSRV(tmp, 1);
-        m_cs_binary.setUAV(dst);
-        m_cs_binary.dispatch(
+    else {
+        m_cs_grayscale.setSRV(src, 0);
+        m_cs_grayscale.setSRV(tmp, 1);
+        m_cs_grayscale.setSRV(mask, 2);
+        m_cs_grayscale.setUAV(dst);
+        m_cs_grayscale.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }

@@ -34,15 +34,8 @@ public:
     BufferPtr m_dst;
 };
 
-ReduceTotal::ReduceTotal(ReduceTotalCS* v)
-    : m_cs(v)
-{
-}
-
-void ReduceTotal::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
+ReduceTotal::ReduceTotal(ReduceTotalCS* v) : m_cs(v) {}
+void ReduceTotal::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 ReduceTotal::Result ReduceTotal::getResult()
 {
@@ -119,15 +112,8 @@ public:
     BufferPtr m_dst;
 };
 
-ReduceCountBits::ReduceCountBits(ReduceCountBitsCS* v)
-    : m_cs(v)
-{
-}
-
-void ReduceCountBits::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
+ReduceCountBits::ReduceCountBits(ReduceCountBitsCS* v) : m_cs(v) {}
+void ReduceCountBits::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 uint32_t ReduceCountBits::getResult()
 {
@@ -198,15 +184,8 @@ public:
     BufferPtr m_dst;
 };
 
-ReduceMinMax::ReduceMinMax(ReduceMinMaxCS* v)
-    : m_cs(v)
-{
-}
-
-void ReduceMinMax::setSrc(ITexture2DPtr v)
-{
-    m_src = cast(v);
-}
+ReduceMinMax::ReduceMinMax(ReduceMinMaxCS* v) : m_cs(v) {}
+void ReduceMinMax::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 ReduceMinMax::Result ReduceMinMax::getResult()
 {

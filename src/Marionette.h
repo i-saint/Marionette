@@ -334,6 +334,7 @@ public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setTemplate(ITexture2DPtr v) = 0;
+    virtual void setMask(ITexture2DPtr v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
 

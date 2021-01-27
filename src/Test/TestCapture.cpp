@@ -154,11 +154,12 @@ mr::ITexture2DPtr Expand(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int si
     return filter->getDst();
 }
 
-mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, mr::ITexture2DPtr tmp)
+mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, mr::ITexture2DPtr tmp, mr::ITexture2DPtr mask = nullptr)
 {
     auto filter = gfx->createTemplateMatch();
     filter->setSrc(src);
     filter->setTemplate(tmp);
+    filter->setMask(mask);
     filter->dispatch();
     return filter->getDst();
 }
@@ -197,23 +198,32 @@ TestCase(Filter)
         });
 
     std::vector<std::future<bool>> async_ops;
+    auto wait_async_ops = [&]() {
+        for (auto& a : async_ops)
+            a.wait();
+        async_ops.clear();
+    };
+
     const float scale = 0.5f;
     const int contour_block_size = 5;
     const float binarize_threshold = 0.2f;
 
     auto gfx = mr::CreateGfxInterface();
 
-    auto template_image = gfx->createTextureFromFile("template.png");
-    uint32_t template_bits{};
-    if (template_image) {
+    mr::ITexture2DPtr tmp_image, tmp_mask;
+    int2 tmp_size{};
+    uint32_t tmp_bits{};
+    tmp_image = gfx->createTextureFromFile("template.png");
+    if (tmp_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
-        src = rtrans = Transform(gfx, template_image, scale, true);
+        src = rtrans = Transform(gfx, tmp_image, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
         src = rbin = Binarize(gfx, src, binarize_threshold);
-        rexp = Expand(gfx, src);
-        template_image = src;
+        tmp_image = src;
+        tmp_mask =
+            rexp = Expand(gfx, src);
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
@@ -222,9 +232,10 @@ TestCase(Filter)
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
         testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);
 
-        template_bits = CountBits(gfx, rbin).get();
-        testPrint("CountBits (ref): %d\n", CountBits_Reference(rbin));
-        testPrint("CountBits  (cs): %d\n", template_bits);
+        tmp_size = tmp_image->getSize();
+        tmp_bits = CountBits(gfx, rexp).get();
+        testPrint("CountBits (ref): %d\n", CountBits_Reference(rexp));
+        testPrint("CountBits  (cs): %d\n", tmp_bits);
         testPrint("\n");
     }
 
@@ -237,6 +248,7 @@ TestCase(Filter)
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }
+    wait_async_ops();
 
     if (tex) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
@@ -249,10 +261,10 @@ TestCase(Filter)
         src = rcont = Contour(gfx, src, contour_block_size);
         src = rbin = Binarize(gfx, src, binarize_threshold);
 
-        if (template_image) {
-            auto s = template_image->getSize();
-            src = TemplateMatch(gfx, src, template_image);
-            src = rmatch = Normalize(gfx, src, template_bits);
+        if (tmp_image) {
+            auto s = tmp_image->getSize();
+            src = TemplateMatch(gfx, src, tmp_image, tmp_mask);
+            src = rmatch = Normalize(gfx, src, tmp_mask ? tmp_bits : uint32_t(tmp_size.x * tmp_size.y * 32));
         }
 
         auto rminmax = gfx->createReduceMinMax();
@@ -293,8 +305,7 @@ TestCase(Filter)
         if (rmatch)
             async_ops.push_back(rmatch->saveAsync("match.png"));
     }
-    for (auto& a : async_ops)
-        a.wait();
+    wait_async_ops();
 }
 
 TestCase(ScreenCapture)

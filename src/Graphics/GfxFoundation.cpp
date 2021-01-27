@@ -575,21 +575,21 @@ void ComputeShader::setCBuffer(Buffer* v, int slot)
 {
     if (slot >= m_cbuffers.size())
         m_cbuffers.resize(slot + 1);
-    m_cbuffers[slot] = v->ptr();
+    m_cbuffers[slot] = v ? v->ptr() : nullptr;
 }
 
 void ComputeShader::setSRV(DeviceResource* v, int slot)
 {
     if (slot >= m_srvs.size())
         m_srvs.resize(slot + 1);
-    m_srvs[slot] = v->srv();
+    m_srvs[slot] = v ? v->srv() : nullptr;
 }
 
 void ComputeShader::setUAV(DeviceResource* v, int slot)
 {
     if (slot >= m_uavs.size())
         m_uavs.resize(slot + 1);
-    m_uavs[slot] = v->uav();
+    m_uavs[slot] = v ? v->uav() : nullptr;
 }
 
 void ComputeShader::setSampler(ID3D11SamplerState* v, int slot)

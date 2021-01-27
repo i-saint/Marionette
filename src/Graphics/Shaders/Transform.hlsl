@@ -16,6 +16,19 @@ float4 Sample1x1(float2 coord)
     return g_src.SampleLevel(g_sampler, coord, 0);
 }
 
+float4 Sample2x2(float2 coord)
+{
+    float2 s = g_sample_step * 0.333333f;
+    float w = 1.0f / 4.0f;
+
+    float4 r = 0.0f;
+    r += g_src.SampleLevel(g_sampler, coord + float2(-s.x, -s.y), 0) * w;
+    r += g_src.SampleLevel(g_sampler, coord + float2( s.x, -s.y), 0) * w;
+    r += g_src.SampleLevel(g_sampler, coord + float2(-s.x,  s.y), 0) * w;
+    r += g_src.SampleLevel(g_sampler, coord + float2( s.x,  s.y), 0) * w;
+    return r;
+}
+
 float4 Sample3x3(float2 coord)
 {
     float2 s = g_sample_step * 0.333333f;
@@ -38,7 +51,7 @@ float4 Sample3x3(float2 coord)
 void main(uint2 tid : SV_DispatchThreadID)
 {
     float2 coord = (g_sample_step * float2(tid)) + g_pixel_offset + (g_pixel_size * 0.5f);
-    float4 p = g_filtering ? Sample3x3(coord) : Sample1x1(coord);
+    float4 p = g_filtering ? Sample2x2(coord) : Sample1x1(coord);
 
     if (g_grayscale)
         g_dst[tid] = dot(p.rgb, float3(0.2126f, 0.7152f, 0.0722f));
