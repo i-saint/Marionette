@@ -118,11 +118,11 @@ mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, flo
     return Transform(gfx, src, scale, grayscale, scale < 1.0f);
 }
 
-mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size = 5)
+mr::ITexture2DPtr Normalize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float max)
 {
-    auto filter = gfx->createContour();
+    auto filter = gfx->createNormalize();
     filter->setSrc(src);
-    filter->setBlockSize(block_size);
+    filter->setMax(max);
     filter->dispatch();
     return filter->getDst();
 }
@@ -136,20 +136,29 @@ mr::ITexture2DPtr Binarize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, floa
     return filter->getDst();
 }
 
+mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size = 5)
+{
+    auto filter = gfx->createContour();
+    filter->setSrc(src);
+    filter->setBlockSize(block_size);
+    filter->dispatch();
+    return filter->getDst();
+}
+
+mr::ITexture2DPtr Expand(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int size = 5)
+{
+    auto filter = gfx->createExpand();
+    filter->setSrc(src);
+    filter->setSize(size);
+    filter->dispatch();
+    return filter->getDst();
+}
+
 mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, mr::ITexture2DPtr tmp)
 {
     auto filter = gfx->createTemplateMatch();
     filter->setSrc(src);
     filter->setTemplate(tmp);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr Normalize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float max)
-{
-    auto filter = gfx->createNormalize();
-    filter->setSrc(src);
-    filter->setMax(max);
     filter->dispatch();
     return filter->getDst();
 }
@@ -199,14 +208,16 @@ TestCase(Filter)
     if (template_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        mr::ITexture2DPtr src, rtrans, rcont, rbin;
+        mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
         src = rtrans = Transform(gfx, template_image, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
         src = rbin = Binarize(gfx, src, binarize_threshold);
+        rexp = Expand(gfx, src);
         template_image = src;
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
+        async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
         testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);

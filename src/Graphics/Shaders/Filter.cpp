@@ -511,6 +511,10 @@ void Expand::dispatch()
 {
     if (!m_src)
         return;
+    if (m_src->getFormat() != TextureFormat::Ri32) {
+        mrDbgPrint("*** Expand::dispatch(): format must be integer ***\n");
+        return;
+    }
 
     if (!m_dst) {
         auto size = m_src->getSize();
@@ -523,7 +527,7 @@ void Expand::dispatch()
             int range;
             int3 pad;
         } params{};
-        params.range = m_size;
+        params.range = m_size / 2 - 1;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -604,7 +608,7 @@ void TemplateMatch::dispatch()
     if (!m_src || !m_template)
         return;
     if (m_src->getFormat() != m_template->getFormat()) {
-        mrDbgPrint("*** GfxInterface::templateMatch(): format mismatch ***\n");
+        mrDbgPrint("*** TemplateMatch::dispatch(): format mismatch ***\n");
         return;
     }
 
