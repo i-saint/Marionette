@@ -34,7 +34,7 @@
     <ClInclude Include="Graphics\Shader.h" />
     <ClInclude Include="Graphics\Vector.h" />
     <ClInclude Include="Internal.h" />
-    <ClInclude Include="MouseReplayer.h" />
+    <ClInclude Include="Marionette.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ref_ptr.h" />
   </ItemGroup>

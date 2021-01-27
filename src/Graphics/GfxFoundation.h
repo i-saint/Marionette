@@ -4,7 +4,6 @@
 #include <d3d11.h>
 #include "Vector.h"
 #include "Internal.h"
-#include "MouseReplayer.h"
 using winrt::com_ptr;
 
 #define mrCheck16(T) static_assert(sizeof(T) % 16 == 0)

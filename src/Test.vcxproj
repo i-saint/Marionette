@@ -22,7 +22,7 @@
     <ClInclude Include="Test\pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="libMouseReplayer.vcxproj">
+    <ProjectReference Include="libMarionette.vcxproj">
       <Project>{63cbdc2a-183a-495a-9242-8f34277c7695}</Project>
     </ProjectReference>
   </ItemGroup>

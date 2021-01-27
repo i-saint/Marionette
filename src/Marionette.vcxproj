@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MouseReplayer.cpp" />
+    <ClCompile Include="Marionette.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -21,10 +21,10 @@
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MouseReplayer.rc" />
+    <ResourceCompile Include="Marionette.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="libMouseReplayer.vcxproj">
+    <ProjectReference Include="libMarionette.vcxproj">
       <Project>{63cbdc2a-183a-495a-9242-8f34277c7695}</Project>
     </ProjectReference>
   </ItemGroup>

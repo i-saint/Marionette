@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "resource.h"
-#include "MouseReplayer.h"
+#include "Marionette.h"
 
 #define mrTPlay L"▶"
 #define mrTRec  L"⚫"

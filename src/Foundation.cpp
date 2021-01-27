@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
 #include "Internal.h"
-#include "MouseReplayer.h"
 
 #pragma comment(lib, "shcore.lib")
 

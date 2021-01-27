@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouseReplayer", "MouseReplayer.vcxproj", "{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Marionette", "Marionette.vcxproj", "{9293BD4C-DB11-44B0-BC45-EFD5C41EA2F1}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1C5DE91B-7AE9-4304-9FA1-0DE1ABA8C02D} = {1C5DE91B-7AE9-4304-9FA1-0DE1ABA8C02D}
 		{63CBDC2A-183A-495A-9242-8F34277C7695} = {63CBDC2A-183A-495A-9242-8F34277C7695}
@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouseReplayer", "MouseRepla
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "setup", "setup.vcxproj", "{1C5DE91B-7AE9-4304-9FA1-0DE1ABA8C02D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libMouseReplayer", "libMouseReplayer.vcxproj", "{63CBDC2A-183A-495A-9242-8F34277C7695}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libMarionette", "libMarionette.vcxproj", "{63CBDC2A-183A-495A-9242-8F34277C7695}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1C5DE91B-7AE9-4304-9FA1-0DE1ABA8C02D} = {1C5DE91B-7AE9-4304-9FA1-0DE1ABA8C02D}
 	EndProjectSection
