@@ -242,9 +242,9 @@ TestCase(Filter)
     auto tex = gfx->createTextureFromFile("EntireScreen.png");
 
     if (tex) {
-        // filtering test
-        auto with_filter = Transform(gfx, tex, 0.5f, false, true);
-        auto without_filter = Transform(gfx, tex, 0.5f, false, false);
+        // downscale filter test
+        auto with_filter = Transform(gfx, tex, 0.25f, false, true);
+        auto without_filter = Transform(gfx, tex, 0.25f, false, false);
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }

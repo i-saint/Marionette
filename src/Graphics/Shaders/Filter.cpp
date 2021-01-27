@@ -80,13 +80,18 @@ void Transform::dispatch()
             float2 pixel_offset;
             float2 sample_step;
             int grayscale;
-            int filtering;
+            int filter;
         } params;
         params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_offset;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
         params.grayscale = m_grayscale ? 1 : 0;
-        params.filtering = m_filtering ? 1 : 0;
+        params.filter = 0;
+        if (m_filtering) {
+            if (dst_size.x < src_size.x / 3) params.filter = 4;
+            else if (dst_size.x < src_size.x / 2) params.filter = 3;
+            else if (dst_size.x < src_size.x / 1) params.filter = 2;
+        }
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
