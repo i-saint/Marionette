@@ -204,7 +204,7 @@ TestCase(Filter)
         async_ops.clear();
     };
 
-    const float scale = 0.5f;
+    const float scale = 1.0f;
     const int contour_block_size = 5;
     const float binarize_threshold = 0.2f;
 
@@ -268,8 +268,8 @@ TestCase(Filter)
             src = TemplateMatch(gfx, src, tmp_image, tmp_mask);
 
             float denom{};
-            if (tmp_image->getFormat() == mr::TextureFormat::Ri32)
-                denom = float(tmp_mask ? tmp_bits : uint32_t(tmp_image->getBitWidth() * tmp_size.y));
+            if (tmp_image->getFormat() == mr::TextureFormat::Binary)
+                denom = float(tmp_mask ? tmp_bits : uint32_t(tmp_size.x * tmp_size.y));
             else
                 denom = tmp_size.x * tmp_size.y;
             src = rmatch = Normalize(gfx, src, denom);

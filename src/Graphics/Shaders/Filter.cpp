@@ -107,13 +107,13 @@ TransformCS::TransformCS()
 
 void TransformCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Transform&>(ctx_);
+    auto& c = static_cast<Transform&>(ctx_);
 
-    m_cs.setCBuffer(ctx.m_const);
-    m_cs.setSRV(ctx.m_src);
-    m_cs.setUAV(ctx.m_dst);
+    m_cs.setCBuffer(c.m_const);
+    m_cs.setSRV(c.m_src);
+    m_cs.setUAV(c.m_dst);
 
-    int2 dst_size = ctx.m_dst->getSize();
+    auto dst_size = c.m_dst->getInternalSize();
     m_cs.dispatch(
         ceildiv(dst_size.x, 32),
         ceildiv(dst_size.y, 32));
@@ -186,21 +186,21 @@ NormalizeCS::NormalizeCS()
 
 void NormalizeCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Normalize&>(ctx_);
+    auto& c = static_cast<Normalize&>(ctx_);
 
-    auto size = ctx.m_dst->getSize();
-    if (IsIntFormat(ctx.m_src->getFormat())) {
-        m_cs_i.setCBuffer(ctx.m_const);
-        m_cs_i.setSRV(ctx.m_src);
-        m_cs_i.setUAV(ctx.m_dst);
+    auto size = c.m_dst->getInternalSize();
+    if (IsIntFormat(c.m_src->getFormat())) {
+        m_cs_i.setCBuffer(c.m_const);
+        m_cs_i.setSRV(c.m_src);
+        m_cs_i.setUAV(c.m_dst);
         m_cs_i.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }
     else {
-        m_cs_f.setCBuffer(ctx.m_const);
-        m_cs_f.setSRV(ctx.m_src);
-        m_cs_f.setUAV(ctx.m_dst);
+        m_cs_f.setCBuffer(c.m_const);
+        m_cs_f.setSRV(c.m_src);
+        m_cs_f.setUAV(c.m_dst);
         m_cs_f.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
@@ -251,7 +251,7 @@ void Binarize::dispatch()
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32, nullptr, 0, size.x);
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Binary);
     }
 
     if (m_dirty) {
@@ -276,13 +276,13 @@ BinarizeCS::BinarizeCS()
 
 void BinarizeCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Binarize&>(ctx_);
+    auto& c = static_cast<Binarize&>(ctx_);
 
-    m_cs.setSRV(ctx.m_src);
-    m_cs.setUAV(ctx.m_dst);
-    m_cs.setCBuffer(ctx.m_const);
+    m_cs.setSRV(c.m_src);
+    m_cs.setUAV(c.m_dst);
+    m_cs.setCBuffer(c.m_const);
 
-    auto size = ctx.m_dst->getSize();
+    auto size = c.m_dst->getInternalSize();
     m_cs.dispatch(
         size.x,
         ceildiv(size.y, 32));
@@ -347,13 +347,13 @@ ContourCS::ContourCS()
 
 void ContourCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Contour&>(ctx_);
+    auto& c = static_cast<Contour&>(ctx_);
 
-    m_cs.setSRV(ctx.m_src);
-    m_cs.setUAV(ctx.m_dst);
-    m_cs.setCBuffer(ctx.m_const);
+    m_cs.setSRV(c.m_src);
+    m_cs.setUAV(c.m_dst);
+    m_cs.setCBuffer(c.m_const);
 
-    auto size = ctx.m_dst->getSize();
+    auto size = c.m_dst->getInternalSize();
     m_cs.dispatch(
         ceildiv(size.x, 32),
         ceildiv(size.y, 32));
@@ -395,14 +395,14 @@ void Expand::dispatch()
 {
     if (!m_src)
         return;
-    if (m_src->getFormat() != TextureFormat::Ri32) {
+    if (m_src->getFormat() != TextureFormat::Binary) {
         mrDbgPrint("*** Expand::dispatch(): format must be integer ***\n");
         return;
     }
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32, nullptr, 0, m_src->getBitWidth());
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Binary);
     }
 
     if (m_dirty) {
@@ -427,13 +427,13 @@ ExpandCS::ExpandCS()
 
 void ExpandCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<Expand&>(ctx_);
+    auto& c = static_cast<Expand&>(ctx_);
 
-    m_cs.setSRV(ctx.m_src);
-    m_cs.setUAV(ctx.m_dst);
-    m_cs.setCBuffer(ctx.m_const);
+    m_cs.setSRV(c.m_src);
+    m_cs.setUAV(c.m_dst);
+    m_cs.setCBuffer(c.m_const);
 
-    auto size = ctx.m_dst->getSize();
+    auto size = c.m_dst->getInternalSize();
     m_cs.dispatch(
         ceildiv(size.x, 32),
         ceildiv(size.y, 32));
@@ -464,7 +464,7 @@ public:
     Texture2DPtr m_mask;
     BufferPtr m_const;
 
-    int m_bit_width{};
+    int2 m_size{};
     bool m_dirty = true;
 };
 
@@ -473,8 +473,8 @@ void TemplateMatch::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 void TemplateMatch::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void TemplateMatch::setTemplate(ITexture2DPtr v) {
     m_template = cast(v);
-    mrCheckDirty(m_bit_width == m_template->getBitWidth());
-    m_bit_width = m_template->getBitWidth();
+    mrCheckDirty(m_size == m_template->getSize());
+    m_size = m_template->getSize();
 }
 void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
 ITexture2DPtr TemplateMatch::getDst() { return m_dst; }
@@ -493,22 +493,21 @@ void TemplateMatch::dispatch()
             auto size = m_src->getSize() - m_template->getSize();
             m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
         }
-        else if (m_src->getFormat() == TextureFormat::Ri32) {
-            auto bw = m_src->getBitWidth() - m_template->getBitWidth();
+        else if (m_src->getFormat() == TextureFormat::Binary) {
             auto size = m_src->getSize() - m_template->getSize();
-            m_dst = Texture2D::create(bw, size.y, TextureFormat::Ri32);
+            m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32);
         }
         if (!m_dst)
             return;
     }
 
-    if (m_dirty && m_src->getFormat() == TextureFormat::Ri32) {
+    if (m_dirty && m_src->getFormat() == TextureFormat::Binary) {
         struct
         {
             int bit_width;
             int3 pad;
         } params{};
-        params.bit_width = m_bit_width;
+        params.bit_width = m_size.x;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -527,7 +526,7 @@ void TemplateMatchCS::dispatch(ICSContext& ctx_)
 {
     auto& c = static_cast<TemplateMatch&>(ctx_);
 
-    auto size = c.m_dst->getSize();
+    auto size = c.m_dst->getInternalSize();
     if (IsIntFormat(c.m_src->getFormat())) {
         m_cs_binary.setCBuffer(c.m_const, 0);
         m_cs_binary.setSRV(c.m_src, 0);

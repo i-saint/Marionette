@@ -209,13 +209,13 @@ enum class TextureFormat
     BGRAu8,
     Rf32,
     Ri32,
+    Binary,
 };
 
 class ITexture2D : public IObject
 {
 public:
     virtual int2 getSize() const = 0;
-    virtual int getBitWidth() const = 0;
     virtual TextureFormat getFormat() const = 0;
 
     using ReadCallback = std::function<void(const void* data, int pitch)>;

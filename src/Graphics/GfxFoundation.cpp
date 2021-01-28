@@ -298,18 +298,18 @@ bool Buffer::read(const ReadCallback& callback, int size)
 }
 
 
-Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t pitch, uint32_t bit_width)
+Texture2DPtr Texture2D::create(uint32_t w, uint32_t h, TextureFormat format, const void* data, uint32_t pitch)
 {
     if (w <= 0 || h <= 0)
         return nullptr;
 
     auto ret = make_ref<Texture2D>();
     ret->m_size = { (int)w, (int)h };
-    ret->m_bit_width = bit_width ? bit_width : GetPixelSize(format) * w;
     ret->m_format = format;
     auto dxformat = GetDXFormat(format);
     {
-        D3D11_TEXTURE2D_DESC desc{ w, h, 1, 1, dxformat, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
+        auto ts = ret->getInternalSize();
+        D3D11_TEXTURE2D_DESC desc{ (UINT)ts.x, (UINT)ts.y, 1, 1, dxformat, { 1, 0 }, D3D11_USAGE_DEFAULT, 0, 0, 0 };
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 
         D3D11_SUBRESOURCE_DATA sd{ data, pitch, 0 };
@@ -403,13 +403,20 @@ ID3D11Texture2D* Texture2D::ptr() { return m_texture.get(); }
 ID3D11ShaderResourceView* Texture2D::srv() { return m_srv.get(); }
 ID3D11UnorderedAccessView* Texture2D::uav() { return m_uav.get(); }
 int2 Texture2D::getSize() const { return m_size; }
-int Texture2D::getBitWidth() const { return m_bit_width; }
+int2 Texture2D::getInternalSize() const
+{
+    auto ret = m_size;
+    if (m_format == TextureFormat::Binary)
+        ret.x = ceildiv(ret.x, 32);
+    return ret;
+}
 TextureFormat Texture2D::getFormat() const { return m_format; }
 
 void Texture2D::download()
 {
     if (!m_staging) {
-        D3D11_TEXTURE2D_DESC desc{ (UINT)m_size.x, (UINT)m_size.y, 1, 1, GetDXFormat(m_format), { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
+        auto ts = getInternalSize();
+        D3D11_TEXTURE2D_DESC desc{ (UINT)ts.x, (UINT)ts.y, 1, 1, GetDXFormat(m_format), { 1, 0 }, D3D11_USAGE_STAGING, 0, 0, 0 };
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         mrGfxDevice()->CreateTexture2D(&desc, nullptr, m_staging.put());
     }
@@ -429,7 +436,7 @@ bool Texture2D::read(const ReadCallback& callback)
     return map(callback);
 }
 
-bool Texture2D::saveImpl(const std::string& path, int2 size, int bit_width, TextureFormat format, const void* data, int pitch)
+bool Texture2D::saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch)
 {
     bool ret = false;
     if (format == TextureFormat::RGBAu8) {
@@ -449,19 +456,19 @@ bool Texture2D::saveImpl(const std::string& path, int2 size, int bit_width, Text
         }
         ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
     }
-    else if (format == TextureFormat::Ri32) {
+    else if (format == TextureFormat::Binary) {
         // binary to gray scale
-        std::vector<byte> buf(bit_width * size.y);
+        std::vector<byte> buf(size.x * size.y);
         for (int i = 0; i < size.y; ++i) {
             auto s = (const uint32_t*)((const byte*)data + (pitch * i));
-            auto d = buf.data() + (bit_width * i);
-            for (int j = 0; j < bit_width; ++j) {
+            auto d = buf.data() + (size.x * i);
+            for (int j = 0; j < size.x; ++j) {
                 int pi = j / 32;
                 int bi = j % 32;
                 *d++ = (s[pi] & (1 << bi)) ? 0xff : 0;
             }
         }
-        ret = stbi_write_png(path.c_str(), bit_width, size.y, 1, buf.data(), bit_width);
+        ret = stbi_write_png(path.c_str(), size.x, size.y, 1, buf.data(), size.x);
     }
     else {
         mrDbgPrint("Texture2D::save(): unknown format\n");
@@ -482,7 +489,7 @@ bool Texture2D::save(const std::string& path)
 
     // write to file
     if (ret)
-        ret = saveImpl(path, m_size, m_bit_width, m_format, buf.data(), pitch);
+        ret = saveImpl(path, m_size, m_format, buf.data(), pitch);
     return ret;
 }
 
@@ -496,10 +503,10 @@ std::future<bool> Texture2D::saveAsync(const std::string& path)
         memcpy(buf.data(), data, buf.size());
         });
 
-    return std::async(std::launch::async, [path, size = m_size, bw = m_bit_width, format = m_format, pitch, buf = std::move(buf)]() {
+    return std::async(std::launch::async, [path, size = m_size, format = m_format, pitch, buf = std::move(buf)]() {
         if (buf.empty())
             return false;
-        return saveImpl(path, size, bw, format, buf.data(), pitch);
+        return saveImpl(path, size, format, buf.data(), pitch);
         });
 }
 
@@ -605,25 +612,14 @@ DXGI_FORMAT GetDXFormat(TextureFormat f)
     case TextureFormat::BGRAu8: return DXGI_FORMAT_B8G8R8A8_UNORM;
     case TextureFormat::Rf32: return DXGI_FORMAT_R32_FLOAT;
     case TextureFormat::Ri32: return DXGI_FORMAT_R32_UINT;
+    case TextureFormat::Binary: return DXGI_FORMAT_R32_UINT;
     default: return DXGI_FORMAT_UNKNOWN;
     }
 }
 
 bool IsIntFormat(TextureFormat f)
 {
-    return f == mr::TextureFormat::Ri32;
-}
-
-int GetPixelSize(TextureFormat f)
-{
-    switch (f) {
-    case TextureFormat::Ru8: return 8;
-    case TextureFormat::RGBAu8: return 8 * 4;
-    case TextureFormat::BGRAu8: return 8 * 4;
-    case TextureFormat::Rf32: return 32;
-    case TextureFormat::Ri32: return 32;
-    default: return DXGI_FORMAT_UNKNOWN;
-    }
+    return f == mr::TextureFormat::Ri32 || f == mr::TextureFormat::Binary;
 }
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src)
