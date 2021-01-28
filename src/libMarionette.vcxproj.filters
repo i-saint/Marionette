@@ -116,6 +116,12 @@
     <FxCompile Include="Graphics\Shaders\Expand_Binary.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Expand_Grayscale.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Shape.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

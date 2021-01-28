@@ -60,7 +60,8 @@ public:
     IExpandPtr createContext();
 
 private:
-    ComputeShader m_cs;
+    ComputeShader m_cs_grayscale;
+    ComputeShader m_cs_binary;
 };
 
 
@@ -74,6 +75,18 @@ public:
 private:
     ComputeShader m_cs_grayscale;
     ComputeShader m_cs_binary;
+};
+
+
+class ShapeCS : public ICompute
+{
+public:
+    ShapeCS();
+    void dispatch(ICSContext& ctx) override;
+    IShapePtr createContext();
+
+private:
+    ComputeShader m_cs;
 };
 
 

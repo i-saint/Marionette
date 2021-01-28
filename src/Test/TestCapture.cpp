@@ -230,6 +230,9 @@ TestCase(Filter)
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
+        auto rce = Expand(gfx, rcont);
+        async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
+
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
         testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);
 

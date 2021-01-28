@@ -266,6 +266,7 @@ public:
     Body(Contour)\
     Body(Expand)\
     Body(TemplateMatch)\
+    Body(Shape)\
     Body(ReduceTotal)\
     Body(ReduceCountBits)\
     Body(ReduceMinMax)\
@@ -338,6 +339,15 @@ public:
     virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual void setMask(ITexture2DPtr v) = 0;
     virtual ITexture2DPtr getDst() = 0;
+};
+
+class IShape : public ICSContext
+{
+public:
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void addCircle(int2 pos, float radius, float border, float4 color) = 0;
+    virtual void addRect(int2 pos, int2 size, float border, float4 color) = 0;
+    virtual void clearShapes() = 0;
 };
 
 class IReduceTotal : public ICSContext

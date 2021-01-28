@@ -47,8 +47,10 @@
     <FxCompile Include="Graphics\Shaders\Binarize.hlsl" />
     <FxCompile Include="Graphics\Shaders\Contour.hlsl" />
     <FxCompile Include="Graphics\Shaders\Expand_Binary.hlsl" />
+    <FxCompile Include="Graphics\Shaders\Expand_Grayscale.hlsl" />
     <FxCompile Include="Graphics\Shaders\Normalize_F.hlsl" />
     <FxCompile Include="Graphics\Shaders\Normalize_I.hlsl" />
+    <FxCompile Include="Graphics\Shaders\Shape.hlsl" />
     <FxCompile Include="Graphics\Shaders\Transform.hlsl" />
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Binary.hlsl" />
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl" />

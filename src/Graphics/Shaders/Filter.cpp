@@ -11,6 +11,7 @@
 #include "Expand_Binary.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
+#include "Shape.hlsl.h"
 
 #define mrBytecode(A) A, std::size(A)
 
@@ -558,6 +559,120 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
 ITemplateMatchPtr TemplateMatchCS::createContext()
 {
     return make_ref<TemplateMatch>(this);
+}
+
+
+
+class Shape : public RefCount<IShape>
+{
+public:
+    enum class ShapeType : int
+    {
+        Unknown,
+        Circle,
+        Rect,
+    };
+    struct ShapeData
+    {
+        ShapeType type;
+        float border;
+        int2 pos;
+        float4 color;
+        float radius;
+        int2 rect_size;
+        int pad;
+    };
+
+
+    Shape(ShapeCS* v);
+    void setDst(ITexture2DPtr v) override;
+    void addCircle(int2 pos, float radius, float border, float4 color) override;
+    void addRect(int2 pos, int2 size, float border, float4 color) override;
+    void clearShapes() override;
+    void dispatch() override;
+
+public:
+    ShapeCS* m_cs{};
+    Texture2DPtr m_dst;
+    BufferPtr m_buffer;
+
+    std::vector<ShapeData> m_shapes;
+    bool m_dirty = true;
+};
+
+Shape::Shape(ShapeCS* v)
+    : m_cs(v)
+{
+}
+
+void Shape::setDst(ITexture2DPtr v)
+{
+    m_dst = cast(v);
+}
+
+void Shape::addCircle(int2 pos, float radius, float border, float4 color)
+{
+    ShapeData tmp;
+    tmp.type = ShapeType::Circle;
+    tmp.pos = pos;
+    tmp.radius = radius;
+    tmp.border = border;
+    tmp.color = color;
+    m_shapes.push_back(tmp);
+    m_dirty = true;
+}
+
+void Shape::addRect(int2 pos, int2 size, float border, float4 color)
+{
+    ShapeData tmp;
+    tmp.type = ShapeType::Rect;
+    tmp.pos = pos;
+    tmp.rect_size = size;
+    tmp.border = border;
+    tmp.color = color;
+    m_shapes.push_back(tmp);
+    m_dirty = true;
+}
+
+void Shape::clearShapes()
+{
+    m_shapes.clear();
+    m_dirty = true;
+}
+
+void Shape::dispatch()
+{
+    if (!m_dst || m_shapes.empty())
+        return;
+
+    if (m_dirty) {
+        m_buffer = Buffer::createStructured(m_shapes.size() * sizeof(ShapeData), sizeof(ShapeData), m_shapes.data());
+        m_dirty = false;
+    }
+
+    m_cs->dispatch(*this);
+}
+
+mr::ShapeCS::ShapeCS()
+{
+    m_cs.initialize(mrBytecode(g_hlsl_Shape));
+}
+
+void mr::ShapeCS::dispatch(ICSContext& ctx)
+{
+    auto& c = static_cast<Shape&>(ctx);
+
+    auto size = c.m_dst->getInternalSize();
+    m_cs.setSRV(c.m_buffer);
+    m_cs.setUAV(c.m_dst);
+    m_cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
+}
+
+IShapePtr mr::ShapeCS::createContext()
+{
+    return make_ref<Shape>(this);
 }
 
 } // namespace mr
