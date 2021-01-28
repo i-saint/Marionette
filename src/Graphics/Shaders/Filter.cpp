@@ -251,7 +251,7 @@ void Binarize::dispatch()
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32);
+        m_dst = Texture2D::create(ceildiv(size.x, 32), size.y, TextureFormat::Ri32, nullptr, 0, size.x);
     }
 
     if (m_dirty) {
@@ -402,7 +402,7 @@ void Expand::dispatch()
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32);
+        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32, nullptr, 0, m_src->getBitWidth());
     }
 
     if (m_dirty) {
@@ -462,12 +462,20 @@ public:
     Texture2DPtr m_src;
     Texture2DPtr m_template;
     Texture2DPtr m_mask;
+    BufferPtr m_const;
+
+    int m_bit_width{};
+    bool m_dirty = true;
 };
 
 TemplateMatch::TemplateMatch(TemplateMatchCS* v) : m_cs(v) {}
 void TemplateMatch::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 void TemplateMatch::setDst(ITexture2DPtr v) { m_dst = cast(v); }
-void TemplateMatch::setTemplate(ITexture2DPtr v) { m_template = cast(v); }
+void TemplateMatch::setTemplate(ITexture2DPtr v) {
+    m_template = cast(v);
+    mrCheckDirty(m_bit_width == m_template->getBitWidth());
+    m_bit_width = m_template->getBitWidth();
+}
 void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
 ITexture2DPtr TemplateMatch::getDst() { return m_dst; }
 
@@ -486,11 +494,24 @@ void TemplateMatch::dispatch()
             m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
         }
         else if (m_src->getFormat() == TextureFormat::Ri32) {
+            auto bw = m_src->getBitWidth() - m_template->getBitWidth();
             auto size = m_src->getSize() - m_template->getSize();
-            m_dst = Texture2D::create(size.x * 32, size.y, TextureFormat::Ri32);
+            m_dst = Texture2D::create(bw, size.y, TextureFormat::Ri32);
         }
         if (!m_dst)
             return;
+    }
+
+    if (m_dirty && m_src->getFormat() == TextureFormat::Ri32) {
+        struct
+        {
+            int bit_width;
+            int3 pad;
+        } params{};
+        params.bit_width = m_bit_width;
+
+        m_const = Buffer::createConstant(params);
+        m_dirty = false;
     }
 
     m_cs->dispatch(*this);
@@ -504,27 +525,24 @@ TemplateMatchCS::TemplateMatchCS()
 
 void TemplateMatchCS::dispatch(ICSContext& ctx_)
 {
-    auto& ctx = static_cast<TemplateMatch&>(ctx_);
-    auto& src = ctx.m_src;
-    auto& dst = ctx.m_dst;
-    auto& tmp = ctx.m_template;
-    auto& mask = ctx.m_mask;
+    auto& c = static_cast<TemplateMatch&>(ctx_);
 
-    auto size = dst->getSize();
-    if (IsIntFormat(src->getFormat())) {
-        m_cs_binary.setSRV(src, 0);
-        m_cs_binary.setSRV(tmp, 1);
-        m_cs_binary.setSRV(mask, 2);
-        m_cs_binary.setUAV(dst);
+    auto size = c.m_dst->getSize();
+    if (IsIntFormat(c.m_src->getFormat())) {
+        m_cs_binary.setCBuffer(c.m_const, 0);
+        m_cs_binary.setSRV(c.m_src, 0);
+        m_cs_binary.setSRV(c.m_template, 1);
+        m_cs_binary.setSRV(c.m_mask, 2);
+        m_cs_binary.setUAV(c.m_dst);
         m_cs_binary.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));
     }
     else {
-        m_cs_grayscale.setSRV(src, 0);
-        m_cs_grayscale.setSRV(tmp, 1);
-        m_cs_grayscale.setSRV(mask, 2);
-        m_cs_grayscale.setUAV(dst);
+        m_cs_grayscale.setSRV(c.m_src, 0);
+        m_cs_grayscale.setSRV(c.m_template, 1);
+        m_cs_grayscale.setSRV(c.m_mask, 2);
+        m_cs_grayscale.setUAV(c.m_dst);
         m_cs_grayscale.dispatch(
             ceildiv(size.x, 32),
             ceildiv(size.y, 32));

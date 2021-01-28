@@ -1,3 +1,9 @@
+cbuffer Constants : register(b0)
+{
+    uint g_bit_width;
+    int3 g_pad;
+};
+
 Texture2D<uint> g_image : register(t0);
 Texture2D<uint> g_template : register(t1);
 Texture2D<uint> g_mask : register(t2);
@@ -28,6 +34,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
     const uint pixel_shift = tid.x / 32;
     const uint bit_shift = tid.x % 32;
+    const uint edge_mask = (1 << (g_bit_width % 32)) - 1;
     const uint cache_height = CacheCapacity / tw;
     const uint cache_size = cache_height * tw;
 
@@ -55,7 +62,10 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
                 uint px = pixel_shift + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = s_template[tw * cy + j];
-                r += countbits(iv ^ tv);
+                uint bits = iv ^ tv;
+                if (j == tw - 1)
+                    bits &= edge_mask;
+                r += countbits(bits);
             }
         }
     }
@@ -83,8 +93,11 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
                 uint px = pixel_shift + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = s_template[tw * cy + j];
+                uint bits = iv ^ tv;
+                if (j == tw - 1)
+                    bits &= edge_mask;
                 uint mask = s_mask[tw * cy + j];
-                r += countbits((iv ^ tv) & mask);
+                r += countbits(bits & mask);
             }
         }
     }
@@ -104,6 +117,7 @@ void main(uint2 tid : SV_DispatchThreadID)
 
     const uint pixel_shift = tid.x / 32;
     const uint bit_shift = tid.x % 32;
+    const uint edge_mask = (1 << (g_bit_width % 32)) - 1;
 
     uint r = 0;
     if (mw != tw) {
@@ -114,7 +128,10 @@ void main(uint2 tid : SV_DispatchThreadID)
                 uint px = pixel_shift + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
-                r += countbits(iv ^ tv);
+                uint bits = iv ^ tv;
+                if (j == tw - 1)
+                    bits &= edge_mask;
+                r += countbits(bits);
             }
         }
     }
@@ -126,8 +143,11 @@ void main(uint2 tid : SV_DispatchThreadID)
                 uint px = pixel_shift + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
+                uint bits = iv ^ tv;
+                if (j == tw - 1)
+                    bits &= edge_mask;
                 uint mask = g_mask[uint2(j, i)];
-                r += countbits((iv ^ tv) & mask);
+                r += countbits(bits & mask);
             }
         }
     }

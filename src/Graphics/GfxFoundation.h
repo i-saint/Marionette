@@ -158,7 +158,7 @@ mrConvertile(Buffer, IBuffer);
 class Texture2D : public DeviceResource, public RefCount<ITexture2D>
 {
 public:
-    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0);
+    static Texture2DPtr create(uint32_t w, uint32_t h, TextureFormat format, const void* data = nullptr, uint32_t pitch = 0, uint32_t bit_width = 0);
     static Texture2DPtr create(const char* path);
     static Texture2DPtr wrap(com_ptr<ID3D11Texture2D>& v);
 
@@ -171,18 +171,20 @@ public:
     ID3D11UnorderedAccessView* uav() override;
 
     int2 getSize() const override;
+    int getBitWidth() const override;
     TextureFormat getFormat() const override;
 
     void download() override;
     bool map(const ReadCallback& callback) override;
     bool read(const ReadCallback& callback) override;
 
-    static bool saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch);
+    static bool saveImpl(const std::string& path, int2 size, int bit_width, TextureFormat format, const void* data, int pitch);
     bool save(const std::string& path) override;
     std::future<bool> saveAsync(const std::string& path) override;
 
 private:
     int2 m_size{};
+    int m_bit_width{};
     TextureFormat m_format{};
     com_ptr<ID3D11Texture2D> m_texture;
     com_ptr<ID3D11Texture2D> m_staging;
@@ -229,6 +231,7 @@ public:
 TextureFormat GetMRFormat(DXGI_FORMAT f);
 DXGI_FORMAT GetDXFormat(TextureFormat f);
 bool IsIntFormat(TextureFormat f);
+int GetPixelSize(TextureFormat f);
 
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src);
 void DispatchCopy(ID3D11Resource* dst, ID3D11Resource* src, int size, int src_offset = 0, int dst_offset = 0);

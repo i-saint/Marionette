@@ -220,7 +220,8 @@ TestCase(Filter)
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
         src = rtrans = Transform(gfx, tmp_image, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
-        src = rbin = Binarize(gfx, src, binarize_threshold);
+        src =
+            rbin = Binarize(gfx, src, binarize_threshold);
         tmp_image = src;
         tmp_mask =
             rexp = Expand(gfx, src);
@@ -259,12 +260,19 @@ TestCase(Filter)
 
         src = rtrans = Transform(gfx, tex, scale, true);
         src = rcont = Contour(gfx, src, contour_block_size);
-        src = rbin = Binarize(gfx, src, binarize_threshold);
+        src =
+            rbin = Binarize(gfx, src, binarize_threshold);
 
         if (tmp_image) {
             auto s = tmp_image->getSize();
             src = TemplateMatch(gfx, src, tmp_image, tmp_mask);
-            src = rmatch = Normalize(gfx, src, tmp_mask ? tmp_bits : uint32_t(tmp_size.x * tmp_size.y * 32));
+
+            float denom{};
+            if (tmp_image->getFormat() == mr::TextureFormat::Ri32)
+                denom = float(tmp_mask ? tmp_bits : uint32_t(tmp_image->getBitWidth() * tmp_size.y));
+            else
+                denom = tmp_size.x * tmp_size.y;
+            src = rmatch = Normalize(gfx, src, denom);
         }
 
         auto rminmax = gfx->createReduceMinMax();
