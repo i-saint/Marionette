@@ -4,6 +4,8 @@
 
 using mr::unorm8;
 using mr::int2;
+using mr::float2;
+using mr::float4;
 
 static void SetDllSearchPath()
 {
@@ -103,6 +105,14 @@ mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
     return ret;
 }
 
+mr::ITexture2DPtr Copy(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
+{
+    auto filter = gfx->createTransform();
+    filter->setSrc(src);
+    filter->dispatch();
+    return filter->getDst();
+}
+
 mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale, bool filtering)
 {
     auto filter = gfx->createTransform();
@@ -164,6 +174,22 @@ mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src,
     return filter->getDst();
 }
 
+void DrawCircle(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, float radius, float border, float4 color)
+{
+    auto filter = gfx->createShape();
+    filter->setDst(dst);
+    filter->addCircle(pos, radius, border, color);
+    filter->dispatch();
+}
+
+void DrawRect(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, int2 size, float border, float4 color)
+{
+    auto filter = gfx->createShape();
+    filter->setDst(dst);
+    filter->addRect(pos, size, border, color);
+    filter->dispatch();
+}
+
 std::future<mr::IReduceTotal::Result> Total(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
 {
     auto filter = gfx->createReduceTotal();
@@ -204,7 +230,7 @@ TestCase(Filter)
         async_ops.clear();
     };
 
-    const float scale = 1.0f;
+    const float scale = 0.5f;
     const int contour_block_size = 5;
     const float binarize_threshold = 0.2f;
 
@@ -305,6 +331,16 @@ TestCase(Filter)
 
             testPrint("MinMax  (cs):\n");
             print(result);
+
+            auto marked = Copy(gfx, tex);
+            auto pos = int2(float2(result.pos_min) / scale);
+            auto size = int2(float2(tmp_size) / scale);
+            DrawRect(gfx, marked, pos, size, 2, {1.0f, 0.0f, 0.0f, 1.0f});
+
+            //auto center = pos + size / 2;
+            //auto radius = float(std::max(size.x, size.y)) / 2.0f;
+            //DrawCircle(gfx, marked, center, radius, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+            //async_ops.push_back(marked->saveAsync("result.png"));
         }
 
         if (rtrans)

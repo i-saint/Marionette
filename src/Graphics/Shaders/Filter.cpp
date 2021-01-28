@@ -25,12 +25,20 @@ namespace mr {
 class Transform : public RefCount<ITransform>
 {
 public:
+    enum class Flag
+    {
+        Grayscale,
+        FillAlpha,
+    };
+
     Transform(TransformCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
+    void setDstFormat(TextureFormat v) override;
     void setRect(int2 o, int2 s) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
+    void setFillAlpha(bool v) override;
     void setFiltering(bool v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
@@ -41,10 +49,12 @@ public:
     Texture2DPtr m_dst;
     BufferPtr m_const;
 
+    TextureFormat m_dst_format = TextureFormat::Unknown;
     int2 m_offset = int2::zero();
     int2 m_size = int2::zero();
     float m_scale = 1.0f;
     bool m_grayscale = false;
+    bool m_fill_alpha = false;
     bool m_filtering = false;
     bool m_dirty = true;
 };
@@ -52,9 +62,11 @@ public:
 Transform::Transform(TransformCS* v) : m_cs(v) {}
 void Transform::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 void Transform::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+void Transform::setDstFormat(TextureFormat v) { m_dst_format = v; }
 void Transform::setRect(int2 offset, int2 size) { mrCheckDirty(offset == m_offset && size == m_size); m_offset = offset; m_size = size; }
 void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
+void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
 void Transform::setFiltering(bool v) { mrCheckDirty(m_filtering == v); m_filtering = v; }
 ITexture2DPtr Transform::getDst() { return m_dst; }
 
@@ -67,7 +79,11 @@ void Transform::dispatch()
         auto size = m_src->getSize();
         if (m_scale != 1.0f)
             size = int2(float2(size) * m_scale);
-        m_dst = Texture2D::create(size.x, size.y, m_grayscale ? TextureFormat::Ru8 : m_src->getFormat());
+
+        TextureFormat format = m_dst_format;
+        if (format == TextureFormat::Unknown)
+            format = m_grayscale ? TextureFormat::Ru8 : m_src->getFormat();
+        m_dst = Texture2D::create(size.x, size.y, format);
     }
 
     if (m_dirty) {
@@ -81,13 +97,16 @@ void Transform::dispatch()
             float2 pixel_size;
             float2 pixel_offset;
             float2 sample_step;
-            int grayscale;
+            uint32_t flags;
             int filter;
-        } params;
+        } params{};
         params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_offset;
         params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
-        params.grayscale = m_grayscale ? 1 : 0;
+        if (m_grayscale)
+            set_flag(params.flags, Flag::Grayscale, true);
+        if (m_fill_alpha)
+            set_flag(params.flags, Flag::FillAlpha, true);
         params.filter = 0;
         if (m_filtering) {
             if (dst_size.x < src_size.x / 3) params.filter = 4;
@@ -600,15 +619,8 @@ public:
     bool m_dirty = true;
 };
 
-Shape::Shape(ShapeCS* v)
-    : m_cs(v)
-{
-}
-
-void Shape::setDst(ITexture2DPtr v)
-{
-    m_dst = cast(v);
-}
+Shape::Shape(ShapeCS* v) : m_cs(v) {}
+void Shape::setDst(ITexture2DPtr v){ m_dst = cast(v); }
 
 void Shape::addCircle(int2 pos, float radius, float border, float4 color)
 {

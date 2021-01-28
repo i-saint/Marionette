@@ -3,6 +3,24 @@
 
 namespace mr {
 
+#define mrEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
+
+template<class T, mrEnableIf(std::is_enum<T>::value)>
+inline void set_flag(uint32_t& dst, T flag, bool v)
+{
+    if (v)
+        (uint32_t&)dst |= (uint32_t)flag;
+    else
+        (uint32_t&)dst &= ~(uint32_t)flag;
+}
+
+template<class T, mrEnableIf(std::is_enum<T>::value)>
+inline bool get_flag(uint32_t src, T flag)
+{
+    return (src & (uint32_t)flag) != 0;
+}
+
+
 class Timer
 {
 public:
