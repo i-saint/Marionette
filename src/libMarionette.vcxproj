@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="mrFoundation.cpp" />
+    <ClCompile Include="Foundation\mrFoundation.cpp" />
     <ClCompile Include="Graphics\mrDesktopDuplication.cpp" />
     <ClCompile Include="Graphics\mrGDI.cpp" />
     <ClCompile Include="Graphics\mrGfxFoundation.cpp" />
@@ -20,23 +20,23 @@
     <ClCompile Include="Graphics\Shaders\mrFilter.cpp" />
     <ClCompile Include="Graphics\Shaders\mrReducer.cpp" />
     <ClCompile Include="Graphics\mrWindowsGraphicsCapture.cpp" />
-    <ClCompile Include="mrInputReceiver.cpp" />
+    <ClCompile Include="Input\mrInputReceiver.cpp" />
+    <ClCompile Include="Input\mrPlayer.cpp" />
+    <ClCompile Include="Input\mrRecorder.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="mrPlayer.cpp" />
-    <ClCompile Include="mrRecorder.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Foundation\mrHalf.h" />
+    <ClInclude Include="Foundation\mrRefPtr.h" />
+    <ClInclude Include="Foundation\mrVector.h" />
     <ClInclude Include="Graphics\mrGfxFoundation.h" />
-    <ClInclude Include="Graphics\mrHalf.h" />
     <ClInclude Include="Graphics\mrScreenCapture.h" />
     <ClInclude Include="Graphics\mrShader.h" />
-    <ClInclude Include="Graphics\mrVector.h" />
-    <ClInclude Include="mrInternal.h" />
     <ClInclude Include="Marionette.h" />
+    <ClInclude Include="mrInternal.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="mrRefPtr.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="setup.vcxproj">

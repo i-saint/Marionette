@@ -2,7 +2,6 @@
 
 #include <winrt/Windows.Foundation.h>
 #include <d3d11.h>
-#include "mrVector.h"
 #include "mrInternal.h"
 using winrt::com_ptr;
 

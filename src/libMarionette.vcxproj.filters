@@ -2,10 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="mrPlayer.cpp" />
-    <ClCompile Include="mrRecorder.cpp" />
-    <ClCompile Include="mrFoundation.cpp" />
-    <ClCompile Include="mrInputReceiver.cpp" />
     <ClCompile Include="Graphics\mrImage.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
@@ -30,6 +26,18 @@
     <ClCompile Include="Graphics\Shaders\mrReducer.cpp">
       <Filter>Graphics\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="Input\mrInputReceiver.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\mrPlayer.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\mrRecorder.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Foundation\mrFoundation.cpp">
+      <Filter>Foundation</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -37,20 +45,22 @@
     <ClInclude Include="Graphics\mrGfxFoundation.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\mrHalf.h">
-      <Filter>Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="Graphics\mrVector.h">
-      <Filter>Graphics</Filter>
-    </ClInclude>
     <ClInclude Include="Graphics\mrScreenCapture.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="mrRefPtr.h" />
     <ClInclude Include="Graphics\mrShader.h">
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="Marionette.h" />
+    <ClInclude Include="Foundation\mrRefPtr.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\mrHalf.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\mrVector.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
@@ -129,6 +139,12 @@
     </Filter>
     <Filter Include="Graphics\Shaders">
       <UniqueIdentifier>{7a3881a4-5473-4dcc-a5ff-02ccb17e7431}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{437fd796-f056-4952-9632-ebcda044a490}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Foundation">
+      <UniqueIdentifier>{365800e5-0189-4f9a-8bc8-1ad25abf1f6c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
