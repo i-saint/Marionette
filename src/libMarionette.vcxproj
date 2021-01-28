@@ -11,32 +11,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Foundation.cpp" />
-    <ClCompile Include="Graphics\DesktopDuplication.cpp" />
-    <ClCompile Include="Graphics\GDI.cpp" />
-    <ClCompile Include="Graphics\GfxFoundation.cpp" />
-    <ClCompile Include="Graphics\GfxInterface.cpp" />
-    <ClCompile Include="Graphics\Image.cpp" />
-    <ClCompile Include="Graphics\Shaders\Filter.cpp" />
-    <ClCompile Include="Graphics\Shaders\Reducer.cpp" />
-    <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp" />
-    <ClCompile Include="InputReceiver.cpp" />
+    <ClCompile Include="mrFoundation.cpp" />
+    <ClCompile Include="Graphics\mrDesktopDuplication.cpp" />
+    <ClCompile Include="Graphics\mrGDI.cpp" />
+    <ClCompile Include="Graphics\mrGfxFoundation.cpp" />
+    <ClCompile Include="Graphics\mrGfxInterface.cpp" />
+    <ClCompile Include="Graphics\mrImage.cpp" />
+    <ClCompile Include="Graphics\Shaders\mrFilter.cpp" />
+    <ClCompile Include="Graphics\Shaders\mrReducer.cpp" />
+    <ClCompile Include="Graphics\mrWindowsGraphicsCapture.cpp" />
+    <ClCompile Include="mrInputReceiver.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="Recorder.cpp" />
+    <ClCompile Include="mrPlayer.cpp" />
+    <ClCompile Include="mrRecorder.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Graphics\GfxFoundation.h" />
-    <ClInclude Include="Graphics\Half.h" />
-    <ClInclude Include="Graphics\ScreenCapture.h" />
-    <ClInclude Include="Graphics\Shader.h" />
-    <ClInclude Include="Graphics\Vector.h" />
-    <ClInclude Include="Internal.h" />
+    <ClInclude Include="Graphics\mrGfxFoundation.h" />
+    <ClInclude Include="Graphics\mrHalf.h" />
+    <ClInclude Include="Graphics\mrScreenCapture.h" />
+    <ClInclude Include="Graphics\mrShader.h" />
+    <ClInclude Include="Graphics\mrVector.h" />
+    <ClInclude Include="mrInternal.h" />
     <ClInclude Include="Marionette.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="ref_ptr.h" />
+    <ClInclude Include="mrRefPtr.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="setup.vcxproj">

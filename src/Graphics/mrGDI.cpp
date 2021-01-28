@@ -1,6 +1,5 @@
 #include "pch.h"
-#include "Internal.h"
-#include "Internal.h"
+#include "mrInternal.h"
 
 namespace mr {
 

@@ -1,5 +1,5 @@
 ﻿#include "pch.h"
-#include "Internal.h"
+#include "mrInternal.h"
 
 #pragma comment(lib, "shcore.lib")
 

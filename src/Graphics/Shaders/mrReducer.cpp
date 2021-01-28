@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "Graphics/Shader.h"
+#include "Graphics/mrShader.h"
 
 // shader binaries
 #include "ReduceTotal_FPass1.hlsl.h"

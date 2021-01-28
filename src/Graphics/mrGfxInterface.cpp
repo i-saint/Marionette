@@ -1,7 +1,7 @@
 #include "pch.h"
-#include "Internal.h"
-#include "Shader.h"
-#include "ScreenCapture.h"
+#include "mrInternal.h"
+#include "mrShader.h"
+#include "mrScreenCapture.h"
 
 namespace mr {
 

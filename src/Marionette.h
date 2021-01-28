@@ -1,6 +1,6 @@
 #pragma once
-#include "Graphics/Vector.h"
-#include "ref_ptr.h"
+#include "Graphics/mrVector.h"
+#include "mrRefPtr.h"
 
 #define mrAPI extern "C" __declspec(dllexport)
 

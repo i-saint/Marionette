@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "Internal.h"
+#include "mrInternal.h"
 
 #ifdef mrWithOpenCV
 #pragma comment(lib,"gdi32.lib")

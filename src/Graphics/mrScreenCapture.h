@@ -1,5 +1,5 @@
 #pragma once
-#include "GfxFoundation.h"
+#include "mrGfxFoundation.h"
 
 namespace mr {
 

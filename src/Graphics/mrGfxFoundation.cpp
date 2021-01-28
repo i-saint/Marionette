@@ -1,6 +1,6 @@
 #include "pch.h"
-#include "GfxFoundation.h"
-#include "Shader.h"
+#include "mrGfxFoundation.h"
+#include "mrShader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION

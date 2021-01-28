@@ -4,7 +4,7 @@
 #include <cstring>
 #include <algorithm>
 #include <limits>
-#include "Half.h"
+#include "mrHalf.h"
 
 #define mrEpsilon 1e-4f
 

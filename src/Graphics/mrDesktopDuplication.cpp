@@ -1,6 +1,6 @@
 #include "pch.h"
-#include "Internal.h"
-#include "ScreenCapture.h"
+#include "mrInternal.h"
+#include "mrScreenCapture.h"
 
 #ifdef mrWithDesktopDuplicationAPI
 namespace mr {

@@ -2,52 +2,52 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="Recorder.cpp" />
-    <ClCompile Include="Foundation.cpp" />
-    <ClCompile Include="InputReceiver.cpp" />
-    <ClCompile Include="Graphics\Image.cpp">
+    <ClCompile Include="mrPlayer.cpp" />
+    <ClCompile Include="mrRecorder.cpp" />
+    <ClCompile Include="mrFoundation.cpp" />
+    <ClCompile Include="mrInputReceiver.cpp" />
+    <ClCompile Include="Graphics\mrImage.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\WindowsGraphicsCapture.cpp">
+    <ClCompile Include="Graphics\mrWindowsGraphicsCapture.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\GfxFoundation.cpp">
+    <ClCompile Include="Graphics\mrGfxFoundation.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\DesktopDuplication.cpp">
+    <ClCompile Include="Graphics\mrDesktopDuplication.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\GDI.cpp">
+    <ClCompile Include="Graphics\mrGDI.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\GfxInterface.cpp">
+    <ClCompile Include="Graphics\mrGfxInterface.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\Shaders\Filter.cpp">
+    <ClCompile Include="Graphics\Shaders\mrFilter.cpp">
       <Filter>Graphics\Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\Shaders\Reducer.cpp">
+    <ClCompile Include="Graphics\Shaders\mrReducer.cpp">
       <Filter>Graphics\Shaders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="Internal.h" />
-    <ClInclude Include="Graphics\GfxFoundation.h">
+    <ClInclude Include="mrInternal.h" />
+    <ClInclude Include="Graphics\mrGfxFoundation.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\Half.h">
+    <ClInclude Include="Graphics\mrHalf.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\Vector.h">
+    <ClInclude Include="Graphics\mrVector.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\ScreenCapture.h">
+    <ClInclude Include="Graphics\mrScreenCapture.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="ref_ptr.h" />
-    <ClInclude Include="Graphics\Shader.h">
+    <ClInclude Include="mrRefPtr.h" />
+    <ClInclude Include="Graphics\mrShader.h">
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="Marionette.h" />
