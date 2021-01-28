@@ -7,6 +7,7 @@
 #include "Normalize_I.hlsl.h"
 #include "Binarize.hlsl.h"
 #include "Contour.hlsl.h"
+#include "Expand_Grayscale.hlsl.h"
 #include "Expand_Binary.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
@@ -105,9 +106,9 @@ TransformCS::TransformCS()
     m_cs.setSampler(mrGfxDefaultSampler());
 }
 
-void TransformCS::dispatch(ICSContext& ctx_)
+void TransformCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<Transform&>(ctx_);
+    auto& c = static_cast<Transform&>(ctx);
 
     m_cs.setCBuffer(c.m_const);
     m_cs.setSRV(c.m_src);
@@ -184,9 +185,9 @@ NormalizeCS::NormalizeCS()
     m_cs_i.initialize(mrBytecode(g_hlsl_Normalize_I));
 }
 
-void NormalizeCS::dispatch(ICSContext& ctx_)
+void NormalizeCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<Normalize&>(ctx_);
+    auto& c = static_cast<Normalize&>(ctx);
 
     auto size = c.m_dst->getInternalSize();
     if (IsIntFormat(c.m_src->getFormat())) {
@@ -274,9 +275,9 @@ BinarizeCS::BinarizeCS()
     m_cs.initialize(mrBytecode(g_hlsl_Binarize));
 }
 
-void BinarizeCS::dispatch(ICSContext& ctx_)
+void BinarizeCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<Binarize&>(ctx_);
+    auto& c = static_cast<Binarize&>(ctx);
 
     m_cs.setSRV(c.m_src);
     m_cs.setUAV(c.m_dst);
@@ -345,9 +346,9 @@ ContourCS::ContourCS()
     m_cs.initialize(mrBytecode(g_hlsl_Contour));
 }
 
-void ContourCS::dispatch(ICSContext& ctx_)
+void ContourCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<Contour&>(ctx_);
+    auto& c = static_cast<Contour&>(ctx);
 
     m_cs.setSRV(c.m_src);
     m_cs.setUAV(c.m_dst);
@@ -395,14 +396,10 @@ void Expand::dispatch()
 {
     if (!m_src)
         return;
-    if (m_src->getFormat() != TextureFormat::Binary) {
-        mrDbgPrint("*** Expand::dispatch(): format must be integer ***\n");
-        return;
-    }
 
     if (!m_dst) {
         auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Binary);
+        m_dst = Texture2D::create(size.x, size.y, m_src->getFormat());
     }
 
     if (m_dirty) {
@@ -422,21 +419,31 @@ void Expand::dispatch()
 
 ExpandCS::ExpandCS()
 {
-    m_cs.initialize(mrBytecode(g_hlsl_Expand_Binary));
+    m_cs_grayscale.initialize(mrBytecode(g_hlsl_Expand_Grayscale));
+    m_cs_binary.initialize(mrBytecode(g_hlsl_Expand_Binary));
 }
 
-void ExpandCS::dispatch(ICSContext& ctx_)
+void ExpandCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<Expand&>(ctx_);
-
-    m_cs.setSRV(c.m_src);
-    m_cs.setUAV(c.m_dst);
-    m_cs.setCBuffer(c.m_const);
+    auto& c = static_cast<Expand&>(ctx);
 
     auto size = c.m_dst->getInternalSize();
-    m_cs.dispatch(
-        ceildiv(size.x, 32),
-        ceildiv(size.y, 32));
+    if (c.m_src->getFormat() == TextureFormat::Binary) {
+        m_cs_binary.setSRV(c.m_src);
+        m_cs_binary.setUAV(c.m_dst);
+        m_cs_binary.setCBuffer(c.m_const);
+        m_cs_binary.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
+    else {
+        m_cs_grayscale.setSRV(c.m_src);
+        m_cs_grayscale.setUAV(c.m_dst);
+        m_cs_grayscale.setCBuffer(c.m_const);
+        m_cs_grayscale.dispatch(
+            ceildiv(size.x, 32),
+            ceildiv(size.y, 32));
+    }
 }
 
 IExpandPtr ExpandCS::createContext()
@@ -522,12 +529,12 @@ TemplateMatchCS::TemplateMatchCS()
     m_cs_binary.initialize(mrBytecode(g_hlsl_TemplateMatch_Binary));
 }
 
-void TemplateMatchCS::dispatch(ICSContext& ctx_)
+void TemplateMatchCS::dispatch(ICSContext& ctx)
 {
-    auto& c = static_cast<TemplateMatch&>(ctx_);
+    auto& c = static_cast<TemplateMatch&>(ctx);
 
     auto size = c.m_dst->getInternalSize();
-    if (IsIntFormat(c.m_src->getFormat())) {
+    if (c.m_src->getFormat() == TextureFormat::Binary) {
         m_cs_binary.setCBuffer(c.m_const, 0);
         m_cs_binary.setSRV(c.m_src, 0);
         m_cs_binary.setSRV(c.m_template, 1);
