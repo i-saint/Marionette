@@ -326,7 +326,7 @@ public:
     Texture2DPtr m_src;
     BufferPtr m_const;
 
-    int m_block_size = 5;
+    int m_block_size = 3;
     bool m_dirty = true;
 };
 
@@ -349,10 +349,10 @@ void Contour::dispatch()
     if (m_dirty) {
         struct
         {
-            int range;
+            int block_size;
             int3 pad;
         } params{};
-        params.range = (m_block_size - 1) / 2;
+        params.block_size = m_block_size;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -392,7 +392,7 @@ public:
     Expand(ExpandCS* v);
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
-    void setSize(int v) override;
+    void setBlockSize(int v) override;
     ITexture2DPtr getDst() override;
     void dispatch() override;
 
@@ -402,14 +402,14 @@ public:
     Texture2DPtr m_src;
     BufferPtr m_const;
 
-    int m_size = 2;
+    int m_block_size = 3;
     bool m_dirty = true;
 };
 
 Expand::Expand(ExpandCS* v) : m_cs(v) {}
 void Expand::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 void Expand::setDst(ITexture2DPtr v) { m_dst = cast(v); }
-void Expand::setSize(int v) { mrCheckDirty(v == m_size); m_size = v; }
+void Expand::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
 ITexture2DPtr Expand::getDst() { return m_dst; }
 
 void Expand::dispatch()
@@ -425,10 +425,10 @@ void Expand::dispatch()
     if (m_dirty) {
         struct
         {
-            int range;
+            int block_size;
             int3 pad;
         } params{};
-        params.range = (m_size - 1) / 2;
+        params.block_size = m_block_size;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;

@@ -320,7 +320,7 @@ class IExpand : public ICSContext
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
-    virtual void setSize(int v) = 0;
+    virtual void setBlockSize(int v) = 0;
     virtual ITexture2DPtr getDst() = 0;
 };
 

@@ -146,7 +146,7 @@ mr::ITexture2DPtr Binarize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, floa
     return filter->getDst();
 }
 
-mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size = 5)
+mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size)
 {
     auto filter = gfx->createContour();
     filter->setSrc(src);
@@ -155,11 +155,11 @@ mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int b
     return filter->getDst();
 }
 
-mr::ITexture2DPtr Expand(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int size = 5)
+mr::ITexture2DPtr Expand(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size)
 {
     auto filter = gfx->createExpand();
     filter->setSrc(src);
-    filter->setSize(size);
+    filter->setBlockSize(block_size);
     filter->dispatch();
     return filter->getDst();
 }
@@ -231,7 +231,8 @@ TestCase(Filter)
     };
 
     const float scale = 0.5f;
-    const int contour_block_size = 5;
+    const int contour_block_size = 3;
+    const int expand_block_size = 3;
     const float binarize_threshold = 0.2f;
 
     auto gfx = mr::CreateGfxInterface();
@@ -250,13 +251,13 @@ TestCase(Filter)
             rbin = Binarize(gfx, src, binarize_threshold);
         tmp_image = src;
         tmp_mask =
-            rexp = Expand(gfx, src);
+            rexp = Expand(gfx, src, expand_block_size);
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
-        auto rce = Expand(gfx, rcont);
+        auto rce = Expand(gfx, rcont, expand_block_size);
         async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
 
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
@@ -340,7 +341,8 @@ TestCase(Filter)
             //auto center = pos + size / 2;
             //auto radius = float(std::max(size.x, size.y)) / 2.0f;
             //DrawCircle(gfx, marked, center, radius, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
-            //async_ops.push_back(marked->saveAsync("result.png"));
+
+            async_ops.push_back(marked->saveAsync("result.png"));
         }
 
         if (rtrans)

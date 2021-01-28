@@ -1,6 +1,6 @@
 cbuffer Constants : register(b0)
 {
-    int g_size; // assume < 16
+    int g_block_size; // assume < 16
     int3 g_pad;
 };
 
@@ -19,14 +19,16 @@ void main(uint2 tid : SV_DispatchThreadID)
     uint w, h;
     g_image.GetDimensions(w, h);
 
-    uint top = max(int(tid.y) - g_size, 0);
-    uint bottom = min(tid.y + g_size + 1, h);
+    int _b = (g_block_size >> 1);
+    int b_ = (g_block_size >> 1) + (g_block_size & 0x1);
+    uint top = max(int(tid.y) - _b, 0);
+    uint bottom = min(tid.y + b_, h);
 
     uint r = 0;
     for (uint b = 0; b < 32; ++b) {
         uint bx = tid.x * 32 + b;
-        uint left = max(int(bx) - g_size, 0);
-        uint right = min(bx + g_size + 1, w * 32);
+        uint left = max(int(bx) - _b, 0);
+        uint right = min(bx + b_, w * 32);
 
         uint px = left / 32;
         uint shift = left % 32;
