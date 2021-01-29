@@ -371,6 +371,14 @@ TestCase(ScreenCapture)
 
     mr::ITexture2DPtr tex;
 
+    std::vector<std::future<bool>> async_ops;
+    auto wait_async_ops = [&]() {
+        for (auto& a : async_ops)
+            a.wait();
+        async_ops.clear();
+    };
+
+    auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();
     if (scap && scap->startCapture(mr::GetPrimaryMonitor())) {
         scap->setOnFrameArrived(on_frame);
@@ -382,14 +390,14 @@ TestCase(ScreenCapture)
                 continue;
 
             auto frame = scap->getFrame();
-            testPrint("frame %d [%f]\n", i, float(double(frame.present_time) / 1000000.0));
+            testPrint("frame %d [%.2f ms]\n", i, float(double(frame.present_time - time_start) / 1000000.0));
             tex = frame.surface;
 
             //char filename[256];
             //snprintf(filename, std::size(filename), "Frame%02d.png", i);
-            //frame.surface->save(filename);
+            //async_ops.push_back(frame.surface->saveAsync(filename));
         }
         scap->stopCapture();
     }
-
+    wait_async_ops();
 }
