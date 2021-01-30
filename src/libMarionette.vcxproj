@@ -36,6 +36,9 @@
     <ClInclude Include="Graphics\mrScreenCapture.h" />
     <ClInclude Include="Graphics\mrShader.h" />
     <ClInclude Include="Marionette.h" />
+    <ClInclude Include="mrFoundation.h" />
+    <ClInclude Include="mrGfx.h" />
+    <ClInclude Include="mrInput.h" />
     <ClInclude Include="mrInternal.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>

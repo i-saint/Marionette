@@ -64,6 +64,9 @@
     <ClInclude Include="Foundation\mrVector.h">
       <Filter>Foundation</Filter>
     </ClInclude>
+    <ClInclude Include="mrInput.h" />
+    <ClInclude Include="mrGfx.h" />
+    <ClInclude Include="mrFoundation.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl">
