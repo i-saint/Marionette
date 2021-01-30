@@ -105,75 +105,6 @@ mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
     return ret;
 }
 
-mr::ITexture2DPtr Copy(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
-{
-    auto filter = gfx->createTransform();
-    filter->setSrc(src);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale, bool filtering)
-{
-    auto filter = gfx->createTransform();
-    filter->setSrc(src);
-    filter->setScale(scale);
-    filter->setGrayscale(grayscale);
-    filter->setFiltering(filtering);
-    filter->dispatch();
-    return filter->getDst();
-}
-mr::ITexture2DPtr Transform(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float scale, bool grayscale)
-{
-    return Transform(gfx, src, scale, grayscale, scale < 1.0f);
-}
-
-mr::ITexture2DPtr Normalize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float max)
-{
-    auto filter = gfx->createNormalize();
-    filter->setSrc(src);
-    filter->setMax(max);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr Binarize(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, float threshold = 0.1f)
-{
-    auto filter = gfx->createBinarize();
-    filter->setSrc(src);
-    filter->setThreshold(threshold);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr Contour(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size)
-{
-    auto filter = gfx->createContour();
-    filter->setSrc(src);
-    filter->setBlockSize(block_size);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr Expand(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, int block_size)
-{
-    auto filter = gfx->createExpand();
-    filter->setSrc(src);
-    filter->setBlockSize(block_size);
-    filter->dispatch();
-    return filter->getDst();
-}
-
-mr::ITexture2DPtr TemplateMatch(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src, mr::ITexture2DPtr tmp, mr::ITexture2DPtr mask = nullptr)
-{
-    auto filter = gfx->createTemplateMatch();
-    filter->setSrc(src);
-    filter->setTemplate(tmp);
-    filter->setMask(mask);
-    filter->dispatch();
-    return filter->getDst();
-}
-
 void DrawCircle(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, float radius, float border, float4 color)
 {
     auto filter = gfx->createShape();
@@ -188,33 +119,6 @@ void DrawRect(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, int2 si
     filter->setDst(dst);
     filter->addRect(pos, size, border, color);
     filter->dispatch();
-}
-
-std::future<mr::IReduceTotal::Result> Total(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
-{
-    auto filter = gfx->createReduceTotal();
-    filter->setSrc(src);
-    filter->dispatch();
-    return std::async(std::launch::deferred,
-        [filter]() mutable { return filter->getResult(); });
-}
-
-std::future<uint32_t> CountBits(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
-{
-    auto filter = gfx->createReduceCountBits();
-    filter->setSrc(src);
-    filter->dispatch();
-    return std::async(std::launch::deferred,
-        [filter]() mutable { return filter->getResult(); });
-}
-
-std::future<mr::IReduceMinMax::Result> MinMax(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr src)
-{
-    auto filter = gfx->createReduceMinMax();
-    filter->setSrc(src);
-    filter->dispatch();
-    return std::async(std::launch::deferred,
-        [filter]() mutable { return filter->getResult(); });
 }
 
 TestCase(Filter)
@@ -244,27 +148,30 @@ TestCase(Filter)
     if (tmp_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
+        auto filter = mr::CreateFilter(gfx);
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
-        src = rtrans = Transform(gfx, tmp_image, scale, true);
-        src = rcont = Contour(gfx, src, contour_block_size);
+        src = rtrans = filter->transform(tmp_image, scale, true);
+        src = rcont = filter->contour(src, contour_block_size);
         src =
-            rbin = Binarize(gfx, src, binarize_threshold);
+            rbin = filter->binarize(src, binarize_threshold);
         tmp_image = src;
         tmp_mask =
-            rexp = Expand(gfx, src, expand_block_size);
+            rexp = filter->expand(src, expand_block_size);
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
-        auto rce = Expand(gfx, rcont, expand_block_size);
-        async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
+        {
+            auto rce = mr::CreateFilter(gfx)->expand(rcont, expand_block_size);
+            async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
+        }
 
         testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
-        testPrint("Total  (cs): %f\n", Total(gfx, rcont).get().valf);
+        testPrint("Total  (cs): %f\n", filter->total(rcont).get().valf);
 
         tmp_size = tmp_image->getSize();
-        tmp_bits = CountBits(gfx, rexp).get();
+        tmp_bits = filter->countBits(rexp).get();
         testPrint("CountBits (ref): %d\n", CountBits_Reference(rexp));
         testPrint("CountBits  (cs): %d\n", tmp_bits);
         testPrint("\n");
@@ -274,8 +181,8 @@ TestCase(Filter)
 
     if (tex) {
         // downscale filter test
-        auto with_filter = Transform(gfx, tex, 0.25f, false, true);
-        auto without_filter = Transform(gfx, tex, 0.25f, false, false);
+        auto with_filter = mr::CreateFilter(gfx)->transform(tex, 0.25f, false, true);
+        auto without_filter = mr::CreateFilter(gfx)->transform(tex, 0.25f, false, false);
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }
@@ -284,32 +191,29 @@ TestCase(Filter)
     if (tex) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
+        mr::ITexture2DPtr src, rtrans, rcont, rbin, rmatch;
+        auto filter = mr::CreateFilter(gfx);
+
         auto time_begin = test::Now();
 
-        mr::ITexture2DPtr src, rtrans, rcont, rbin, rmatch;
-
-        src = rtrans = Transform(gfx, tex, scale, true);
-        src = rcont = Contour(gfx, src, contour_block_size);
+        src = rtrans = filter->transform(tex, scale, true);
+        src = rcont = filter->contour(src, contour_block_size);
         src =
-            rbin = Binarize(gfx, src, binarize_threshold);
+            rbin = filter->binarize(src, binarize_threshold);
 
         if (tmp_image) {
             auto s = tmp_image->getSize();
-            src = TemplateMatch(gfx, src, tmp_image, tmp_mask);
+            src = filter->match(src, tmp_image, tmp_mask);
 
             float denom{};
             if (tmp_image->getFormat() == mr::TextureFormat::Binary)
                 denom = float(tmp_mask ? tmp_bits : uint32_t(tmp_size.x * tmp_size.y));
             else
                 denom = tmp_size.x * tmp_size.y;
-            src = rmatch = Normalize(gfx, src, denom);
+            src = rmatch = filter->normalize(src, denom);
         }
 
-        auto rminmax = gfx->createReduceMinMax();
-        rminmax->setSrc(src);
-        rminmax->dispatch();
-
-        auto result = rminmax->getResult();
+        auto result = filter->minmax(src).get();
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
@@ -333,7 +237,7 @@ TestCase(Filter)
             testPrint("MinMax  (cs):\n");
             print(result);
 
-            auto marked = Copy(gfx, tex);
+            auto marked = mr::CreateFilter(gfx)->copy(tex);
             auto pos = int2(float2(result.pos_min) / scale);
             auto size = int2(float2(tmp_size) / scale);
             DrawRect(gfx, marked, pos, size, 2, {1.0f, 0.0f, 0.0f, 1.0f});

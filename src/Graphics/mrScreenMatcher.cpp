@@ -4,23 +4,22 @@
 
 namespace mr {
 
-struct Filter : public RefCount<IObject>
+class Filter : public RefCount<IFilter>
 {
 public:
     Filter(IGfxInterfacePtr gfx);
 
-    ITexture2DPtr copy(ITexture2DPtr src);
-    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering);
-    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale);
-    ITexture2DPtr normalize(ITexture2DPtr src, float denom);
-    ITexture2DPtr binarize(ITexture2DPtr src, float threshold);
-    ITexture2DPtr contour(ITexture2DPtr src, int block_size);
-    ITexture2DPtr expand(ITexture2DPtr src, int block_size);
-    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr);
+    ITexture2DPtr copy(ITexture2DPtr src) override;
+    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering) override;
+    ITexture2DPtr normalize(ITexture2DPtr src, float denom) override;
+    ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
+    ITexture2DPtr contour(ITexture2DPtr src, int block_size) override;
+    ITexture2DPtr expand(ITexture2DPtr src, int block_size) override;
+    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask) override;
 
-    std::future<IReduceTotal::Result> total(ITexture2DPtr src);
-    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src);
-    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src);
+    std::future<IReduceTotal::Result> total(ITexture2DPtr src) override;
+    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src) override;
+    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src) override;
 
 public:
     IGfxInterfacePtr m_gfx;
@@ -37,6 +36,11 @@ public:
     IReduceMinMaxPtr m_minmax;
 };
 mrDeclPtr(Filter);
+
+mrAPI IFilter* CreateFilter_(IGfxInterface* gfx)
+{
+    return new Filter(gfx);
+}
 
 Filter::Filter(IGfxInterfacePtr gfx)
     : m_gfx(gfx)
@@ -65,11 +69,6 @@ ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale, 
     filter->setFiltering(filtering);
     filter->dispatch();
     return filter->getDst();
-}
-
-ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale)
-{
-    return transform(src, scale, grayscale, scale < 1.0f);
 }
 
 ITexture2DPtr Filter::normalize(ITexture2DPtr src, float denom)
@@ -150,7 +149,7 @@ std::future<IReduceMinMax::Result> Filter::minmax(ITexture2DPtr src)
 class Template : public RefCount<ITemplate>
 {
 public:
-    FilterPtr filter;
+    IFilterPtr filter;
     ITexture2DPtr tmpl;
     ITexture2DPtr mask;
     ITexture2DPtr result;
@@ -174,6 +173,11 @@ private:
     float m_binarize_threshold = 0.2f;
 };
 
+mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
+{
+    return new ScreenMatcher(gfx);
+}
+
 ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
     : m_gfx(gfx)
 {
@@ -185,7 +189,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
     if (!tmpl)
         return nullptr;
 
-    auto filter = make_ref<Filter>(m_gfx);
+    auto filter = CreateFilter(m_gfx);
     tmpl = filter->transform(tmpl, m_scale, true);
     tmpl = filter->contour(tmpl, m_contour_block_size);
     tmpl = filter->binarize(tmpl, m_binarize_threshold);

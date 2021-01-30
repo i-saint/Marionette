@@ -417,6 +417,9 @@ void Expand::dispatch()
     if (!m_src)
         return;
 
+    if (m_dst && m_dst->getFormat() != m_src->getFormat()) {
+        m_dst = nullptr;
+    }
     if (!m_dst) {
         auto size = m_src->getSize();
         m_dst = Texture2D::create(size.x, size.y, m_src->getFormat());

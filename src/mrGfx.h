@@ -252,8 +252,29 @@ mrAPI float GetScaleFactor(HMONITOR hmon);
 
 // high level API
 
+mrDeclPtr(IFilter);
 mrDeclPtr(ITemplate);
 mrDeclPtr(IScreenMatcher);
+
+class IFilter : public IObject
+{
+public:
+    virtual ITexture2DPtr copy(ITexture2DPtr src) = 0;
+    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering) = 0;
+    inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale) { return transform(src, scale, grayscale, scale < 1.0f); }
+    virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
+    virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
+    virtual ITexture2DPtr contour(ITexture2DPtr src, int block_size) = 0;
+    virtual ITexture2DPtr expand(ITexture2DPtr src, int block_size) = 0;
+    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr) = 0;
+
+    virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src) = 0;
+    virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src) = 0;
+    virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src) = 0;
+};
+mrAPI IFilter* CreateFilter_(IGfxInterface* gfx);
+inline IFilterPtr CreateFilter(IGfxInterfacePtr gfx) { return CreateFilter_(gfx); }
+
 
 class ITemplate : public IObject
 {
@@ -273,6 +294,8 @@ public:
     virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
     virtual Result match(ITemplatePtr tmpl, HWND target = nullptr) = 0;
 };
+mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx);
+inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx) { return CreateScreenMatcher_(gfx); }
 
 
 #ifdef mrWithOpenCV
