@@ -159,7 +159,8 @@ void DesktopDuplication::captureLoop()
         com_ptr<ID3D11Texture2D> surface{};
         uint64_t time{};
         if (getFrameInternal(kTimeout, surface, time)) {
-            FrameInfo tmp{Texture2D::wrap(surface), time};
+            auto s = Texture2D::wrap(surface);
+            FrameInfo tmp{s, s->getSize(), time};
             {
                 std::unique_lock l(m_mutex);
                 m_frame_info = tmp;

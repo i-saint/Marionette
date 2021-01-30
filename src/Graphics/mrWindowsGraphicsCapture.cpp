@@ -190,14 +190,7 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
             m_frame_buffer = Texture2D::create(size.Width, size.Height, TextureFormat::RGBAu8);
         }
 
-        m_transform->setSrc(src);
-        m_transform->setDst(m_frame_buffer);
-        m_transform->setRect({ 0, 0 }, { size.Width, size.Height });
-        mrGfxLock([this]() {
-            m_transform->dispatch();
-            });
-
-        FrameInfo tmp{ m_frame_buffer, time };
+        FrameInfo tmp{ src, { size.Width, size.Height }, time };
         {
             std::unique_lock l(m_mutex);
             m_frame_info = tmp;

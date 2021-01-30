@@ -263,7 +263,12 @@ TestCase(Filter)
 
 TestCase(ScreenCapture)
 {
-    auto gfx = mr::CreateGfxInterface();
+    std::vector<std::future<bool>> async_ops;
+    auto wait_async_ops = [&]() {
+        for (auto& a : async_ops)
+            a.wait();
+        async_ops.clear();
+    };
 
     std::mutex mutex;
     std::condition_variable cond;
@@ -273,14 +278,8 @@ TestCase(ScreenCapture)
         cond.notify_one();
     };
 
-    mr::ITexture2DPtr tex;
-
-    std::vector<std::future<bool>> async_ops;
-    auto wait_async_ops = [&]() {
-        for (auto& a : async_ops)
-            a.wait();
-        async_ops.clear();
-    };
+    auto gfx = mr::CreateGfxInterface();
+    auto filter = mr::CreateFilter(gfx);
 
     auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();
@@ -295,11 +294,11 @@ TestCase(ScreenCapture)
 
             auto frame = scap->getFrame();
             testPrint("frame %d [%.2f ms]\n", i, float(double(frame.present_time - time_start) / 1000000.0));
-            tex = frame.surface;
+            auto surface = filter->copy(frame.surface, {0, 0}, frame.size, mr::TextureFormat::RGBAu8);
 
-            //char filename[256];
-            //snprintf(filename, std::size(filename), "Frame%02d.png", i);
-            //async_ops.push_back(frame.surface->saveAsync(filename));
+            char filename[256];
+            snprintf(filename, std::size(filename), "Frame%02d.png", i);
+            async_ops.push_back(surface->saveAsync(filename));
         }
         scap->stopCapture();
     }

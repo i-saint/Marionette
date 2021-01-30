@@ -53,6 +53,7 @@ public:
     struct FrameInfo
     {
         ITexture2DPtr surface;
+        int2 size{}; // maybe not equal with surface->getSize()
         uint64_t present_time{};
     };
     using Callback = std::function<void(FrameInfo&)>;
@@ -95,7 +96,7 @@ public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setDstFormat(TextureFormat v) = 0; // ignored if dst is set
-    virtual void setRect(int2 pos, int2 size) = 0;
+    virtual void setSrcRect(int2 pos, int2 size) = 0;
     virtual void setScale(float v) = 0; // ignored if dst is set
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
@@ -246,8 +247,6 @@ enum class PixelFormat
 };
 mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const void* data, int pitch = 0, bool flip_y = false);
 
-mrAPI HMONITOR GetPrimaryMonitor();
-mrAPI float GetScaleFactor(HMONITOR hmon);
 
 
 // high level API
@@ -259,9 +258,10 @@ mrDeclPtr(IScreenMatcher);
 class IFilter : public IObject
 {
 public:
-    virtual ITexture2DPtr copy(ITexture2DPtr src) = 0;
-    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering) = 0;
-    inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale) { return transform(src, scale, grayscale, scale < 1.0f); }
+    virtual ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) = 0;
+    inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, { 0, 0 }, { 0, 0 }, TextureFormat::Unknown); }
+    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos = int2::zero(), int2 src_size = int2::zero()) = 0;
+    inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
     virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
     virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
     virtual ITexture2DPtr contour(ITexture2DPtr src, int block_size) = 0;
@@ -275,6 +275,18 @@ public:
 mrAPI IFilter* CreateFilter_(IGfxInterface* gfx);
 inline IFilterPtr CreateFilter(IGfxInterfacePtr gfx) { return CreateFilter_(gfx); }
 
+
+struct ScreenInfo
+{
+    HMONITOR hmon{};
+    int2 screen_pos{};
+    int2 screen_size{};
+    float scale_factor = 1.0f;
+};
+using MonitorCallback = std::function<void(const ScreenInfo&)>;
+mrAPI void EnumerateMonitor(const MonitorCallback& callback);
+mrAPI HMONITOR GetPrimaryMonitor();
+mrAPI float GetScaleFactor(HMONITOR hmon);
 
 class ITemplate : public IObject
 {

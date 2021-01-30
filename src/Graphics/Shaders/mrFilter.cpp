@@ -35,7 +35,7 @@ public:
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setDstFormat(TextureFormat v) override;
-    void setRect(int2 o, int2 s) override;
+    void setSrcRect(int2 o, int2 s) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
@@ -63,7 +63,7 @@ Transform::Transform(TransformCS* v) : m_cs(v) {}
 void Transform::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 void Transform::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Transform::setDstFormat(TextureFormat v) { m_dst_format = v; }
-void Transform::setRect(int2 offset, int2 size) { mrCheckDirty(offset == m_offset && size == m_size); m_offset = offset; m_size = size; }
+void Transform::setSrcRect(int2 pos, int2 size) { mrCheckDirty(pos == m_offset && size == m_size); m_offset = pos; m_size = size; }
 void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }

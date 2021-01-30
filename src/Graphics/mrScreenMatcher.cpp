@@ -9,8 +9,8 @@ class Filter : public RefCount<IFilter>
 public:
     Filter(IGfxInterfacePtr gfx);
 
-    ITexture2DPtr copy(ITexture2DPtr src) override;
-    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering) override;
+    ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) override;
+    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size) override;
     ITexture2DPtr normalize(ITexture2DPtr src, float denom) override;
     ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
     ITexture2DPtr contour(ITexture2DPtr src, int block_size) override;
@@ -24,6 +24,7 @@ public:
 public:
     IGfxInterfacePtr m_gfx;
 
+    ITransformPtr m_copy;
     ITransformPtr m_transform;
     INormalizePtr m_normalize;
     IBinarizePtr m_binarize;
@@ -52,19 +53,22 @@ Filter::Filter(IGfxInterfacePtr gfx)
     auto& filter = N;
 
 
-ITexture2DPtr Filter::copy(ITexture2DPtr src)
+ITexture2DPtr Filter::copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format)
 {
-    mrMakeFilter(m_transform, Transform);
+    mrMakeFilter(m_copy, Transform);
     filter->setSrc(src);
+    filter->setSrcRect(src_pos, src_size);
+    filter->setDstFormat(dst_format);
     filter->dispatch();
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering)
+ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size)
 {
     mrMakeFilter(m_transform, Transform);
     filter->setSrc(src);
     filter->setScale(scale);
+    filter->setSrcRect(src_pos, src_size);
     filter->setGrayscale(grayscale);
     filter->setFiltering(filtering);
     filter->dispatch();
@@ -211,5 +215,38 @@ IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HWND target)
     tmpl->result = tmpl->filter->match(screen, tmpl->tmpl, tmpl->mask);
     return Result();
 }
+
+
+static BOOL EnumerateMonitorCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
+{
+    ScreenInfo sinfo{};
+    sinfo.hmon = hmon;
+    sinfo.scale_factor = GetScaleFactor(hmon);
+    sinfo.screen_pos = { rect->left, rect->top };
+    sinfo.screen_size = int2{ rect->right, rect->bottom } - sinfo.screen_pos;
+
+    auto callback = (const MonitorCallback*)userdata;
+    (*callback)(sinfo);
+
+    return TRUE;
+}
+
+mrAPI void EnumerateMonitor(const MonitorCallback& callback)
+{
+    ::EnumDisplayMonitors(nullptr, nullptr, EnumerateMonitorCB, (LPARAM)&callback);
+}
+
+mrAPI HMONITOR GetPrimaryMonitor()
+{
+    return ::MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+}
+
+mrAPI float GetScaleFactor(HMONITOR hmon)
+{
+    UINT dpix, dpiy;
+    ::GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, &dpix, &dpiy);
+    return (float)dpix / 96.0;
+}
+
 
 } // namespace mr
