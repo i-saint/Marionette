@@ -367,8 +367,10 @@ public:
 class IReduceCountBits : public ICSContext
 {
 public:
+    using Result = uint32_t;
+
     virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual uint32_t getResult() = 0;
+    virtual Result getResult() = 0;
 };
 
 class IReduceMinMax : public ICSContext
@@ -452,5 +454,30 @@ public:
 
 mrAPI HMONITOR GetPrimaryMonitor();
 mrAPI float GetScaleFactor(HMONITOR hmon);
+
+
+// high level API
+
+mrDeclPtr(ITemplate);
+mrDeclPtr(IScreenMatcher);
+
+class ITemplate : public IObject
+{
+public:
+};
+
+class IScreenMatcher : public IObject
+{
+public:
+    struct Result
+    {
+        int2 pos{};
+        int2 size{};
+        float score{};
+    };
+
+    virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
+    virtual Result match(ITemplatePtr tmpl, HWND target = nullptr) = 0;
+};
 
 } // namespace mr

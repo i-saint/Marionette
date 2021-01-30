@@ -38,6 +38,9 @@
     <ClCompile Include="Foundation\mrFoundation.cpp">
       <Filter>Foundation</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\mrScreenMatcher.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

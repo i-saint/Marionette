@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <type_traits>
 
 namespace mr {
 
@@ -242,3 +243,41 @@ struct snorm32
 template<class T> inline T to(float v) { return (T)v; }
 
 } // namespace mr
+
+
+// define traits
+
+namespace mr {
+
+template<class T> inline constexpr bool is_snorm_v = false;
+template<class T> inline constexpr bool is_unorm_v = false;
+template<class T> inline constexpr bool is_norm_v = is_snorm_v<T> || is_unorm_v<T>;
+
+template<> inline constexpr bool is_snorm_v<snorm8> = true;
+template<> inline constexpr bool is_snorm_v<snorm16> = true;
+template<> inline constexpr bool is_snorm_v<snorm32> = true;
+
+template<> inline constexpr bool is_unorm_v<unorm8> = true;
+template<> inline constexpr bool is_unorm_v<unorm8n> = true;
+template<> inline constexpr bool is_unorm_v<unorm16> = true;
+
+} // namespace mr
+
+
+namespace std {
+
+#define Def(T)\
+    template<> constexpr bool is_floating_point_v<T> = true;\
+    template<> class is_floating_point<T> { static constexpr bool value = true; };\
+
+Def(mr::half);
+Def(mr::unorm8);
+Def(mr::unorm8n);
+Def(mr::unorm16);
+Def(mr::snorm8);
+Def(mr::snorm16);
+Def(mr::snorm32);
+
+#undef Def
+
+} // namespace std

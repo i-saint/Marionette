@@ -8,10 +8,10 @@
 #define mrTExit L"✖"
 
 
-class MouseReplayerApp
+class MarionetteApp
 {
 public:
-    static MouseReplayerApp& instance();
+    static MarionetteApp& instance();
 
     void start();
     void finish();
@@ -25,9 +25,9 @@ public:
     bool onInput(mr::OpRecord& rec);
 
 public:
-    MouseReplayerApp();
-    ~MouseReplayerApp();
-    MouseReplayerApp(const MouseReplayerApp&) = delete;
+    MarionetteApp();
+    ~MarionetteApp();
+    MarionetteApp(const MarionetteApp&) = delete;
 
     HWND m_hwnd = nullptr;
     mr::IRecorderPtr m_recorder;
@@ -77,8 +77,8 @@ static void HandleClientAreaDrag(HWND hwnd, UINT msg, int mouseX, int mouseY)
 
 static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    auto GetApp = [hDlg]() -> MouseReplayerApp& {
-        return MouseReplayerApp::instance();
+    auto GetApp = [hDlg]() -> MarionetteApp& {
+        return MarionetteApp::instance();
     };
     auto CtrlSetText = [hDlg](int cid, const wchar_t* v) {
         ::SetDlgItemTextW(hDlg, cid, v);
@@ -195,13 +195,13 @@ static INT_PTR CALLBACK mrDialogCB(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
     return ret;
 }
 
-MouseReplayerApp& MouseReplayerApp::instance()
+MarionetteApp& MarionetteApp::instance()
 {
-    static MouseReplayerApp s_instance;
+    static MarionetteApp s_instance;
     return s_instance;
 }
 
-void MouseReplayerApp::start()
+void MarionetteApp::start()
 {
     mr::LoadKeymap("keymap.txt", [this](mr::Key k, std::string path) {
         auto player = mr::CreatePlayer();
@@ -252,16 +252,16 @@ void MouseReplayerApp::start()
     }
 }
 
-MouseReplayerApp::MouseReplayerApp()
+MarionetteApp::MarionetteApp()
 {
 }
 
-MouseReplayerApp::~MouseReplayerApp()
+MarionetteApp::~MarionetteApp()
 {
     finish();
 }
 
-void MouseReplayerApp::finish()
+void MarionetteApp::finish()
 {
     m_finished = true;
     if (m_brush_recording) {
@@ -274,7 +274,7 @@ void MouseReplayerApp::finish()
     }
 }
 
-bool MouseReplayerApp::toggleRecording()
+bool MarionetteApp::toggleRecording()
 {
     if (m_recorder) {
         m_recorder->stop();
@@ -297,7 +297,7 @@ bool MouseReplayerApp::toggleRecording()
     }
 }
 
-bool MouseReplayerApp::togglePlaying()
+bool MarionetteApp::togglePlaying()
 {
     if (m_player) {
         m_player->stop();
@@ -320,7 +320,7 @@ bool MouseReplayerApp::togglePlaying()
     }
 }
 
-bool MouseReplayerApp::exit()
+bool MarionetteApp::exit()
 {
     if (m_hwnd) {
         ::SendMessage(m_hwnd, WM_CLOSE, 0, 0);
@@ -331,18 +331,18 @@ bool MouseReplayerApp::exit()
     }
 }
 
-void MouseReplayerApp::repaint()
+void MarionetteApp::repaint()
 {
     ::InvalidateRect(m_hwnd, nullptr, 1);
     ::UpdateWindow(m_hwnd);
 }
 
-void MouseReplayerApp::setDataPath(const char* v)
+void MarionetteApp::setDataPath(const char* v)
 {
     m_data_path = v;
 }
 
-bool MouseReplayerApp::onInput(mr::OpRecord& rec)
+bool MarionetteApp::onInput(mr::OpRecord& rec)
 {
     static bool s_ctrl, s_alt, s_shift;
     if (rec.type == mr::OpType::KeyDown) {
@@ -398,7 +398,7 @@ bool MouseReplayerApp::onInput(mr::OpRecord& rec)
 void mrStart()
 {
     mr::InitializeScope mri;
-    auto& app = MouseReplayerApp::instance();
+    auto& app = MarionetteApp::instance();
     if (__argc >= 2)
         app.setDataPath(__argv[1]);
     app.start();
