@@ -1,4 +1,5 @@
 #define BX 64
+#include "Reduce_Common.hlsl"
 
 Texture2D<uint> g_image : register(t0);
 RWStructuredBuffer<uint> g_result : register(u0);
@@ -32,15 +33,10 @@ void ReduceGroup(uint gi)
 
 uint Reference()
 {
-    uint w, h;
-    g_image.GetDimensions(w, h);
-
     uint r = 0;
-    for (uint i = 0; i < h; ++i) {
-        for (uint j = 0; j < w; ++j) {
+    for (uint i = 0; i < g_range.y; ++i)
+        for (uint j = 0; j < g_range.x; ++j)
             r += countbits(g_image[uint2(j, i)]);
-        }
-    }
     return r;
 }
 
@@ -49,11 +45,8 @@ uint Reference()
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint w, h;
-    g_image.GetDimensions(w, h);
-
     uint r = 0;
-    for (uint x = tid.x; x < w; x += BX)
+    for (uint x = tid.x; x < g_range.x; x += BX)
         r += countbits(g_image[uint2(x, tid.y)]);
     s_result[gi] = r;
 
@@ -68,11 +61,8 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(BX, 1, 1)]
 void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint n, s;
-    g_result.GetDimensions(n, s);
-
     uint r = 0;
-    for (uint x = tid.x; x < n; x += BX)
+    for (uint x = tid.x; x < g_range.y; x += BX)
         r += g_result[x];
     s_result[gi] = r;
 

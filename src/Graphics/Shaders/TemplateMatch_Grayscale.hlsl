@@ -14,17 +14,20 @@ groupshared float s_mask[CacheCapacity];
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint mw, mh;
-    g_mask.GetDimensions(mw, mh);
+    uint2 image_size, template_size, mask_size;
+    g_image.GetDimensions(image_size.x, image_size.y);
+    g_template.GetDimensions(template_size.x, template_size.y);
+    g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    uint tw, th;
-    g_template.GetDimensions(tw, th);
+    const uint2 result_size = image_size - template_size;
+    const uint tw = template_size.x;
+    const uint th = template_size.y;
 
     const uint cache_height = CacheCapacity / tw;
     const uint cache_size = cache_height * tw;
 
     float r = 0.0f;
-    if (mw != tw) {
+    if (template_size.x != mask_size.x) {
         // without mask
         for (uint i = 0; i < th; ++i) {
             uint cy = i % cache_height;
@@ -85,7 +88,9 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
             }
         }
     }
-    g_result[tid] = r;
+
+    if (tid.x < result_size.x && tid.y < result_size.y)
+        g_result[tid] = r;
 }
 
 #else // EnableGroupShared
@@ -93,14 +98,17 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
-    uint mw, mh;
-    g_mask.GetDimensions(mw, mh);
+    uint2 image_size, template_size, mask_size;
+    g_image.GetDimensions(image_size.x, image_size.y);
+    g_template.GetDimensions(template_size.x, template_size.y);
+    g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    uint tw, th;
-    g_template.GetDimensions(tw, th);
+    const uint2 result_size = image_size - template_size;
+    const uint tw = template_size.x;
+    const uint th = template_size.y;
 
     float r = 0.0f;
-    if (mw != tw) {
+    if (template_size.x != mask_size.x) {
         // without mask
         for (uint i = 0; i < th; ++i) {
             for (uint j = 0; j < tw; ++j) {
@@ -125,7 +133,8 @@ void main(uint2 tid : SV_DispatchThreadID)
         }
     }
 
-    g_result[tid] = r;
+    if (tid.x < result_size.x && tid.y < result_size.y)
+        g_result[tid] = r;
 }
 
 #endif // EnableGroupShared

@@ -148,7 +148,7 @@ TestCase(Filter)
     if (tmp_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        auto filter = mr::CreateFilter(gfx);
+        auto filter = mr::CreateFilterSet(gfx);
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
         src = rtrans = filter->transform(tmp_image, scale, true);
         src = rcont = filter->contour(src, contour_block_size);
@@ -163,7 +163,7 @@ TestCase(Filter)
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
         {
-            auto rce = mr::CreateFilter(gfx)->expand(rcont, expand_block_size);
+            auto rce = mr::CreateFilterSet(gfx)->expand(rcont, expand_block_size);
             async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
         }
 
@@ -181,8 +181,8 @@ TestCase(Filter)
 
     if (tex) {
         // downscale filter test
-        auto with_filter = mr::CreateFilter(gfx)->transform(tex, 0.25f, false, true);
-        auto without_filter = mr::CreateFilter(gfx)->transform(tex, 0.25f, false, false);
+        auto with_filter = mr::CreateFilterSet(gfx)->transform(tex, 0.25f, false, true);
+        auto without_filter = mr::CreateFilterSet(gfx)->transform(tex, 0.25f, false, false);
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }
@@ -192,7 +192,7 @@ TestCase(Filter)
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rmatch;
-        auto filter = mr::CreateFilter(gfx);
+        auto filter = mr::CreateFilterSet(gfx);
 
         auto time_begin = test::Now();
 
@@ -237,7 +237,7 @@ TestCase(Filter)
             testPrint("MinMax  (cs):\n");
             print(result);
 
-            auto marked = mr::CreateFilter(gfx)->copy(tex);
+            auto marked = mr::CreateFilterSet(gfx)->copy(tex);
             auto pos = int2(float2(result.pos_min) / scale);
             auto size = int2(float2(tmp_size) / scale);
             DrawRect(gfx, marked, pos, size, 2, {1.0f, 0.0f, 0.0f, 1.0f});
@@ -279,7 +279,7 @@ TestCase(ScreenCapture)
     };
 
     auto gfx = mr::CreateGfxInterface();
-    auto filter = mr::CreateFilter(gfx);
+    auto filter = mr::CreateFilterSet(gfx);
 
     auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();

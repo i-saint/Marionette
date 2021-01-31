@@ -1,7 +1,7 @@
 cbuffer Constants : register(b0)
 {
-    uint g_bit_width;
-    int3 g_pad;
+    uint2 g_template_size; // width is in bits
+    uint2 g_pad;
 };
 
 Texture2D<uint> g_image : register(t0);
@@ -26,20 +26,26 @@ groupshared uint s_mask[CacheCapacity];
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint mw, mh;
-    g_mask.GetDimensions(mw, mh);
+    // template_size.x is divided by 32 as the image is binary and the texture format is uint32.
+    // g_template_size.x is actual width.
 
-    uint tw, th;
-    g_template.GetDimensions(tw, th);
+     uint2 image_size, template_size, mask_size;
+    g_image.GetDimensions(image_size.x, image_size.y);
+    g_template.GetDimensions(template_size.x, template_size.y);
+    g_mask.GetDimensions(mask_size.x, mask_size.y);
+
+    const uint2 result_size = image_size - g_template_size;
+    const uint tw = template_size.x;
+    const uint th = template_size.y;
 
     const uint pixel_shift = tid.x / 32;
     const uint bit_shift = tid.x % 32;
-    const uint edge_mask = (1 << (g_bit_width % 32)) - 1;
+    const uint edge_mask = (1 << (g_template_size.x % 32)) - 1;
     const uint cache_height = CacheCapacity / tw;
     const uint cache_size = cache_height * tw;
 
     uint r = 0;
-    if (mw != tw) {
+    if (template_size.x != mask_size.x) {
         // without mask
         for (uint i = 0; i < th; ++i) {
             uint cy = i % cache_height;
@@ -101,7 +107,9 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
             }
         }
     }
-    g_result[tid] = r;
+
+    if (tid.x < result_size.x && tid.y < result_size.y)
+        g_result[tid] = r;
 }
 
 #else // EnableGroupShared
@@ -109,18 +117,21 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
-    uint mw, mh;
-    g_mask.GetDimensions(mw, mh);
+    uint2 image_size, template_size, mask_size;
+    g_image.GetDimensions(image_size.x, image_size.y);
+    g_template.GetDimensions(template_size.x, template_size.y);
+    g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    uint tw, th;
-    g_template.GetDimensions(tw, th);
+    const uint2 result_size = image_size - g_template_size;
+    const uint tw = template_size.x;
+    const uint th = template_size.y;
 
     const uint pixel_shift = tid.x / 32;
     const uint bit_shift = tid.x % 32;
-    const uint edge_mask = (1 << (g_bit_width % 32)) - 1;
+    const uint edge_mask = (1 << (g_template_size.x % 32)) - 1;
 
     uint r = 0;
-    if (mw != tw) {
+    if (template_size.x != mask_size.x) {
         // without mask
         for (uint i = 0; i < th; ++i) {
             uint py = tid.y + i;
@@ -151,7 +162,9 @@ void main(uint2 tid : SV_DispatchThreadID)
             }
         }
     }
-    g_result[tid] = r;
+
+    if (tid.x < result_size.x && tid.y < result_size.y)
+        g_result[tid] = r;
 }
 
 #endif // EnableGroupShared

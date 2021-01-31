@@ -17,25 +17,82 @@
 
 #define mrBytecode(A) A, std::size(A)
 
+#define mrCheckDirty(...)\
+    if (__VA_ARGS__) { return; }\
+    m_dirty = true;
 
 namespace mr {
 
-class ReduceTotal : public RefCount<IReduceTotal>
+template<class T>
+class ReduceCommon : public RefCount<T>
+{
+public:
+    void setSrc(ITexture2DPtr v) override;
+    void setRange(int2 v) override;
+    IBufferPtr getDst() override;
+
+    BufferPtr getParamsBuffer();
+    BufferPtr createParamsBuffer();
+
+public:
+    Texture2DPtr m_src;
+    BufferPtr m_dst;
+    BufferPtr m_buf_params;
+
+    bool m_dirty = true;
+    int2 m_range{};
+};
+
+template<class T> void ReduceCommon<T>::setSrc(ITexture2DPtr v)
+{
+    mrCheckDirty(m_src.get() == v.get());
+    m_src = cast(v);
+}
+
+template<class T> void ReduceCommon<T>::setRange(int2 v)
+{
+    mrCheckDirty(m_range == v);
+    m_range = v;
+}
+
+template<class T> IBufferPtr ReduceCommon<T>::getDst()
+{
+    return m_dst;
+}
+
+template<class T> BufferPtr ReduceCommon<T>::getParamsBuffer()
+{
+    if (m_src && m_dirty) {
+        m_buf_params = createParamsBuffer();
+        m_dirty = false;
+    }
+    return m_buf_params;
+}
+
+template<class T> BufferPtr ReduceCommon<T>::createParamsBuffer()
+{
+    struct {
+        int2 range;
+        int2 pad;
+    } params{};
+    params.range = m_range.x == 0 ? m_src->getSize() : m_range;
+
+    return Buffer::createConstant(params);
+}
+
+
+class ReduceTotal : public ReduceCommon<IReduceTotal>
 {
 public:
     ReduceTotal(ReduceTotalCS* v);
-    void setSrc(ITexture2DPtr v) override;
     Result getResult() override;
     void dispatch() override;
 
 public:
     ReduceTotalCS* m_cs{};
-    Texture2DPtr m_src;
-    BufferPtr m_dst;
 };
 
 ReduceTotal::ReduceTotal(ReduceTotalCS* v) : m_cs(v) {}
-void ReduceTotal::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 ReduceTotal::Result ReduceTotal::getResult()
 {
@@ -77,11 +134,14 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
         auto size = ctx.m_src->getSize();
+        pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
+        pass1.dispatch(1, size.y);
+
+        pass2.setCBuffer(ctx.getParamsBuffer());
         pass2.setSRV(ctx.m_src);
         pass2.setUAV(ctx.m_dst);
-        pass1.dispatch(1, size.y);
         pass2.dispatch(1, 1);
     };
 
@@ -98,22 +158,18 @@ IReduceTotalPtr ReduceTotalCS::createContext()
 
 
 
-class ReduceCountBits : public RefCount<IReduceCountBits>
+class ReduceCountBits : public ReduceCommon<IReduceCountBits>
 {
 public:
     ReduceCountBits(ReduceCountBitsCS* v);
-    void setSrc(ITexture2DPtr v) override;
     uint32_t getResult() override;
     void dispatch() override;
 
 public:
     ReduceCountBitsCS* m_cs{};
-    Texture2DPtr m_src;
-    BufferPtr m_dst;
 };
 
 ReduceCountBits::ReduceCountBits(ReduceCountBitsCS* v) : m_cs(v) {}
-void ReduceCountBits::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 uint32_t ReduceCountBits::getResult()
 {
@@ -150,14 +206,16 @@ ReduceCountBitsCS::ReduceCountBitsCS()
 void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceCountBits&>(ctx_);
+    auto image_size = ctx.m_src->getSize();
 
+    m_cs_pass1.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
+    m_cs_pass1.dispatch(1, image_size.y);
+
+    m_cs_pass2.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass2.setSRV(ctx.m_src);
     m_cs_pass2.setUAV(ctx.m_dst);
-
-    auto image_size = ctx.m_src->getSize();
-    m_cs_pass1.dispatch(1, image_size.y);
     m_cs_pass2.dispatch(1, 1);
 }
 
@@ -168,24 +226,20 @@ IReduceCountBitsPtr ReduceCountBitsCS::createContext()
 
 
 
-class ReduceMinMax : public RefCount<IReduceMinMax>
+class ReduceMinMax : public ReduceCommon<IReduceMinMax>
 {
 public:
     mrCheck16(Result);
 
     ReduceMinMax(ReduceMinMaxCS* v);
-    void setSrc(ITexture2DPtr v) override;
     Result getResult() override;
     void dispatch() override;
 
 public:
     ReduceMinMaxCS* m_cs{};
-    Texture2DPtr m_src;
-    BufferPtr m_dst;
 };
 
 ReduceMinMax::ReduceMinMax(ReduceMinMaxCS* v) : m_cs(v) {}
-void ReduceMinMax::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 
 ReduceMinMax::Result ReduceMinMax::getResult()
 {
@@ -227,11 +281,14 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
         auto size = ctx.m_src->getSize();
+        pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
+        pass1.dispatch(1, size.y);
+
+        pass2.setCBuffer(ctx.getParamsBuffer());
         pass2.setSRV(ctx.m_src);
         pass2.setUAV(ctx.m_dst);
-        pass1.dispatch(1, size.y);
         pass2.dispatch(1, 1);
     };
 

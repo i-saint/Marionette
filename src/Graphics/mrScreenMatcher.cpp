@@ -4,10 +4,10 @@
 
 namespace mr {
 
-class Filter : public RefCount<IFilter>
+class FilterSet : public RefCount<IFilterSet>
 {
 public:
-    Filter(IGfxInterfacePtr gfx);
+    FilterSet(IGfxInterfacePtr gfx);
 
     ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) override;
     ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size) override;
@@ -36,14 +36,14 @@ public:
     IReduceCountBitsPtr m_count_bits;
     IReduceMinMaxPtr m_minmax;
 };
-mrDeclPtr(Filter);
+mrDeclPtr(FilterSet);
 
-mrAPI IFilter* CreateFilter_(IGfxInterface* gfx)
+mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx)
 {
-    return new Filter(gfx);
+    return new FilterSet(gfx);
 }
 
-Filter::Filter(IGfxInterfacePtr gfx)
+FilterSet::FilterSet(IGfxInterfacePtr gfx)
     : m_gfx(gfx)
 {
 }
@@ -53,7 +53,7 @@ Filter::Filter(IGfxInterfacePtr gfx)
     auto& filter = N;
 
 
-ITexture2DPtr Filter::copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format)
+ITexture2DPtr FilterSet::copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format)
 {
     mrMakeFilter(m_copy, Transform);
     filter->setSrc(src);
@@ -63,7 +63,7 @@ ITexture2DPtr Filter::copy(ITexture2DPtr src, int2 src_pos, int2 src_size, Textu
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size)
+ITexture2DPtr FilterSet::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size)
 {
     mrMakeFilter(m_transform, Transform);
     filter->setSrc(src);
@@ -75,7 +75,7 @@ ITexture2DPtr Filter::transform(ITexture2DPtr src, float scale, bool grayscale, 
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::normalize(ITexture2DPtr src, float denom)
+ITexture2DPtr FilterSet::normalize(ITexture2DPtr src, float denom)
 {
     mrMakeFilter(m_normalize, Normalize);
     filter->setSrc(src);
@@ -84,7 +84,7 @@ ITexture2DPtr Filter::normalize(ITexture2DPtr src, float denom)
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::binarize(ITexture2DPtr src, float threshold)
+ITexture2DPtr FilterSet::binarize(ITexture2DPtr src, float threshold)
 {
     mrMakeFilter(m_binarize, Binarize);
     filter->setSrc(src);
@@ -93,7 +93,7 @@ ITexture2DPtr Filter::binarize(ITexture2DPtr src, float threshold)
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::contour(ITexture2DPtr src, int block_size)
+ITexture2DPtr FilterSet::contour(ITexture2DPtr src, int block_size)
 {
     mrMakeFilter(m_contour, Contour);
     filter->setSrc(src);
@@ -102,7 +102,7 @@ ITexture2DPtr Filter::contour(ITexture2DPtr src, int block_size)
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::expand(ITexture2DPtr src, int block_size)
+ITexture2DPtr FilterSet::expand(ITexture2DPtr src, int block_size)
 {
     mrMakeFilter(m_expand, Expand);
     filter->setSrc(src);
@@ -111,7 +111,7 @@ ITexture2DPtr Filter::expand(ITexture2DPtr src, int block_size)
     return filter->getDst();
 }
 
-ITexture2DPtr Filter::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask)
+ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask)
 {
     mrMakeFilter(m_match, TemplateMatch);
     filter->setSrc(src);
@@ -122,7 +122,7 @@ ITexture2DPtr Filter::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr 
 }
 
 
-std::future<IReduceTotal::Result> Filter::total(ITexture2DPtr src)
+std::future<IReduceTotal::Result> FilterSet::total(ITexture2DPtr src)
 {
     mrMakeFilter(m_total, ReduceTotal);
     filter->setSrc(src);
@@ -131,7 +131,7 @@ std::future<IReduceTotal::Result> Filter::total(ITexture2DPtr src)
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceCountBits::Result> Filter::countBits(ITexture2DPtr src)
+std::future<IReduceCountBits::Result> FilterSet::countBits(ITexture2DPtr src)
 {
     mrMakeFilter(m_count_bits, ReduceCountBits);
     filter->setSrc(src);
@@ -140,7 +140,7 @@ std::future<IReduceCountBits::Result> Filter::countBits(ITexture2DPtr src)
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceMinMax::Result> Filter::minmax(ITexture2DPtr src)
+std::future<IReduceMinMax::Result> FilterSet::minmax(ITexture2DPtr src)
 {
     mrMakeFilter(m_minmax, ReduceMinMax);
     filter->setSrc(src);
@@ -153,7 +153,7 @@ std::future<IReduceMinMax::Result> Filter::minmax(ITexture2DPtr src)
 class Template : public RefCount<ITemplate>
 {
 public:
-    IFilterPtr filter;
+    IFilterSetPtr filter;
     ITexture2DPtr tmpl;
     ITexture2DPtr mask;
     ITexture2DPtr result;
@@ -165,6 +165,14 @@ mrConvertile(Template, ITemplate);
 class ScreenMatcher : public RefCount<IScreenMatcher>
 {
 public:
+    struct ScreenData
+    {
+        MonitorInfo info;
+        IScreenCapturePtr capture;
+        nanosec last_frame{};
+        IFilterSetPtr filter;
+    };
+
     ScreenMatcher(IGfxInterfacePtr gfx);
     ITemplatePtr createTemplate(const char* path_to_png) override;
     Result match(ITemplatePtr tmpl, HWND target) override;
@@ -175,6 +183,8 @@ private:
     int m_contour_block_size = 3;
     int m_expand_block_size = 3;
     float m_binarize_threshold = 0.2f;
+
+    std::vector<ScreenData> m_screens;
 };
 
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
@@ -185,6 +195,14 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
 ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
     : m_gfx(gfx)
 {
+    EnumerateMonitor([this](const MonitorInfo& info) {
+        ScreenData data;
+        data.info = info;
+        data.filter = CreateFilterSet(m_gfx);
+        data.capture = m_gfx->createScreenCapture();
+        data.capture->startCapture(info.hmon);
+        m_screens.push_back(data);
+        });
 }
 
 ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
@@ -193,7 +211,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
     if (!tmpl)
         return nullptr;
 
-    auto filter = CreateFilter(m_gfx);
+    auto filter = CreateFilterSet(m_gfx);
     tmpl = filter->transform(tmpl, m_scale, true);
     tmpl = filter->contour(tmpl, m_contour_block_size);
     tmpl = filter->binarize(tmpl, m_binarize_threshold);
@@ -219,7 +237,7 @@ IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HWND target)
 
 static BOOL EnumerateMonitorCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userdata)
 {
-    ScreenInfo sinfo{};
+    MonitorInfo sinfo{};
     sinfo.hmon = hmon;
     sinfo.scale_factor = GetScaleFactor(hmon);
     sinfo.screen_pos = { rect->left, rect->top };

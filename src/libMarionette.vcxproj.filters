@@ -84,6 +84,9 @@
     <FxCompile Include="Graphics\Shaders\Binarize.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Graphics\Shaders\Reduce_Common.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceCountBits.hlsl">
       <Filter>Graphics\Shaders</Filter>
     </FxCompile>

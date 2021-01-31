@@ -90,77 +90,67 @@ public:
     virtual void dispatch() = 0;
 };
 
-class ITransform : public ICSContext
+
+class IFilter : public ICSContext
 {
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
+    virtual ITexture2DPtr getDst() = 0;
+};
+
+class IReducer : public ICSContext
+{
+public:
+    virtual void setSrc(ITexture2DPtr v) = 0;
+    virtual void setRange(int2 v) = 0;
+    virtual IBufferPtr getDst() = 0;
+};
+
+class ITransform : public IFilter
+{
+public:
     virtual void setDstFormat(TextureFormat v) = 0; // ignored if dst is set
     virtual void setSrcRect(int2 pos, int2 size) = 0;
     virtual void setScale(float v) = 0; // ignored if dst is set
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
     virtual void setFiltering(bool v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class INormalize : public ICSContext
+class INormalize : public IFilter
 {
 public:
-    virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setMax(float v) = 0;
     virtual void setMax(uint32_t v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class IBinarize : public ICSContext
+class IBinarize : public IFilter
 {
 public:
-    virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setThreshold(float v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class IExpand : public ICSContext
+class IExpand : public IFilter
 {
 public:
-    virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setBlockSize(int v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class IContour : public ICSContext
+class IContour : public IFilter
 {
 public:
-    virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setBlockSize(int v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class ITemplateMatch : public ICSContext
+class ITemplateMatch : public IFilter
 {
 public:
-    virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setDst(ITexture2DPtr v) = 0;
     virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual void setMask(ITexture2DPtr v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
 };
 
-class IShape : public ICSContext
-{
-public:
-    virtual void setDst(ITexture2DPtr v) = 0;
-    virtual void addCircle(int2 pos, float radius, float border, float4 color) = 0;
-    virtual void addRect(int2 pos, int2 size, float border, float4 color) = 0;
-    virtual void clearShapes() = 0;
-};
-
-class IReduceTotal : public ICSContext
+class IReduceTotal : public IReducer
 {
 public:
     union Result
@@ -168,20 +158,18 @@ public:
         float valf;
         uint32_t vali;
     };
-    virtual void setSrc(ITexture2DPtr v) = 0;
     virtual Result getResult() = 0;
 };
 
-class IReduceCountBits : public ICSContext
+class IReduceCountBits : public IReducer
 {
 public:
     using Result = uint32_t;
 
-    virtual void setSrc(ITexture2DPtr v) = 0;
     virtual Result getResult() = 0;
 };
 
-class IReduceMinMax : public ICSContext
+class IReduceMinMax : public IReducer
 {
 public:
     struct Result
@@ -199,8 +187,16 @@ public:
         int2 pad;
     };
 
-    virtual void setSrc(ITexture2DPtr v) = 0;
     virtual Result getResult() = 0;
+};
+
+class IShape : public ICSContext
+{
+public:
+    virtual void setDst(ITexture2DPtr v) = 0;
+    virtual void addCircle(int2 pos, float radius, float border, float4 color) = 0;
+    virtual void addRect(int2 pos, int2 size, float border, float4 color) = 0;
+    virtual void clearShapes() = 0;
 };
 
 
@@ -251,11 +247,11 @@ mrAPI bool SaveAsPNG(const char* path, int w, int h, PixelFormat format, const v
 
 // high level API
 
-mrDeclPtr(IFilter);
+mrDeclPtr(IFilterSet);
 mrDeclPtr(ITemplate);
 mrDeclPtr(IScreenMatcher);
 
-class IFilter : public IObject
+class IFilterSet : public IObject
 {
 public:
     virtual ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) = 0;
@@ -272,18 +268,18 @@ public:
     virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src) = 0;
     virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src) = 0;
 };
-mrAPI IFilter* CreateFilter_(IGfxInterface* gfx);
-inline IFilterPtr CreateFilter(IGfxInterfacePtr gfx) { return CreateFilter_(gfx); }
+mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx);
+inline IFilterSetPtr CreateFilterSet(IGfxInterfacePtr gfx) { return CreateFilterSet_(gfx); }
 
 
-struct ScreenInfo
+struct MonitorInfo
 {
     HMONITOR hmon{};
     int2 screen_pos{};
     int2 screen_size{};
     float scale_factor = 1.0f;
 };
-using MonitorCallback = std::function<void(const ScreenInfo&)>;
+using MonitorCallback = std::function<void(const MonitorInfo&)>;
 mrAPI void EnumerateMonitor(const MonitorCallback& callback);
 mrAPI HMONITOR GetPrimaryMonitor();
 mrAPI float GetScaleFactor(HMONITOR hmon);

@@ -1,4 +1,5 @@
 #define BX 64
+#include "Reduce_Common.hlsl"
 
 struct Result
 {
@@ -68,16 +69,13 @@ void ReduceGroup(uint gi)
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint w, h;
-    g_image.GetDimensions(w, h);
-
-    uint2 bpos = min(tid, uint2(w, h) - 1);
+    uint2 bpos = min(tid, g_range - 1);
     Result r;
     r.pmin = r.pmax = bpos;
     r.vmin = r.vmax = g_image[bpos];
     r.pad = 0;
 
-    for (uint x = tid.x + BX; x < w; x += BX) {
+    for (uint x = tid.x + BX; x < g_range.x; x += BX) {
         uint2 p = uint2(x, tid.y);
         Reduce(r, p, g_image[p]);
     }
@@ -94,12 +92,9 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(BX, 1, 1)]
 void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint n, s;
-    g_result.GetDimensions(n, s);
-
-    uint bx = min(tid.x, n - 1);
+    uint bx = min(tid.x, g_range.y - 1);
     Result r = g_result[bx];
-    for (uint x = tid.x + BX; x < n; x += BX)
+    for (uint x = tid.x + BX; x < g_range.y; x += BX)
         r = Reduce(r, g_result[x]);
     s_result[gi] = r;
 

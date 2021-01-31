@@ -1,4 +1,5 @@
 #define BX 64
+#include "Reduce_Common.hlsl"
 
 Texture2D<value_type> g_image : register(t0);
 RWStructuredBuffer<value_type> g_result : register(u0);
@@ -35,11 +36,8 @@ void ReduceGroup(uint gi)
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint w, h;
-    g_image.GetDimensions(w, h);
-
     value_type r = 0;
-    for (uint x = tid.x; x < w; x += BX)
+    for (uint x = tid.x; x < g_range.x; x += BX)
         r += g_image[uint2(x, tid.y)];
     s_result[gi] = r;
 
@@ -54,11 +52,8 @@ void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(BX, 1, 1)]
 void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint n, s;
-    g_result.GetDimensions(n, s);
-
     value_type r = 0;
-    for (uint x = tid.x; x < n; x += BX)
+    for (uint x = tid.x; x < g_range.y; x += BX)
         r += g_result[x];
     s_result[gi] = r;
 

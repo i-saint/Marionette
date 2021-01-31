@@ -58,6 +58,9 @@
     <FxCompile Include="Graphics\Shaders\Transform.hlsl" />
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Binary.hlsl" />
     <FxCompile Include="Graphics\Shaders\TemplateMatch_Grayscale.hlsl" />
+    <FxCompile Include="Graphics\Shaders\Reduce_Common.hlsl">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Graphics\Shaders\ReduceCountBits.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>

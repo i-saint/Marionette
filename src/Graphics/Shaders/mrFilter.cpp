@@ -22,7 +22,25 @@
 
 namespace mr {
 
-class Transform : public RefCount<ITransform>
+template<class T>
+class FilterCommon : public RefCount<T>
+{
+public:
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
+    ITexture2DPtr getDst() override;
+
+public:
+    Texture2DPtr m_src;
+    Texture2DPtr m_dst;
+};
+
+template<class T> void FilterCommon<T>::setSrc(ITexture2DPtr v) { m_src = cast(v); }
+template<class T> void FilterCommon<T>::setDst(ITexture2DPtr v) { m_dst = cast(v); }
+template<class T> ITexture2DPtr FilterCommon<T>::getDst() { return m_dst; }
+
+
+class Transform : public FilterCommon<ITransform>
 {
 public:
     enum class Flag
@@ -32,21 +50,16 @@ public:
     };
 
     Transform(TransformCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setDstFormat(TextureFormat v) override;
     void setSrcRect(int2 o, int2 s) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
     void setFiltering(bool v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     TransformCS* m_cs{};
-    Texture2DPtr m_src;
-    Texture2DPtr m_dst;
     BufferPtr m_const;
 
     TextureFormat m_dst_format = TextureFormat::Unknown;
@@ -60,15 +73,12 @@ public:
 };
 
 Transform::Transform(TransformCS* v) : m_cs(v) {}
-void Transform::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void Transform::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Transform::setDstFormat(TextureFormat v) { m_dst_format = v; }
 void Transform::setSrcRect(int2 pos, int2 size) { mrCheckDirty(pos == m_offset && size == m_size); m_offset = pos; m_size = size; }
 void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
 void Transform::setFiltering(bool v) { mrCheckDirty(m_filtering == v); m_filtering = v; }
-ITexture2DPtr Transform::getDst() { return m_dst; }
 
 void Transform::dispatch()
 {
@@ -147,21 +157,16 @@ ITransformPtr TransformCS::createContext()
 
 
 
-class Normalize : public RefCount<INormalize>
+class Normalize : public FilterCommon<INormalize>
 {
 public:
     Normalize(NormalizeCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setMax(float v) override;
     void setMax(uint32_t v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     NormalizeCS* m_cs{};
-    Texture2DPtr m_dst;
-    Texture2DPtr m_src;
     BufferPtr m_const;
 
     float m_rmax= 1.0f;
@@ -169,11 +174,8 @@ public:
 };
 
 Normalize::Normalize(NormalizeCS* v) : m_cs(v) {}
-void Normalize::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void Normalize::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Normalize::setMax(float v_) { float v = 1.0f / v_; mrCheckDirty(m_rmax == v); m_rmax = v; }
 void Normalize::setMax(uint32_t v_) { setMax(float(v_)); }
-ITexture2DPtr Normalize::getDst() { return m_dst; }
 
 void Normalize::dispatch()
 {
@@ -234,20 +236,15 @@ INormalizePtr NormalizeCS::createContext()
 }
 
 
-class Binarize : public RefCount<IBinarize>
+class Binarize : public FilterCommon<IBinarize>
 {
 public:
     Binarize(BinarizeCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setThreshold(float v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     BinarizeCS* m_cs{};
-    Texture2DPtr m_dst;
-    Texture2DPtr m_src;
     BufferPtr m_const;
 
     float m_threshold = 0.5f;
@@ -260,10 +257,7 @@ IBinarizePtr BinarizeCS::createContext()
 }
 
 Binarize::Binarize(BinarizeCS* v) : m_cs(v) {}
-void Binarize::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void Binarize::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Binarize::setThreshold(float v) { mrCheckDirty(v == m_threshold); m_threshold = v; }
-ITexture2DPtr Binarize::getDst() { return m_dst; }
 
 void Binarize::dispatch()
 {
@@ -310,20 +304,15 @@ void BinarizeCS::dispatch(ICSContext& ctx)
 }
 
 
-class Contour : public RefCount<IContour>
+class Contour : public FilterCommon<IContour>
 {
 public:
     Contour(ContourCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setBlockSize(int v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     ContourCS* m_cs{};
-    Texture2DPtr m_dst;
-    Texture2DPtr m_src;
     BufferPtr m_const;
 
     int m_block_size = 3;
@@ -331,10 +320,7 @@ public:
 };
 
 Contour::Contour(ContourCS* v) : m_cs(v) {}
-void Contour::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void Contour::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Contour::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
-ITexture2DPtr Contour::getDst() { return m_dst; }
 
 void Contour::dispatch()
 {
@@ -386,20 +372,15 @@ IContourPtr ContourCS::createContext()
 }
 
 
-class Expand : public RefCount<IExpand>
+class Expand : public FilterCommon<IExpand>
 {
 public:
     Expand(ExpandCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setBlockSize(int v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     ExpandCS* m_cs{};
-    Texture2DPtr m_dst;
-    Texture2DPtr m_src;
     BufferPtr m_const;
 
     int m_block_size = 3;
@@ -407,10 +388,7 @@ public:
 };
 
 Expand::Expand(ExpandCS* v) : m_cs(v) {}
-void Expand::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void Expand::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void Expand::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
-ITexture2DPtr Expand::getDst() { return m_dst; }
 
 void Expand::dispatch()
 {
@@ -475,39 +453,31 @@ IExpandPtr ExpandCS::createContext()
 }
 
 
-class TemplateMatch : public RefCount<ITemplateMatch>
+class TemplateMatch : public FilterCommon<ITemplateMatch>
 {
 public:
     TemplateMatch(TemplateMatchCS* v);
-    void setSrc(ITexture2DPtr v) override;
-    void setDst(ITexture2DPtr v) override;
     void setTemplate(ITexture2DPtr v) override;
     void setMask(ITexture2DPtr v) override;
-    ITexture2DPtr getDst() override;
     void dispatch() override;
 
 public:
     TemplateMatchCS* m_cs{};
-    Texture2DPtr m_dst;
-    Texture2DPtr m_src;
     Texture2DPtr m_template;
     Texture2DPtr m_mask;
     BufferPtr m_const;
 
-    int2 m_size{};
+    int2 m_template_size{};
     bool m_dirty = true;
 };
 
 TemplateMatch::TemplateMatch(TemplateMatchCS* v) : m_cs(v) {}
-void TemplateMatch::setSrc(ITexture2DPtr v) { m_src = cast(v); }
-void TemplateMatch::setDst(ITexture2DPtr v) { m_dst = cast(v); }
 void TemplateMatch::setTemplate(ITexture2DPtr v) {
     m_template = cast(v);
-    mrCheckDirty(m_size == m_template->getSize());
-    m_size = m_template->getSize();
+    mrCheckDirty(m_template_size == m_template->getSize());
+    m_template_size = m_template->getSize();
 }
 void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
-ITexture2DPtr TemplateMatch::getDst() { return m_dst; }
 
 void TemplateMatch::dispatch()
 {
@@ -519,25 +489,18 @@ void TemplateMatch::dispatch()
     }
 
     if (!m_dst) {
-        if (m_src->getFormat() == TextureFormat::Ru8) {
-            auto size = m_src->getSize() - m_template->getSize();
-            m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
-        }
-        else if (m_src->getFormat() == TextureFormat::Binary) {
-            auto size = m_src->getSize() - m_template->getSize();
-            m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ri32);
-        }
-        if (!m_dst)
-            return;
+        auto size = m_src->getSize() - m_template->getSize();
+        auto format = m_src->getFormat() == TextureFormat::Binary ? TextureFormat::Ri32 : TextureFormat::Rf32;
+        m_dst = Texture2D::create(size.x, size.y, format);
     }
 
-    if (m_dirty && m_src->getFormat() == TextureFormat::Binary) {
+    if (m_dirty) {
         struct
         {
-            int bit_width;
-            int3 pad;
+            int2 template_size;
+            int2 pad;
         } params{};
-        params.bit_width = m_size.x;
+        params.template_size = m_template_size;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
