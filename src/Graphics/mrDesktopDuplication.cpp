@@ -35,6 +35,8 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_cond;
     bool m_waiting_next_frame{ false };
+
+    Texture2DPtr m_prev_surface;
 };
 
 
@@ -175,8 +177,13 @@ void DesktopDuplication::captureLoop()
         com_ptr<ID3D11Texture2D> surface{};
         uint64_t time{};
         if (getFrameInternal(kTimeout, surface, time)) {
-            auto s = Texture2D::wrap(surface);
-            FrameInfo tmp{s, s->getSize(), time};
+            Texture2DPtr tex;
+            if (m_prev_surface && surface.get() == m_prev_surface->ptr())
+                tex = m_prev_surface;
+            else
+                tex = m_prev_surface = Texture2D::wrap(surface);
+
+            FrameInfo tmp{ tex, tex->getSize(), time };
             {
                 std::unique_lock l(m_mutex);
                 m_frame_info = tmp;

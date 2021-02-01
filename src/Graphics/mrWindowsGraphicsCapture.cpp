@@ -57,14 +57,12 @@ private:
     std::condition_variable m_cond;
     bool m_waiting_next_frame{false};
 
-    Texture2DPtr m_frame_buffer;
-    ITransformPtr m_transform;
-
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
     GraphicsCaptureItem m_capture_item{ nullptr };
     GraphicsCaptureSession m_capture_session{ nullptr };
     Direct3D11CaptureFramePool::FrameArrived_revoker m_frame_arrived;
+    Texture2DPtr m_prev_surface;
 };
 
 
@@ -132,9 +130,6 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 
     mrProfile("GraphicsCapture::start()");
     try {
-        if (!m_transform)
-            m_transform = mrGfxGetCS(TransformCS)->createContext();
-
         if (!m_device_rt) {
             auto dxgi = As<IDXGIDevice>(mrGfxDevice());
             com_ptr<::IInspectable> device_rt;
@@ -202,12 +197,13 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
         auto size = frame.ContentSize();
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
 
-        auto src = Texture2D::wrap(surface);
-        if (!m_frame_buffer) {
-            m_frame_buffer = Texture2D::create(size.Width, size.Height, TextureFormat::RGBAu8);
-        }
+        Texture2DPtr tex;
+        if (m_prev_surface && surface.get() == m_prev_surface->ptr())
+            tex = m_prev_surface;
+        else
+            tex = m_prev_surface = Texture2D::wrap(surface);
 
-        FrameInfo tmp{ src, { size.Width, size.Height }, time };
+        FrameInfo tmp{ tex, { size.Width, size.Height }, time };
         {
             std::unique_lock l(m_mutex);
             m_frame_info = tmp;
