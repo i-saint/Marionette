@@ -5,7 +5,7 @@
 #ifdef mrWithDesktopDuplicationAPI
 namespace mr {
 
-class DesktopDuplication : public RefCount<IScreenCapture>
+class DesktopDuplication : public ScreenCaptureCommon
 {
 public:
     ~DesktopDuplication() override;
@@ -16,27 +16,15 @@ public:
     bool startCapture(HWND hwnd) override;
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
-    FrameInfo getFrame() override;
-    FrameInfo waitNextFrame() override;
-
-    void setOnFrameArrived(const Callback& cb) override;
 
     // called from capture thread
     void captureLoop();
     bool getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time);
 
 private:
-    Callback m_callback;
-    FrameInfo m_frame_info;
-
     com_ptr<IDXGIOutputDuplication> m_duplication;
     std::atomic_bool m_end_flag = false;
     std::thread m_capture_thread;
-    std::mutex m_mutex;
-    std::condition_variable m_cond;
-    bool m_waiting_next_frame{ false };
-
-    Texture2DPtr m_prev_surface;
 };
 
 
@@ -112,35 +100,6 @@ void DesktopDuplication::stopCapture()
     m_duplication = nullptr;
 }
 
-DesktopDuplication::FrameInfo DesktopDuplication::getFrame()
-{
-    FrameInfo ret;
-    {
-        std::unique_lock l(m_mutex);
-        ret = m_frame_info;
-    }
-    return ret;
-}
-
-DesktopDuplication::FrameInfo DesktopDuplication::waitNextFrame()
-{
-    FrameInfo ret;
-    {
-        std::unique_lock l(m_mutex);
-        m_waiting_next_frame = true;
-        m_cond.wait(l, [this]() { return m_waiting_next_frame == false; });
-
-        ret = m_frame_info;
-    }
-    return ret;
-}
-
-void DesktopDuplication::setOnFrameArrived(const Callback& cb)
-{
-    std::unique_lock l(m_mutex);
-    m_callback = cb;
-}
-
 
 bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time)
 {
@@ -177,25 +136,7 @@ void DesktopDuplication::captureLoop()
         com_ptr<ID3D11Texture2D> surface{};
         uint64_t time{};
         if (getFrameInternal(kTimeout, surface, time)) {
-            Texture2DPtr tex;
-            if (m_prev_surface && surface.get() == m_prev_surface->ptr())
-                tex = m_prev_surface;
-            else
-                tex = m_prev_surface = Texture2D::wrap(surface);
-
-            FrameInfo tmp{ tex, tex->getSize(), time };
-            {
-                std::unique_lock l(m_mutex);
-                m_frame_info = tmp;
-
-                if (m_callback)
-                    m_callback(m_frame_info);
-
-                if (m_waiting_next_frame) {
-                    m_waiting_next_frame = false;
-                    m_cond.notify_one();
-                }
-            }
+            updateFrame(surface, {}, time);
         }
     }
 }

@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "mrInternal.h"
 #include "mrScreenCapture.h"
-#include "mrShader.h"
-
 
 #ifdef mrWithWindowsGraphicsCapture
 #include <winrt/Windows.Foundation.h>
@@ -25,15 +23,13 @@ using namespace winrt::Windows::Graphics::Capture;
 
 namespace mr {
 
-class GraphicsCapture : public RefCount<IScreenCapture>
+class GraphicsCapture : public ScreenCaptureCommon
 {
 public:
     GraphicsCapture();
     ~GraphicsCapture() override;
 
     bool valid() const override;
-    FrameInfo getFrame() override;
-    FrameInfo waitNextFrame() override;
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -42,27 +38,17 @@ public:
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
 
-    void setOnFrameArrived(const Callback& cb) override;
-
     // called from capture thread
     void onFrameArrived(
         winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& sender,
         winrt::Windows::Foundation::IInspectable const& args);
 
 private:
-    Callback m_callback;
-
-    FrameInfo m_frame_info;
-    std::mutex m_mutex;
-    std::condition_variable m_cond;
-    bool m_waiting_next_frame{false};
-
     IDirect3DDevice m_device_rt{ nullptr };
     Direct3D11CaptureFramePool m_frame_pool{ nullptr };
     GraphicsCaptureItem m_capture_item{ nullptr };
     GraphicsCaptureSession m_capture_session{ nullptr };
     Direct3D11CaptureFramePool::FrameArrived_revoker m_frame_arrived;
-    Texture2DPtr m_prev_surface;
 };
 
 
@@ -97,29 +83,6 @@ GraphicsCapture::~GraphicsCapture()
 bool GraphicsCapture::valid() const
 {
     return m_capture_session != nullptr;
-}
-
-GraphicsCapture::FrameInfo GraphicsCapture::getFrame()
-{
-    FrameInfo ret;
-    {
-        std::unique_lock l(m_mutex);
-        ret = m_frame_info;
-    }
-    return ret;
-}
-
-GraphicsCapture::FrameInfo GraphicsCapture::waitNextFrame()
-{
-    FrameInfo ret;
-    {
-        std::unique_lock l(m_mutex);
-        m_waiting_next_frame = true;
-        m_cond.wait(l, [this]() { return m_waiting_next_frame == false; });
-
-        ret = m_frame_info;
-    }
-    return ret;
 }
 
 
@@ -183,39 +146,14 @@ void GraphicsCapture::stopCapture()
     }
 }
 
-void GraphicsCapture::setOnFrameArrived(const Callback& cb)
-{
-    std::unique_lock l(m_mutex);
-    m_callback = cb;
-}
-
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
-        auto time = NowNS();
         auto frame = sender.TryGetNextFrame();
         auto size = frame.ContentSize();
         auto surface = GetDXGIInterfaceFromObject<ID3D11Texture2D>(frame.Surface());
 
-        Texture2DPtr tex;
-        if (m_prev_surface && surface.get() == m_prev_surface->ptr())
-            tex = m_prev_surface;
-        else
-            tex = m_prev_surface = Texture2D::wrap(surface);
-
-        FrameInfo tmp{ tex, { size.Width, size.Height }, time };
-        {
-            std::unique_lock l(m_mutex);
-            m_frame_info = tmp;
-
-            if (m_callback)
-                m_callback(m_frame_info);
-
-            if (m_waiting_next_frame) {
-                m_waiting_next_frame = false;
-                m_cond.notify_one();
-            }
-        }
+        updateFrame(surface, { size.Width, size.Height }, NowNS());
 
         frame.Close();
     }

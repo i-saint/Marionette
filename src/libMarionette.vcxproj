@@ -17,6 +17,7 @@
     <ClCompile Include="Graphics\mrGfxFoundation.cpp" />
     <ClCompile Include="Graphics\mrGfxInterface.cpp" />
     <ClCompile Include="Graphics\mrImage.cpp" />
+    <ClCompile Include="Graphics\mrScreenCapture.cpp" />
     <ClCompile Include="Graphics\mrScreenMatcher.cpp" />
     <ClCompile Include="Graphics\Shaders\mrFilter.cpp" />
     <ClCompile Include="Graphics\Shaders\mrReducer.cpp" />
