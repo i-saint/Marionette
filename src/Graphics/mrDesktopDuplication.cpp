@@ -17,6 +17,7 @@ public:
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
     FrameInfo getFrame() override;
+    FrameInfo waitNextFrame() override;
 
     void setOnFrameArrived(const Callback& cb) override;
 
@@ -32,6 +33,8 @@ private:
     std::atomic_bool m_end_flag = false;
     std::thread m_capture_thread;
     std::mutex m_mutex;
+    std::condition_variable m_cond;
+    bool m_waiting_next_frame{ false };
 };
 
 
@@ -117,6 +120,19 @@ DesktopDuplication::FrameInfo DesktopDuplication::getFrame()
     return ret;
 }
 
+DesktopDuplication::FrameInfo DesktopDuplication::waitNextFrame()
+{
+    FrameInfo ret;
+    {
+        std::unique_lock l(m_mutex);
+        m_waiting_next_frame = true;
+        m_cond.wait(l, [this]() { return m_waiting_next_frame == false; });
+
+        ret = m_frame_info;
+    }
+    return ret;
+}
+
 void DesktopDuplication::setOnFrameArrived(const Callback& cb)
 {
     std::unique_lock l(m_mutex);
@@ -167,6 +183,11 @@ void DesktopDuplication::captureLoop()
 
                 if (m_callback)
                     m_callback(m_frame_info);
+
+                if (m_waiting_next_frame) {
+                    m_waiting_next_frame = false;
+                    m_cond.notify_one();
+                }
             }
         }
     }

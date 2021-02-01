@@ -33,6 +33,7 @@ public:
 
     bool valid() const override;
     FrameInfo getFrame() override;
+    FrameInfo waitNextFrame() override;
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -53,6 +54,8 @@ private:
 
     FrameInfo m_frame_info;
     std::mutex m_mutex;
+    std::condition_variable m_cond;
+    bool m_waiting_next_frame{false};
 
     Texture2DPtr m_frame_buffer;
     ITransformPtr m_transform;
@@ -107,6 +110,20 @@ GraphicsCapture::FrameInfo GraphicsCapture::getFrame()
     }
     return ret;
 }
+
+GraphicsCapture::FrameInfo GraphicsCapture::waitNextFrame()
+{
+    FrameInfo ret;
+    {
+        std::unique_lock l(m_mutex);
+        m_waiting_next_frame = true;
+        m_cond.wait(l, [this]() { return m_waiting_next_frame == false; });
+
+        ret = m_frame_info;
+    }
+    return ret;
+}
+
 
 template<class CreateCaptureItem>
 bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
@@ -197,6 +214,11 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
 
             if (m_callback)
                 m_callback(m_frame_info);
+
+            if (m_waiting_next_frame) {
+                m_waiting_next_frame = false;
+                m_cond.notify_one();
+            }
         }
 
         frame.Close();

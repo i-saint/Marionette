@@ -273,29 +273,17 @@ TestCase(ScreenCapture)
         async_ops.clear();
     };
 
-    std::mutex mutex;
-    std::condition_variable cond;
-    std::atomic<bool> ready{};
-    auto on_frame = [&cond, &ready](auto& frame) {
-        ready = true;
-        cond.notify_one();
-    };
-
     auto gfx = mr::CreateGfxInterface();
     auto filter = mr::CreateFilterSet(gfx);
 
     auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();
     if (scap && scap->startCapture(mr::GetPrimaryMonitor())) {
-        scap->setOnFrameArrived(on_frame);
         for (int i = 0; i < 5; ++i) {
-            std::unique_lock<std::mutex> lock(mutex);
-            ready = false;
-            cond.wait(lock, [&ready]() { return ready.load(); });
-            if (!ready)
+            auto frame = scap->waitNextFrame();
+            if (!frame.surface)
                 continue;
 
-            auto frame = scap->getFrame();
             testPrint("frame %d [%.2f ms]\n", i, float(double(frame.present_time - time_start) / 1000000.0));
             auto surface = filter->copy(frame.surface, frame.size, mr::TextureFormat::RGBAu8);
 

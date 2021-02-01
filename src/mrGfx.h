@@ -72,6 +72,7 @@ public:
     virtual bool startCapture(HMONITOR hmon) = 0;
     virtual void stopCapture() = 0;
     virtual FrameInfo getFrame() = 0;
+    virtual FrameInfo waitNextFrame() = 0;
     virtual void setOnFrameArrived(const Callback& cb) = 0;
 };
 
