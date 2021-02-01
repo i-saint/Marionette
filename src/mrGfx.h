@@ -96,7 +96,7 @@ class IFilter : public ICSContext
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
-    virtual ITexture2DPtr getDst() = 0;
+    virtual ITexture2DPtr getDst() const = 0;
 };
 
 class IReducer : public ICSContext
@@ -104,7 +104,8 @@ class IReducer : public ICSContext
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setRange(int2 v) = 0;
-    virtual IBufferPtr getDst() = 0;
+    virtual int2 getRange() const = 0;
+    virtual IBufferPtr getDst() const = 0;
 };
 
 class ITransform : public IFilter
@@ -148,6 +149,7 @@ class ITemplateMatch : public IFilter
 public:
     virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual void setMask(ITexture2DPtr v) = 0;
+    virtual void setFitDstSize(bool v) = 0;
 };
 
 class IReduceTotal : public IReducer
@@ -262,11 +264,11 @@ public:
     virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
     virtual ITexture2DPtr contour(ITexture2DPtr src, int block_size) = 0;
     virtual ITexture2DPtr expand(ITexture2DPtr src, int block_size) = 0;
-    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr) = 0;
+    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, bool fit = true) = 0;
 
-    virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src) = 0;
-    virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src) = 0;
-    virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src) = 0;
+    virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 range = int2::zero()) = 0;
+    virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, int2 range = int2::zero()) = 0;
+    virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 range = int2::zero()) = 0;
 };
 mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx);
 inline IFilterSetPtr CreateFilterSet(IGfxInterfacePtr gfx) { return CreateFilterSet_(gfx); }

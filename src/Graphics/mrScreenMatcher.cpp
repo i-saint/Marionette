@@ -15,11 +15,11 @@ public:
     ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
     ITexture2DPtr contour(ITexture2DPtr src, int block_size) override;
     ITexture2DPtr expand(ITexture2DPtr src, int block_size) override;
-    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask) override;
+    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, bool fit) override;
 
-    std::future<IReduceTotal::Result> total(ITexture2DPtr src) override;
-    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src) override;
-    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src) override;
+    std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 range) override;
+    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, int2 range) override;
+    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 range) override;
 
 public:
     IGfxInterfacePtr m_gfx;
@@ -111,39 +111,43 @@ ITexture2DPtr FilterSet::expand(ITexture2DPtr src, int block_size)
     return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask)
+ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, bool fit)
 {
     mrMakeFilter(m_match, TemplateMatch);
     filter->setSrc(src);
     filter->setTemplate(tmp);
     filter->setMask(mask);
+    filter->setFitDstSize(fit);
     filter->dispatch();
     return filter->getDst();
 }
 
 
-std::future<IReduceTotal::Result> FilterSet::total(ITexture2DPtr src)
+std::future<IReduceTotal::Result> FilterSet::total(ITexture2DPtr src, int2 range)
 {
     mrMakeFilter(m_total, ReduceTotal);
     filter->setSrc(src);
+    filter->setRange(range);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceCountBits::Result> FilterSet::countBits(ITexture2DPtr src)
+std::future<IReduceCountBits::Result> FilterSet::countBits(ITexture2DPtr src, int2 range)
 {
     mrMakeFilter(m_count_bits, ReduceCountBits);
     filter->setSrc(src);
+    filter->setRange(range);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceMinMax::Result> FilterSet::minmax(ITexture2DPtr src)
+std::future<IReduceMinMax::Result> FilterSet::minmax(ITexture2DPtr src, int2 range)
 {
     mrMakeFilter(m_minmax, ReduceMinMax);
     filter->setSrc(src);
+    filter->setRange(range);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });

@@ -67,14 +67,16 @@ uint32_t CountBits_Reference(mr::ITexture2DPtr src)
     return ret;
 }
 
-mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src)
+mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src, int2 range = {})
 {
-    auto reduce = [&src]<class T, class U>(T& vmin, T& vmax, int2& pmin, int2& pmax, const U * data_, int pitch) {
-        auto size = src->getSize();
+    if (range.x == 0)
+        range = src->getSize();
+
+    auto reduce = [&src, range]<class T, class U>(T& vmin, T& vmax, int2& pmin, int2& pmax, const U * data_, int pitch) {
         vmin = vmax = data_[0];
-        for (int y = 0; y < size.y; ++y) {
+        for (int y = 0; y < range.y; ++y) {
             auto data = (const U*)((const byte*)data_ + (pitch * y));
-            for (int x = 0; x < size.x; ++x) {
+            for (int x = 0; x < range.x; ++x) {
                 auto v = data[x];
                 if (v < vmin) {
                     vmin = v;
@@ -203,7 +205,7 @@ TestCase(Filter)
 
         if (tmp_image) {
             auto s = tmp_image->getSize();
-            src = filter->match(src, tmp_image, tmp_mask);
+            src = filter->match(src, tmp_image, tmp_mask, false);
 
             float denom{};
             if (tmp_image->getFormat() == mr::TextureFormat::Binary)
@@ -213,7 +215,8 @@ TestCase(Filter)
             src = rmatch = filter->normalize(src, denom);
         }
 
-        auto result = filter->minmax(src).get();
+        int2 range = src->getSize() - tmp_size;
+        auto result = filter->minmax(src, range).get();
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
@@ -232,7 +235,7 @@ TestCase(Filter)
             };
 
             testPrint("MinMax (ref):\n");
-            print(MinMax_Reference(rmatch));
+            print(MinMax_Reference(rmatch, range));
 
             testPrint("MinMax  (cs):\n");
             print(result);

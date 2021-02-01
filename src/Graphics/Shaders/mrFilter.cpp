@@ -28,7 +28,7 @@ class FilterCommon : public RefCount<T>
 public:
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
-    ITexture2DPtr getDst() override;
+    ITexture2DPtr getDst() const override;
 
 public:
     Texture2DPtr m_src;
@@ -37,7 +37,7 @@ public:
 
 template<class T> void FilterCommon<T>::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 template<class T> void FilterCommon<T>::setDst(ITexture2DPtr v) { m_dst = cast(v); }
-template<class T> ITexture2DPtr FilterCommon<T>::getDst() { return m_dst; }
+template<class T> ITexture2DPtr FilterCommon<T>::getDst() const { return m_dst; }
 
 
 class Transform : public FilterCommon<ITransform>
@@ -459,6 +459,7 @@ public:
     TemplateMatch(TemplateMatchCS* v);
     void setTemplate(ITexture2DPtr v) override;
     void setMask(ITexture2DPtr v) override;
+    void setFitDstSize(bool v) override;
     void dispatch() override;
 
 public:
@@ -468,6 +469,7 @@ public:
     BufferPtr m_const;
 
     int2 m_template_size{};
+    bool m_fit_dst_size = true;
     bool m_dirty = true;
 };
 
@@ -478,6 +480,7 @@ void TemplateMatch::setTemplate(ITexture2DPtr v) {
     m_template_size = m_template->getSize();
 }
 void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
+void TemplateMatch::setFitDstSize(bool v) { m_fit_dst_size = v; }
 
 void TemplateMatch::dispatch()
 {
@@ -489,7 +492,9 @@ void TemplateMatch::dispatch()
     }
 
     if (!m_dst) {
-        auto size = m_src->getSize() - m_template->getSize();
+        auto size = m_src->getSize();
+        if (m_fit_dst_size)
+            size -= m_template->getSize();
         auto format = m_src->getFormat() == TextureFormat::Binary ? TextureFormat::Ri32 : TextureFormat::Rf32;
         m_dst = Texture2D::create(size.x, size.y, format);
     }
@@ -497,9 +502,10 @@ void TemplateMatch::dispatch()
     if (m_dirty) {
         struct
         {
+            int2 image_size;
             int2 template_size;
-            int2 pad;
         } params{};
+        params.image_size = m_src->getSize();
         params.template_size = m_template_size;
 
         m_const = Buffer::createConstant(params);
@@ -519,7 +525,7 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
 {
     auto& c = static_cast<TemplateMatch&>(ctx);
 
-    auto size = c.m_dst->getInternalSize();
+    auto size = min(c.m_dst->getInternalSize(), c.m_src->getSize() - c.m_template->getSize());
     if (c.m_src->getFormat() == TextureFormat::Binary) {
         m_cs_binary.setCBuffer(c.m_const, 0);
         m_cs_binary.setSRV(c.m_src, 0);

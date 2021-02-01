@@ -29,7 +29,8 @@ class ReduceCommon : public RefCount<T>
 public:
     void setSrc(ITexture2DPtr v) override;
     void setRange(int2 v) override;
-    IBufferPtr getDst() override;
+    int2 getRange() const override;
+    IBufferPtr getDst() const override;
 
     BufferPtr getParamsBuffer();
     BufferPtr createParamsBuffer();
@@ -55,7 +56,14 @@ template<class T> void ReduceCommon<T>::setRange(int2 v)
     m_range = v;
 }
 
-template<class T> IBufferPtr ReduceCommon<T>::getDst()
+template<class T> int2 ReduceCommon<T>::getRange() const
+{
+    return m_range.x == 0 ?
+        (m_src ? m_src->getSize() : int2::zero()) :
+        m_range;
+}
+
+template<class T> IBufferPtr ReduceCommon<T>::getDst() const
 {
     return m_dst;
 }
@@ -75,7 +83,7 @@ template<class T> BufferPtr ReduceCommon<T>::createParamsBuffer()
         int2 range;
         int2 pad;
     } params{};
-    params.range = m_range.x == 0 ? m_src->getSize() : m_range;
+    params.range = getRange();
 
     return Buffer::createConstant(params);
 }
@@ -133,7 +141,7 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
     auto& ctx = static_cast<ReduceTotal&>(ctx_);
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
-        auto size = ctx.m_src->getSize();
+        auto size = ctx.getRange();
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
@@ -206,12 +214,12 @@ ReduceCountBitsCS::ReduceCountBitsCS()
 void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceCountBits&>(ctx_);
-    auto image_size = ctx.m_src->getSize();
+    auto size = ctx.getRange();
 
     m_cs_pass1.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass1.setSRV(ctx.m_src);
     m_cs_pass1.setUAV(ctx.m_dst);
-    m_cs_pass1.dispatch(1, image_size.y);
+    m_cs_pass1.dispatch(1, size.y);
 
     m_cs_pass2.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass2.setSRV(ctx.m_src);
@@ -280,7 +288,7 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     auto& ctx = static_cast<ReduceMinMax&>(ctx_);
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
-        auto size = ctx.m_src->getSize();
+        auto size = ctx.getRange();
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);

@@ -1,7 +1,7 @@
 cbuffer Constants : register(b0)
 {
-    uint2 g_template_size; // width is in bits
-    uint2 g_pad;
+    uint2 g_image_size;     // 
+    uint2 g_template_size;  // width is in bits
 };
 
 Texture2D<uint> g_image : register(t0);
@@ -29,12 +29,11 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     // template_size.x is divided by 32 as the image is binary and the texture format is uint32.
     // g_template_size.x is actual width.
 
-     uint2 image_size, template_size, mask_size;
-    g_image.GetDimensions(image_size.x, image_size.y);
+     uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = image_size - g_template_size;
+    const uint2 result_size = g_image_size - g_template_size;
     const uint tw = template_size.x;
     const uint th = template_size.y;
 
