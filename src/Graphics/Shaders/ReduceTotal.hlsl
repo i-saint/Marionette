@@ -37,8 +37,9 @@ void ReduceGroup(uint gi)
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
     value_type r = 0;
-    for (uint x = tid.x; x < g_range.x; x += BX)
-        r += g_image[uint2(x, tid.y)];
+    uint y = tid.y + g_tl.x;
+    for (uint x = tid.x + g_tl.x; x < g_br.x; x += BX)
+        r += g_image[uint2(x, y)];
     s_result[gi] = r;
 
     ReduceGroup(gi);

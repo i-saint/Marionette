@@ -51,7 +51,7 @@ public:
 
     Transform(TransformCS* v);
     void setDstFormat(TextureFormat v) override;
-    void setSrcRect(int2 o, int2 s) override;
+    void setSrcRegion(Rect v) override;
     void setScale(float v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
@@ -63,8 +63,7 @@ public:
     BufferPtr m_const;
 
     TextureFormat m_dst_format = TextureFormat::Unknown;
-    int2 m_offset = int2::zero();
-    int2 m_size = int2::zero();
+    Rect m_region{};
     float m_scale = 1.0f;
     bool m_grayscale = false;
     bool m_fill_alpha = false;
@@ -74,7 +73,7 @@ public:
 
 Transform::Transform(TransformCS* v) : m_cs(v) {}
 void Transform::setDstFormat(TextureFormat v) { m_dst_format = v; }
-void Transform::setSrcRect(int2 pos, int2 size) { mrCheckDirty(pos == m_offset && size == m_size); m_offset = pos; m_size = size; }
+void Transform::setSrcRegion(Rect v) { mrCheckDirty(m_region == v); m_region = v; }
 void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
@@ -99,8 +98,7 @@ void Transform::dispatch()
     if (m_dirty) {
         int2 src_size = m_src->getSize();
         int2 dst_size = m_dst->getSize();
-        if (m_size == int2::zero())
-            m_size = src_size;
+        int2 size = m_region.size == int2::zero() ? src_size : m_region.size;
 
         struct
         {
@@ -111,8 +109,8 @@ void Transform::dispatch()
             int filter;
         } params{};
         params.pixel_size = 1.0f / float2(src_size);
-        params.pixel_offset = params.pixel_size * m_offset;
-        params.sample_step = (float2(m_size) / float2(src_size)) / float2(dst_size);
+        params.pixel_offset = params.pixel_size * m_region.pos;
+        params.sample_step = (float2(size) / float2(src_size)) / float2(dst_size);
         if (m_grayscale)
             set_flag(params.flags, Flag::Grayscale, true);
         if (m_fill_alpha)
@@ -459,8 +457,11 @@ public:
     TemplateMatch(TemplateMatchCS* v);
     void setTemplate(ITexture2DPtr v) override;
     void setMask(ITexture2DPtr v) override;
+    void setRegion(Rect v) override;
     void setFitDstSize(bool v) override;
     void dispatch() override;
+
+    int2 getSize() const;
 
 public:
     TemplateMatchCS* m_cs{};
@@ -469,18 +470,39 @@ public:
     BufferPtr m_const;
 
     int2 m_template_size{};
+    Rect m_region{};
     bool m_fit_dst_size = true;
     bool m_dirty = true;
 };
 
 TemplateMatch::TemplateMatch(TemplateMatchCS* v) : m_cs(v) {}
+
 void TemplateMatch::setTemplate(ITexture2DPtr v) {
     m_template = cast(v);
     mrCheckDirty(m_template_size == m_template->getSize());
     m_template_size = m_template->getSize();
 }
-void TemplateMatch::setMask(ITexture2DPtr v) { m_mask = cast(v); }
-void TemplateMatch::setFitDstSize(bool v) { m_fit_dst_size = v; }
+
+void TemplateMatch::setMask(ITexture2DPtr v)
+{
+    m_mask = cast(v);
+}
+
+void TemplateMatch::setRegion(Rect v)
+{
+    mrCheckDirty(m_region == v);
+    m_region = v;
+}
+
+void TemplateMatch::setFitDstSize(bool v)
+{
+    m_fit_dst_size = v;
+}
+
+int2 TemplateMatch::getSize() const
+{
+    return m_region.size.x == 0 ? (m_src ? m_src->getSize() : int2::zero()) : m_region.size;
+}
 
 void TemplateMatch::dispatch()
 {
@@ -492,9 +514,11 @@ void TemplateMatch::dispatch()
     }
 
     if (!m_dst) {
-        auto size = m_src->getSize();
+        int2 size;
         if (m_fit_dst_size)
-            size -= m_template->getSize();
+            size = getSize() - m_template->getSize();
+        else
+            size = m_src->getSize();
         auto format = m_src->getFormat() == TextureFormat::Binary ? TextureFormat::Ri32 : TextureFormat::Rf32;
         m_dst = Texture2D::create(size.x, size.y, format);
     }
@@ -502,10 +526,15 @@ void TemplateMatch::dispatch()
     if (m_dirty) {
         struct
         {
-            int2 image_size;
+            int2 range;
+            int2 tl;
+            int2 br;
             int2 template_size;
         } params{};
-        params.image_size = m_src->getSize();
+
+        params.range = getSize();
+        params.tl = m_region.pos;
+        params.br = params.tl + params.range;
         params.template_size = m_template_size;
 
         m_const = Buffer::createConstant(params);
@@ -525,7 +554,10 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
 {
     auto& c = static_cast<TemplateMatch&>(ctx);
 
-    auto size = min(c.m_dst->getInternalSize(), c.m_src->getSize() - c.m_template->getSize());
+    auto size = c.getSize();
+    if (size.x < 0 || size.y < 0)
+        return;
+
     if (c.m_src->getFormat() == TextureFormat::Binary) {
         m_cs_binary.setCBuffer(c.m_const, 0);
         m_cs_binary.setSRV(c.m_src, 0);

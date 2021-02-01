@@ -203,9 +203,10 @@ TestCase(Filter)
         src =
             rbin = filter->binarize(src, binarize_threshold);
 
+        int2 offset = { 0, 0 };
+        int2 range = src->getSize() - offset - tmp_size;
         if (tmp_image) {
-            auto s = tmp_image->getSize();
-            src = filter->match(src, tmp_image, tmp_mask, false);
+            src = filter->match(src, tmp_image, tmp_mask, {offset, range}, false);
 
             float denom{};
             if (tmp_image->getFormat() == mr::TextureFormat::Binary)
@@ -215,7 +216,6 @@ TestCase(Filter)
             src = rmatch = filter->normalize(src, denom);
         }
 
-        int2 range = src->getSize() - tmp_size;
         auto result = filter->minmax(src, range).get();
 
         auto elapsed = test::Now() - time_begin;
@@ -241,7 +241,7 @@ TestCase(Filter)
             print(result);
 
             auto marked = mr::CreateFilterSet(gfx)->copy(tex);
-            auto pos = int2(float2(result.pos_min) / scale);
+            auto pos = int2(float2(result.pos_min + offset) / scale);
             auto size = int2(float2(tmp_size) / scale);
             DrawRect(gfx, marked, pos, size, 2, {1.0f, 0.0f, 0.0f, 1.0f});
 
@@ -297,7 +297,7 @@ TestCase(ScreenCapture)
 
             auto frame = scap->getFrame();
             testPrint("frame %d [%.2f ms]\n", i, float(double(frame.present_time - time_start) / 1000000.0));
-            auto surface = filter->copy(frame.surface, {0, 0}, frame.size, mr::TextureFormat::RGBAu8);
+            auto surface = filter->copy(frame.surface, frame.size, mr::TextureFormat::RGBAu8);
 
             char filename[256];
             snprintf(filename, std::size(filename), "Frame%02d.png", i);

@@ -8,6 +8,15 @@ mrDeclPtr(ITexture2D);
 mrDeclPtr(IBuffer);
 mrDeclPtr(IScreenCapture);
 
+struct Rect
+{
+    int2 pos{};
+    int2 size{};
+
+    bool operator==(const Rect& v) const { return pos == v.pos && size == v.size; }
+    bool operator!=(const Rect& v) const { return pos != v.pos || size != v.size; }
+};
+
 enum class TextureFormat
 {
     Unknown,
@@ -103,8 +112,9 @@ class IReducer : public ICSContext
 {
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
-    virtual void setRange(int2 v) = 0;
-    virtual int2 getRange() const = 0;
+    virtual void setRegion(Rect v) = 0;
+    virtual int2 getSize() const = 0;
+    virtual Rect getRegion() const = 0;
     virtual IBufferPtr getDst() const = 0;
 };
 
@@ -112,7 +122,7 @@ class ITransform : public IFilter
 {
 public:
     virtual void setDstFormat(TextureFormat v) = 0; // ignored if dst is set
-    virtual void setSrcRect(int2 pos, int2 size) = 0;
+    virtual void setSrcRegion(Rect v) = 0;
     virtual void setScale(float v) = 0; // ignored if dst is set
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
@@ -149,6 +159,7 @@ class ITemplateMatch : public IFilter
 public:
     virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual void setMask(ITexture2DPtr v) = 0;
+    virtual void setRegion(Rect v) = 0;
     virtual void setFitDstSize(bool v) = 0;
 };
 
@@ -256,19 +267,23 @@ mrDeclPtr(IScreenMatcher);
 class IFilterSet : public IObject
 {
 public:
-    virtual ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) = 0;
-    inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, { 0, 0 }, { 0, 0 }, TextureFormat::Unknown); }
-    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos = int2::zero(), int2 src_size = int2::zero()) = 0;
+    virtual ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) = 0;
+    inline  ITexture2DPtr copy(ITexture2DPtr src, int2 size, TextureFormat dst_format) { return copy(src, Rect{ {}, size }, dst_format); }
+    inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, Rect{}, TextureFormat::Unknown); }
+    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region = {}) = 0;
     inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
     virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
     virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
     virtual ITexture2DPtr contour(ITexture2DPtr src, int block_size) = 0;
     virtual ITexture2DPtr expand(ITexture2DPtr src, int block_size) = 0;
-    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, bool fit = true) = 0;
+    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, Rect region = {}, bool fit = true) = 0;
 
-    virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 range = int2::zero()) = 0;
-    virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, int2 range = int2::zero()) = 0;
-    virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 range = int2::zero()) = 0;
+    virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) = 0;
+    inline  std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 region = {}) { return total(src, Rect{ int2{}, region }); }
+    virtual std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, Rect region) = 0;
+    inline  std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, int2 region = {}) { return countBits(src, Rect{ int2{}, region }); }
+    virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, Rect region) = 0;
+    inline  std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 region = {}) { return minmax(src, Rect{ int2{}, region }); }
 };
 mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx);
 inline IFilterSetPtr CreateFilterSet(IGfxInterfacePtr gfx) { return CreateFilterSet_(gfx); }

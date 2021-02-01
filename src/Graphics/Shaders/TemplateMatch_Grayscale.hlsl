@@ -1,3 +1,11 @@
+cbuffer Constants : register(b0)
+{
+    uint2 g_range;
+    uint2 g_tl;
+    uint2 g_br;
+    uint2 g_template_size;
+};
+
 Texture2D<float> g_image : register(t0);
 Texture2D<float> g_template : register(t1);
 Texture2D<float> g_mask : register(t2);
@@ -14,12 +22,12 @@ groupshared float s_mask[CacheCapacity];
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint2 image_size, template_size, mask_size;
-    g_image.GetDimensions(image_size.x, image_size.y);
+    uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = image_size - template_size;
+    const uint2 result_size = g_range - template_size;
+    const uint2 bpos = g_tl + tid;
     const uint tw = template_size.x;
     const uint th = template_size.y;
 
@@ -50,7 +58,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
             for (uint j = 0; j < tw; ++j) {
                 uint ci = tw * cy + j;
-                float s = g_image[tid + uint2(j, i)];
+                float s = g_image[bpos + uint2(j, i)];
                 float t = s_template[ci];
                 float diff = abs(s - t);
                 r += diff;
@@ -81,7 +89,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
             for (uint j = 0; j < tw; ++j) {
                 uint ci = tw * cy + j;
-                float s = g_image[tid + uint2(j, i)];
+                float s = g_image[bpos + uint2(j, i)];
                 float t = s_template[ci];
                 float diff = abs(s - t) * s_mask[ci];
                 r += diff;
@@ -98,12 +106,12 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
-    uint2 image_size, template_size, mask_size;
-    g_image.GetDimensions(image_size.x, image_size.y);
+    uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = image_size - template_size;
+    const uint2 result_size = g_range - template_size;
+    const uint2 bpos = g_tl + tid;
     const uint tw = template_size.x;
     const uint th = template_size.y;
 
@@ -113,7 +121,7 @@ void main(uint2 tid : SV_DispatchThreadID)
         for (uint i = 0; i < th; ++i) {
             for (uint j = 0; j < tw; ++j) {
                 uint2 pos = uint2(j, i);
-                float s = g_image[tid + pos];
+                float s = g_image[bpos + pos];
                 float t = g_template[pos];
                 float diff = abs(s - t);
                 r += diff;
@@ -125,7 +133,7 @@ void main(uint2 tid : SV_DispatchThreadID)
         for (uint i = 0; i < th; ++i) {
             for (uint j = 0; j < tw; ++j) {
                 uint2 pos = uint2(j, i);
-                float s = g_image[tid + pos];
+                float s = g_image[bpos + pos];
                 float t = g_template[pos];
                 float diff = abs(s - t) * g_mask[pos];
                 r += diff;

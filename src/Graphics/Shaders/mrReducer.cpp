@@ -28,8 +28,9 @@ class ReduceCommon : public RefCount<T>
 {
 public:
     void setSrc(ITexture2DPtr v) override;
-    void setRange(int2 v) override;
-    int2 getRange() const override;
+    void setRegion(Rect v) override;
+    int2 getSize() const override;
+    Rect getRegion() const override;
     IBufferPtr getDst() const override;
 
     BufferPtr getParamsBuffer();
@@ -41,7 +42,7 @@ public:
     BufferPtr m_buf_params;
 
     bool m_dirty = true;
-    int2 m_range{};
+    Rect m_region{};
 };
 
 template<class T> void ReduceCommon<T>::setSrc(ITexture2DPtr v)
@@ -50,17 +51,20 @@ template<class T> void ReduceCommon<T>::setSrc(ITexture2DPtr v)
     m_src = cast(v);
 }
 
-template<class T> void ReduceCommon<T>::setRange(int2 v)
+template<class T> void ReduceCommon<T>::setRegion(Rect v)
 {
-    mrCheckDirty(m_range == v);
-    m_range = v;
+    mrCheckDirty(m_region == v);
+    m_region = v;
 }
 
-template<class T> int2 ReduceCommon<T>::getRange() const
+template<class T> int2 ReduceCommon<T>::getSize() const
 {
-    return m_range.x == 0 ?
-        (m_src ? m_src->getSize() : int2::zero()) :
-        m_range;
+    return m_region.size.x == 0 ? (m_src ? m_src->getSize() : int2::zero()) : m_region.size;
+}
+
+template<class T> Rect ReduceCommon<T>::getRegion() const
+{
+    return { m_region.pos, getSize() };
 }
 
 template<class T> IBufferPtr ReduceCommon<T>::getDst() const
@@ -81,9 +85,13 @@ template<class T> BufferPtr ReduceCommon<T>::createParamsBuffer()
 {
     struct {
         int2 range;
+        int2 tl;
+        int2 br;
         int2 pad;
     } params{};
-    params.range = getRange();
+    params.range = getSize();
+    params.tl = m_region.pos;
+    params.br = params.tl + params.range;
 
     return Buffer::createConstant(params);
 }
@@ -141,7 +149,7 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
     auto& ctx = static_cast<ReduceTotal&>(ctx_);
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
-        auto size = ctx.getRange();
+        auto size = ctx.getSize();
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
@@ -214,7 +222,7 @@ ReduceCountBitsCS::ReduceCountBitsCS()
 void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceCountBits&>(ctx_);
-    auto size = ctx.getRange();
+    auto size = ctx.getSize();
 
     m_cs_pass1.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass1.setSRV(ctx.m_src);
@@ -288,7 +296,7 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
     auto& ctx = static_cast<ReduceMinMax&>(ctx_);
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
-        auto size = ctx.getRange();
+        auto size = ctx.getSize();
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);

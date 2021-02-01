@@ -9,17 +9,17 @@ class FilterSet : public RefCount<IFilterSet>
 public:
     FilterSet(IGfxInterfacePtr gfx);
 
-    ITexture2DPtr copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format) override;
-    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size) override;
+    ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) override;
+    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region) override;
     ITexture2DPtr normalize(ITexture2DPtr src, float denom) override;
     ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
     ITexture2DPtr contour(ITexture2DPtr src, int block_size) override;
     ITexture2DPtr expand(ITexture2DPtr src, int block_size) override;
-    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, bool fit) override;
+    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region, bool fit) override;
 
-    std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 range) override;
-    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, int2 range) override;
-    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 range) override;
+    std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) override;
+    std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, Rect region) override;
+    std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, Rect region) override;
 
 public:
     IGfxInterfacePtr m_gfx;
@@ -53,22 +53,22 @@ FilterSet::FilterSet(IGfxInterfacePtr gfx)
     auto& filter = N;
 
 
-ITexture2DPtr FilterSet::copy(ITexture2DPtr src, int2 src_pos, int2 src_size, TextureFormat dst_format)
+ITexture2DPtr FilterSet::copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format)
 {
     mrMakeFilter(m_copy, Transform);
     filter->setSrc(src);
-    filter->setSrcRect(src_pos, src_size);
+    filter->setSrcRegion(src_region);
     filter->setDstFormat(dst_format);
     filter->dispatch();
     return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, int2 src_pos, int2 src_size)
+ITexture2DPtr FilterSet::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region)
 {
     mrMakeFilter(m_transform, Transform);
     filter->setSrc(src);
     filter->setScale(scale);
-    filter->setSrcRect(src_pos, src_size);
+    filter->setSrcRegion(src_region);
     filter->setGrayscale(grayscale);
     filter->setFiltering(filtering);
     filter->dispatch();
@@ -111,43 +111,44 @@ ITexture2DPtr FilterSet::expand(ITexture2DPtr src, int block_size)
     return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, bool fit)
+ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region, bool fit)
 {
     mrMakeFilter(m_match, TemplateMatch);
     filter->setSrc(src);
     filter->setTemplate(tmp);
     filter->setMask(mask);
+    filter->setRegion(region);
     filter->setFitDstSize(fit);
     filter->dispatch();
     return filter->getDst();
 }
 
 
-std::future<IReduceTotal::Result> FilterSet::total(ITexture2DPtr src, int2 range)
+std::future<IReduceTotal::Result> FilterSet::total(ITexture2DPtr src, Rect region)
 {
     mrMakeFilter(m_total, ReduceTotal);
     filter->setSrc(src);
-    filter->setRange(range);
+    filter->setRegion(region);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceCountBits::Result> FilterSet::countBits(ITexture2DPtr src, int2 range)
+std::future<IReduceCountBits::Result> FilterSet::countBits(ITexture2DPtr src, Rect region)
 {
     mrMakeFilter(m_count_bits, ReduceCountBits);
     filter->setSrc(src);
-    filter->setRange(range);
+    filter->setRegion(region);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });
 }
 
-std::future<IReduceMinMax::Result> FilterSet::minmax(ITexture2DPtr src, int2 range)
+std::future<IReduceMinMax::Result> FilterSet::minmax(ITexture2DPtr src, Rect region)
 {
     mrMakeFilter(m_minmax, ReduceMinMax);
     filter->setSrc(src);
-    filter->setRange(range);
+    filter->setRegion(region);
     filter->dispatch();
     return std::async(std::launch::deferred,
         [filter]() mutable { return filter->getResult(); });
@@ -188,7 +189,7 @@ private:
     int m_expand_block_size = 3;
     float m_binarize_threshold = 0.2f;
 
-    std::vector<ScreenData> m_screens;
+    std::map<HMONITOR, ScreenData> m_screens;
 };
 
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
@@ -205,7 +206,7 @@ ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
         data.filter = CreateFilterSet(m_gfx);
         data.capture = m_gfx->createScreenCapture();
         data.capture->startCapture(info.hmon);
-        m_screens.push_back(data);
+        m_screens[info.hmon] = std::move(data);
         });
 }
 

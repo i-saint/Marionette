@@ -69,22 +69,22 @@ void ReduceGroup(uint gi)
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
-    uint2 bpos = min(tid, g_range - 1);
+    uint2 bpos = min(tid + g_tl, g_range - 1);
     Result r;
     r.pmin = r.pmax = bpos;
     r.vmin = r.vmax = g_image[bpos];
     r.pad = 0;
 
-    for (uint x = tid.x + BX; x < g_range.x; x += BX) {
-        uint2 p = uint2(x, tid.y);
+    uint y = bpos.y;
+    for (uint x = bpos.x + BX; x < g_br.x; x += BX) {
+        uint2 p = uint2(x, y);
         Reduce(r, p, g_image[p]);
     }
     s_result[gi] = r;
 
     ReduceGroup(gi);
-    if (gi == 0) {
+    if (gi == 0)
         g_result[tid.y] = s_result[0];
-    }
 }
 
 // reduce vertically
@@ -99,7 +99,6 @@ void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     s_result[gi] = r;
 
     ReduceGroup(gi);
-    if (gi == 0) {
+    if (gi == 0)
         g_result[0] = s_result[0];
-    }
 }

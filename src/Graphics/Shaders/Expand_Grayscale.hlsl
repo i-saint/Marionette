@@ -15,12 +15,12 @@ void main(uint2 tid : SV_DispatchThreadID)
 
     int _b = (g_block_size >> 1);
     int b_ = (g_block_size >> 1) + (g_block_size & 0x1);
-    int2 ul = max(int2(tid) - _b, 0);
+    int2 tl = max(int2(tid) - _b, 0);
     int2 br = min(int2(tid) + b_, int2(w, h));
 
     float r = g_image[tid];
-    for (int i = ul.y; i < br.y; ++i)
-        for (int j = ul.x; j < br.x; ++j)
+    for (int i = tl.y; i < br.y; ++i)
+        for (int j = tl.x; j < br.x; ++j)
             r = max(r, g_image[uint2(j, i)]);
     g_result[tid] = r;
 }

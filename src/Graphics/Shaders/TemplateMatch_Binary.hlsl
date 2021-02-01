@@ -1,6 +1,8 @@
 cbuffer Constants : register(b0)
 {
-    uint2 g_image_size;     // 
+    uint2 g_range;          // 
+    uint2 g_tl;             // 
+    uint2 g_br;             // 
     uint2 g_template_size;  // width is in bits
 };
 
@@ -33,12 +35,11 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = g_image_size - g_template_size;
     const uint tw = template_size.x;
     const uint th = template_size.y;
 
-    const uint pixel_shift = tid.x / 32;
-    const uint bit_shift = tid.x % 32;
+    const uint px_offset = (g_tl.x + tid.x) / 32;
+    const uint bit_shift = (g_tl.x + tid.x) % 32;
     const uint edge_mask = (1 << (g_template_size.x % 32)) - 1;
     const uint cache_height = CacheCapacity / tw;
     const uint cache_size = cache_height * tw;
@@ -62,9 +63,9 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
                 GroupMemoryBarrierWithGroupSync();
             }
 
-            uint py = tid.y + i;
+            uint py = g_tl.y + tid.y + i;
             for (uint j = 0; j < tw; ++j) {
-                uint px = pixel_shift + j;
+                uint px = px_offset + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = s_template[tw * cy + j];
                 uint bits = iv ^ tv;
@@ -93,9 +94,9 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
                 GroupMemoryBarrierWithGroupSync();
             }
 
-            uint py = tid.y + i;
+            uint py = g_tl.y + tid.y + i;
             for (uint j = 0; j < tw; ++j) {
-                uint px = pixel_shift + j;
+                uint px = px_offset + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = s_template[tw * cy + j];
                 uint bits = iv ^ tv;
@@ -107,7 +108,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
         }
     }
 
-    if (tid.x < result_size.x && tid.y < result_size.y)
+    if (tid.x < g_range.x && tid.y < g_range.y)
         g_result[tid] = r;
 }
 
@@ -116,26 +117,24 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
-    uint2 image_size, template_size, mask_size;
-    g_image.GetDimensions(image_size.x, image_size.y);
+    uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = image_size - g_template_size;
     const uint tw = template_size.x;
     const uint th = template_size.y;
 
-    const uint pixel_shift = tid.x / 32;
-    const uint bit_shift = tid.x % 32;
+    const uint px_offset = (g_tl.x + tid.x) / 32;
+    const uint bit_shift = (g_tl.x + tid.x) % 32;
     const uint edge_mask = (1 << (g_template_size.x % 32)) - 1;
 
     uint r = 0;
     if (template_size.x != mask_size.x) {
         // without mask
         for (uint i = 0; i < th; ++i) {
-            uint py = tid.y + i;
+            uint py = g_tl.y + tid.y + i;
             for (uint j = 0; j < tw; ++j) {
-                uint px = pixel_shift + j;
+                uint px = px_offset + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
                 uint bits = iv ^ tv;
@@ -148,9 +147,9 @@ void main(uint2 tid : SV_DispatchThreadID)
     else {
         // with mask
         for (uint i = 0; i < th; ++i) {
-            uint py = tid.y + i;
+            uint py = g_tl.y + tid.y + i;
             for (uint j = 0; j < tw; ++j) {
-                uint px = pixel_shift + j;
+                uint px = px_offset + j;
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
                 uint bits = iv ^ tv;
@@ -162,7 +161,7 @@ void main(uint2 tid : SV_DispatchThreadID)
         }
     }
 
-    if (tid.x < result_size.x && tid.y < result_size.y)
+    if (tid.x < g_range.x && tid.y < g_range.y)
         g_result[tid] = r;
 }
 

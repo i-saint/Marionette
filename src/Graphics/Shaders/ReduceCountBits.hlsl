@@ -31,29 +31,21 @@ void ReduceGroup(uint gi)
 }
 
 
-uint Reference()
-{
-    uint r = 0;
-    for (uint i = 0; i < g_range.y; ++i)
-        for (uint j = 0; j < g_range.x; ++j)
-            r += countbits(g_image[uint2(j, i)]);
-    return r;
-}
-
 // reduce horizontally
 // assume Dispatch(1, height_of_g_image, 1)
 [numthreads(BX, 1, 1)]
 void Pass1(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 {
+    // todo: care offset & range
     uint r = 0;
-    for (uint x = tid.x; x < g_range.x; x += BX)
-        r += countbits(g_image[uint2(x, tid.y)]);
+    uint y = tid.y;
+    for (uint x = tid.x + g_tl.x; x < g_br.x; x += BX)
+        r += countbits(g_image[uint2(x, y)]);
     s_result[gi] = r;
 
     ReduceGroup(gi);
-    if (gi == 0) {
+    if (gi == 0)
         g_result[tid.y] = s_result[0];
-    }
 }
 
 // reduce vertically
@@ -67,8 +59,6 @@ void Pass2(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     s_result[gi] = r;
 
     ReduceGroup(gi);
-    if (gi == 0) {
+    if (gi == 0)
         g_result[0] = s_result[0];
-        //g_result[0] = Reference();
-    }
 }
