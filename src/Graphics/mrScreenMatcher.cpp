@@ -230,4 +230,9 @@ mrAPI Rect GetRect(HWND hwnd)
     return ToRect(wr);
 }
 
+mrAPI void WaitVSync()
+{
+    ::DwmFlush();
+}
+
 } // namespace mr

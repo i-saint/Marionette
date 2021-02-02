@@ -308,21 +308,26 @@ testCase(ScreenMatcher)
     auto tmpl = matcher->createTemplate("template.png");
     testExpect(tmpl != nullptr);
 
+    ::Sleep(2000);
+
     auto primary_monitor = mr::GetPrimaryMonitor();
+    auto fg_window = ::GetForegroundWindow();
     mr::IScreenMatcher::Result last_result;
 
-    ::Sleep(2000);
     auto time_start = mr::NowNS();
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 600; ++i) {
         auto time_begin_match = mr::NowNS();
         //auto result = matcher->match(tmpl, primary_monitor);
-        auto result = matcher->match(tmpl, ::GetForegroundWindow());
+        auto result = matcher->match(tmpl, fg_window);
         auto time_end_match = mr::NowNS();
         auto elapsed = float(double(time_end_match - time_begin_match) / 1000000.0);
+        auto t = float(double(time_end_match - time_start) / 1000000.0);
 
         auto pos = result.region.pos;
-        testPrint("frame %d [%.2f ms]: score %.4f (%d, %d)\n", i, elapsed, result.score, pos.x, pos.y);
+        testPrint("frame %d (%.1f): score %.4f (%d, %d) [%.2f ms]\n", i, t, result.score, pos.x, pos.y, elapsed);
         last_result = result;
+
+        mr::WaitVSync();
     }
 
 

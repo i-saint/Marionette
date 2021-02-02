@@ -315,6 +315,7 @@ mrAPI HMONITOR GetPrimaryMonitor();
 mrAPI float GetScaleFactor(HMONITOR hmon);
 mrAPI Rect ToRect(const RECT& r);
 mrAPI Rect GetRect(HWND hwnd);
+mrAPI void WaitVSync();
 
 class ITemplate : public IObject
 {
