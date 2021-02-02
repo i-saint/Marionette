@@ -159,9 +159,8 @@ class Template : public RefCount<ITemplate>
 {
 public:
     IFilterSetPtr filter;
-    ITexture2DPtr tmpl;
+    ITexture2DPtr image;
     ITexture2DPtr mask;
-    ITexture2DPtr result;
     uint32_t mask_bits{};
 };
 mrConvertile(Template, ITemplate);
@@ -180,6 +179,9 @@ public:
 
     ScreenMatcher(IGfxInterfacePtr gfx);
     ITemplatePtr createTemplate(const char* path_to_png) override;
+
+    Result matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
+    Result match(ITemplatePtr tmpl, HMONITOR target) override;
     Result match(ITemplatePtr tmpl, HWND target) override;
 
 private:
@@ -224,9 +226,47 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
 
     auto ret = make_ref<Template>();
     ret->filter = filter;
-    ret->tmpl = tmpl;
+    ret->image = tmpl;
     ret->mask = mask;
     ret->mask_bits = filter->countBits(ret->mask).get();
+    return ret;
+}
+
+IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
+{
+    // todo: care screen->info.scale_factor
+
+    Rect region = {
+        rect.pos - sd.info.rect.pos,
+        rect.size - tmpl.image->getSize()
+    };
+
+    auto frame = sd.capture->getFrame();
+    auto surface = sd.filter->transform(frame.surface, m_scale, true);
+
+    auto score = sd.filter->match(surface, tmpl.image, tmpl.mask, region, false);
+    auto result = tmpl.filter->minmax(score, region).get();
+
+    // todo: care scale and offset
+    Result ret;
+    ret.pos = result.pos_min;
+    ret.size = tmpl.image->getSize();
+    ret.score = result.valf_min;
+    return ret;
+}
+
+IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HMONITOR target)
+{
+    auto tmpl = cast(tmpl_);
+
+    auto i = m_screens.find(target);
+    if (i != m_screens.end()) {
+        auto& sd = i->second;
+        return matchImpl(*tmpl, sd, sd.info.rect);
+    }
+
+    Result ret;
+    ret.score = 1.0f; // zero matching
     return ret;
 }
 
@@ -234,9 +274,14 @@ IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HWND target)
 {
     auto tmpl = cast(tmpl_);
 
-    ITexture2DPtr screen;
-    tmpl->result = tmpl->filter->match(screen, tmpl->tmpl, tmpl->mask);
-    return Result();
+    auto i = m_screens.find(::MonitorFromWindow(target, MONITOR_DEFAULTTONULL));
+    if (i != m_screens.end()) {
+        return matchImpl(*tmpl, i->second, GetRect(target));
+    }
+
+    Result ret;
+    ret.score = 1.0f; // zero matching
+    return ret;
 }
 
 
@@ -245,8 +290,7 @@ static BOOL EnumerateMonitorCB(HMONITOR hmon, HDC hdc, LPRECT rect, LPARAM userd
     MonitorInfo sinfo{};
     sinfo.hmon = hmon;
     sinfo.scale_factor = GetScaleFactor(hmon);
-    sinfo.screen_pos = { rect->left, rect->top };
-    sinfo.screen_size = int2{ rect->right, rect->bottom } - sinfo.screen_pos;
+    sinfo.rect = ToRect(*rect);
 
     auto callback = (const MonitorCallback*)userdata;
     (*callback)(sinfo);
@@ -271,5 +315,18 @@ mrAPI float GetScaleFactor(HMONITOR hmon)
     return (float)dpix / 96.0;
 }
 
+mrAPI Rect ToRect(const RECT& r)
+{
+    auto tl = int2{ r.left, r.top };
+    auto br = int2{ r.right, r.bottom };
+    return Rect{ tl, br - tl, };
+}
+
+mrAPI Rect GetRect(HWND hwnd)
+{
+    RECT wr;
+    ::GetWindowRect(hwnd, &wr);
+    return ToRect(wr);
+}
 
 } // namespace mr

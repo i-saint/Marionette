@@ -293,14 +293,15 @@ inline IFilterSetPtr CreateFilterSet(IGfxInterfacePtr gfx) { return CreateFilter
 struct MonitorInfo
 {
     HMONITOR hmon{};
-    int2 screen_pos{};
-    int2 screen_size{};
+    Rect rect{};
     float scale_factor = 1.0f;
 };
 using MonitorCallback = std::function<void(const MonitorInfo&)>;
 mrAPI void EnumerateMonitor(const MonitorCallback& callback);
 mrAPI HMONITOR GetPrimaryMonitor();
 mrAPI float GetScaleFactor(HMONITOR hmon);
+mrAPI Rect ToRect(const RECT& r);
+mrAPI Rect GetRect(HWND hwnd);
 
 class ITemplate : public IObject
 {
@@ -318,7 +319,8 @@ public:
     };
 
     virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
-    virtual Result match(ITemplatePtr tmpl, HWND target = nullptr) = 0;
+    virtual Result match(ITemplatePtr tmpl, HMONITOR target) = 0;
+    virtual Result match(ITemplatePtr tmpl, HWND target) = 0;
 };
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx);
 inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx) { return CreateScreenMatcher_(gfx); }
