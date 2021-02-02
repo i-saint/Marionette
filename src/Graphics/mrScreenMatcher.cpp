@@ -12,12 +12,9 @@ public:
     uint32_t getMaskBits() const override { return mask_bits; }
 
 public:
-    IFilterSetPtr filter;
     ITexture2DPtr image;
     ITexture2DPtr mask;
     uint32_t mask_bits{};
-
-    std::future<IScreenMatcher::Result> deferred_result;
 };
 mrConvertile(Template, ITemplate);
 
@@ -25,6 +22,7 @@ mrConvertile(Template, ITemplate);
 class ScreenMatcher : public RefCount<IScreenMatcher>
 {
 public:
+    using DeferredResult = std::future<Result>;
     struct ScreenData
     {
         MonitorInfo info;
@@ -40,6 +38,8 @@ public:
 
     ITemplatePtr createTemplate(const char* path_to_png) override;
 
+    IReduceMinMaxPtr pullReduceMinmax();
+    void pushReduceMinmax(IReduceMinMaxPtr v);
     void matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
     Result reduceResults(std::span<ITemplatePtr> tmpl);
     Result match(std::span<ITemplatePtr> tmpl, HMONITOR target) override;
@@ -50,6 +50,9 @@ private:
     Params m_params;
 
     std::map<HMONITOR, ScreenData> m_screens;
+
+    std::deque<IReduceMinMaxPtr> m_reducers;
+    std::vector<DeferredResult> m_deferred_results;
 };
 
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params)
@@ -95,11 +98,28 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
     auto mask = filter->expand(tmpl, m_params.expand_block_size);
 
     auto ret = make_ref<Template>();
-    ret->filter = filter;
     ret->image = tmpl;
     ret->mask = mask;
     ret->mask_bits = filter->countBits(ret->mask).get();
     return ret;
+}
+
+IReduceMinMaxPtr ScreenMatcher::pullReduceMinmax()
+{
+    IReduceMinMaxPtr ret;
+    if (!m_reducers.empty()) {
+        ret = m_reducers.front();
+        m_reducers.pop_front();
+    }
+    else {
+        ret = m_gfx->createReduceMinMax();
+    }
+    return ret;
+}
+
+void ScreenMatcher::pushReduceMinmax(IReduceMinMaxPtr v)
+{
+    m_reducers.push_back(v);
 }
 
 void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
@@ -134,37 +154,40 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
     // dispatch template match & minmax
     auto match = sd.filter->match(sd.binarized, tmpl.image, tmpl.mask, region, false);
-    auto minmax_f = tmpl.filter->minmax(match, region.size); // tmpl.filter to store result in tmpl
+
+    auto minmax = pullReduceMinmax();
+    minmax->setSrc(match);
+    minmax->setRegion({ {}, region.size });
+    minmax->dispatch();
 
     // make deferred result to dispatch next matching without blocking
-    Result ret;
-    ret.surface = frame.surface;
-    ret.match_result = match;
-    tmpl.deferred_result = std::async(std::launch::deferred,
-        [&tmpl, ret = std::move(ret), minmax_f = std::move(minmax_f), template_scale, screen_scale, rect]() mutable
+    auto deferred = std::async(std::launch::deferred,
+        [this, &tmpl, surface = frame.surface, minmax = std::move(minmax), template_scale, screen_scale, rect]() mutable
     {
-        auto minmax = minmax_f.get();
-        ret.score = float(double(minmax.vali_min) / double(tmpl.mask_bits));
+        auto mm = minmax->getResult();
+        pushReduceMinmax(minmax);
+
+        Result ret;
+        ret.surface = surface;
+        ret.score = float(double(mm.vali_min) / double(tmpl.mask_bits));
         ret.region = Rect{
-            rect.pos + int2(float2(minmax.pos_min) / screen_scale),
+            rect.pos + int2(float2(mm.pos_min) / screen_scale),
             int2(float2(tmpl.image->getSize()) / template_scale)
         };
         return ret;
     });
+    m_deferred_results.push_back(std::move(deferred));
 }
 
 IScreenMatcher::Result ScreenMatcher::reduceResults(std::span<ITemplatePtr> tmpls)
 {
     Result ret;
-    for (auto& t_ : tmpls) {
-        auto& t = cast(*t_);
-        if (t.deferred_result.valid()) {
-            auto r = t.deferred_result.get();
-            t.deferred_result = {};
-            if (r.score < ret.score)
-                ret = r;
-        }
+    for (auto& dr : m_deferred_results) {
+        auto r = dr.get();
+        if (r.score < ret.score)
+            ret = r;
     }
+    m_deferred_results.clear();
     return ret;
 }
 

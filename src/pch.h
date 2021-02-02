@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <deque>
 #include <map>
 #include <algorithm>
 #include <functional>

@@ -341,9 +341,7 @@ public:
     {
         Rect region{};
         float score = 1.0f;
-
         ITexture2DPtr surface;
-        ITexture2DPtr match_result;
     };
 
     virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
