@@ -1,4 +1,13 @@
 #pragma once
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <functional>
+#include <future>
+#include <thread>
+#include <mutex>
+#include <span>
+
 #include "mrFoundation.h"
 #include "mrInput.h"
 #include "mrGfx.h"

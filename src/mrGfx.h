@@ -338,16 +338,18 @@ public:
 
     struct Result
     {
-        Rect region;
-        float score{};
+        Rect region{};
+        float score = 1.0f;
 
         ITexture2DPtr surface;
         ITexture2DPtr match_result;
     };
 
     virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
-    virtual Result match(ITemplatePtr tmpl, HMONITOR target) = 0;
-    virtual Result match(ITemplatePtr tmpl, HWND target) = 0;
+    virtual Result match(std::span<ITemplatePtr> tmpl, HMONITOR target) = 0;
+    virtual Result match(std::span<ITemplatePtr> tmpl, HWND target) = 0;
+    inline Result match(ITemplatePtr tmpl, HMONITOR target) { return match(MakeSpan(tmpl), target); }
+    inline Result match(ITemplatePtr tmpl, HWND target) { return match(MakeSpan(tmpl), target); }
 };
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params);
 inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx, const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(gfx, params); }

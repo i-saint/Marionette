@@ -45,6 +45,9 @@ std::string GetCurrentModuleDirectory();
 void Split(const std::string& str, const std::string& separator, const std::function<void(std::string sub)>& body);
 void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body);
 
+template<class T> inline std::span<T> MakeSpan(T& v) { return { &v, 1 }; }
+template<class T> inline std::span<T> MakeSpan(T* v, size_t n) { return { v, n }; }
+
 class IObject
 {
 public:

@@ -15,6 +15,7 @@
 #include <tuple>
 #include <regex>
 #include <type_traits>
+#include <span>
 
 #define NOMINMAX
 #include <windows.h>

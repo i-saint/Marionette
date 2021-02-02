@@ -16,6 +16,8 @@ public:
     ITexture2DPtr image;
     ITexture2DPtr mask;
     uint32_t mask_bits{};
+
+    std::future<IScreenMatcher::Result> deferred_result;
 };
 mrConvertile(Template, ITemplate);
 
@@ -27,8 +29,10 @@ public:
     {
         MonitorInfo info;
         IScreenCapturePtr capture;
-        nanosec last_frame{};
+
         IFilterSetPtr filter;
+        ITexture2DPtr binarized;
+        nanosec last_frame{};
     };
 
     ScreenMatcher(IGfxInterfacePtr gfx, const Params& params);
@@ -36,9 +40,9 @@ public:
 
     ITemplatePtr createTemplate(const char* path_to_png) override;
 
-    Result matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
-    Result match(ITemplatePtr tmpl, HMONITOR target) override;
-    Result match(ITemplatePtr tmpl, HWND target) override;
+    void matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
+    Result match(std::span<ITemplatePtr> tmpl, HMONITOR target) override;
+    Result match(std::span<ITemplatePtr> tmpl, HWND target) override;
 
 private:
     IGfxInterfacePtr m_gfx;
@@ -97,7 +101,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
     return ret;
 }
 
-IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
+void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
     float template_scale = m_params.scale;
     float screen_scale = m_params.scale;
@@ -111,50 +115,73 @@ IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, 
     region.size -= tmpl.image->getSize();
 
     auto frame = sd.capture->getFrame();
-    auto surface = sd.filter->transform(frame.surface, screen_scale, true);
-    auto contour = sd.filter->contour(surface, m_params.contour_block_size);
-    auto binarized = sd.filter->binarize(contour, m_params.binarize_threshold);
+    // make binarized surface
+    if (frame.present_time != sd.last_frame) {
+        sd.last_frame = frame.present_time;
+        auto surface = sd.filter->transform(frame.surface, screen_scale, true);
+        auto contour = sd.filter->contour(surface, m_params.contour_block_size);
+        sd.binarized = sd.filter->binarize(contour, m_params.binarize_threshold);
+    }
 
-    auto match_result = sd.filter->match(binarized, tmpl.image, tmpl.mask, region, false);
-    auto minmax = tmpl.filter->minmax(match_result, region.size).get();
+    // dispatch template match & minmax
+    auto match = sd.filter->match(sd.binarized, tmpl.image, tmpl.mask, region, false);
+    auto minmax_f = tmpl.filter->minmax(match, region.size); // tmpl.filter to store result in tmpl
 
+    // make deferred result to dispatch next matching without blocking
     Result ret;
-    ret.region = Rect{
-        rect.pos + int2(float2(minmax.pos_min) / screen_scale),
-        int2(float2(tmpl.image->getSize()) / template_scale)
-    };
-    ret.score = float(double(minmax.vali_min) / double(tmpl.mask_bits));
     ret.surface = frame.surface;
-    ret.match_result = match_result;
-    return ret;
+    ret.match_result = match;
+    tmpl.deferred_result = std::async(std::launch::deferred,
+        [&tmpl, ret = std::move(ret), minmax_f = std::move(minmax_f), template_scale, screen_scale, rect]() mutable
+    {
+        auto minmax = minmax_f.get();
+        ret.score = float(double(minmax.vali_min) / double(tmpl.mask_bits));
+        ret.region = Rect{
+            rect.pos + int2(float2(minmax.pos_min) / screen_scale),
+            int2(float2(tmpl.image->getSize()) / template_scale)
+        };
+        return ret;
+    });
 }
 
-IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HMONITOR target)
+IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HMONITOR target)
 {
-    auto tmpl = cast(tmpl_);
+    Result ret;
 
     auto i = m_screens.find(target);
     if (i != m_screens.end()) {
         auto& sd = i->second;
-        return matchImpl(*tmpl, sd, sd.info.rect);
+        for (auto& t : tmpls) {
+            matchImpl(cast(*t), sd, sd.info.rect);
+        }
+        for (auto& t : tmpls) {
+            auto r = cast(*t).deferred_result.get();
+            if (r.score < ret.score)
+                ret = r;
+        }
     }
 
-    Result ret;
-    ret.score = 1.0f; // zero matching
     return ret;
 }
 
-IScreenMatcher::Result ScreenMatcher::match(ITemplatePtr tmpl_, HWND target)
+IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HWND target)
 {
-    auto tmpl = cast(tmpl_);
+    Result ret;
 
     auto i = m_screens.find(::MonitorFromWindow(target, MONITOR_DEFAULTTONULL));
     if (i != m_screens.end()) {
-        return matchImpl(*tmpl, i->second, GetRect(target));
+        auto& sd = i->second;
+        auto rect = GetRect(target);
+        for (auto& t : tmpls) {
+            matchImpl(cast(*t), sd, rect);
+        }
+        for (auto& t : tmpls) {
+            auto r = cast(*t).deferred_result.get();
+            if (r.score < ret.score)
+                ret = r;
+        }
     }
 
-    Result ret;
-    ret.score = 1.0f; // zero matching
     return ret;
 }
 
