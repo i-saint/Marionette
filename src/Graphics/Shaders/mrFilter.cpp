@@ -555,8 +555,10 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
     auto& c = static_cast<TemplateMatch&>(ctx);
 
     auto size = c.getSize();
-    if (size.x < 0 || size.y < 0)
+    if (size.x < 0 || size.y < 0) {
+        mrDbgPrint("*** TemplateMatchCS::dispatch(): size < 0 ***\n");
         return;
+    }
 
     if (c.m_src->getFormat() == TextureFormat::Binary) {
         m_cs_binary.setCBuffer(c.m_const, 0);

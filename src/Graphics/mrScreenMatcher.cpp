@@ -41,6 +41,7 @@ public:
     ITemplatePtr createTemplate(const char* path_to_png) override;
 
     void matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
+    Result reduceResults(std::span<ITemplatePtr> tmpl);
     Result match(std::span<ITemplatePtr> tmpl, HMONITOR target) override;
     Result match(std::span<ITemplatePtr> tmpl, HWND target) override;
 
@@ -114,9 +115,17 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
     } * screen_scale;
     region.size -= tmpl.image->getSize();
 
+    if (region.size.x < 0 || region.size.y < 0) {
+        // rect is smaller than template
+        return;
+    }
+
     auto frame = sd.capture->getFrame();
-    // make binarized surface
+    if (!frame.surface) {
+        return;
+    }
     if (frame.present_time != sd.last_frame) {
+        // make binarized surface
         sd.last_frame = frame.present_time;
         auto surface = sd.filter->transform(frame.surface, screen_scale, true);
         auto contour = sd.filter->contour(surface, m_params.contour_block_size);
@@ -144,45 +153,42 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
     });
 }
 
-IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HMONITOR target)
+IScreenMatcher::Result ScreenMatcher::reduceResults(std::span<ITemplatePtr> tmpls)
 {
     Result ret;
-
-    auto i = m_screens.find(target);
-    if (i != m_screens.end()) {
-        auto& sd = i->second;
-        for (auto& t : tmpls) {
-            matchImpl(cast(*t), sd, sd.info.rect);
-        }
-        for (auto& t : tmpls) {
-            auto r = cast(*t).deferred_result.get();
+    for (auto& t_ : tmpls) {
+        auto& t = cast(*t_);
+        if (t.deferred_result.valid()) {
+            auto r = t.deferred_result.get();
+            t.deferred_result = {};
             if (r.score < ret.score)
                 ret = r;
         }
     }
-
     return ret;
+}
+
+IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HMONITOR target)
+{
+    auto i = m_screens.find(target);
+    if (i != m_screens.end()) {
+        auto& sd = i->second;
+        for (auto& t : tmpls)
+            matchImpl(cast(*t), sd, sd.info.rect);
+    }
+    return reduceResults(tmpls);
 }
 
 IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HWND target)
 {
-    Result ret;
-
     auto i = m_screens.find(::MonitorFromWindow(target, MONITOR_DEFAULTTONULL));
     if (i != m_screens.end()) {
         auto& sd = i->second;
         auto rect = GetRect(target);
-        for (auto& t : tmpls) {
+        for (auto& t : tmpls)
             matchImpl(cast(*t), sd, rect);
-        }
-        for (auto& t : tmpls) {
-            auto r = cast(*t).deferred_result.get();
-            if (r.score < ret.score)
-                ret = r;
-        }
     }
-
-    return ret;
+    return reduceResults(tmpls);
 }
 
 

@@ -128,7 +128,7 @@ void ReduceTotal::dispatch()
         return;
 
     size_t rsize = m_src->getSize().y * sizeof(float);
-    if (!m_dst || m_dst->getSize() != rsize) {
+    if (!m_dst || m_dst->getSize() < rsize) {
         m_dst = Buffer::createStructured(rsize, sizeof(float));
     }
 
@@ -150,6 +150,11 @@ void ReduceTotalCS::dispatch(ICSContext& ctx_)
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
         auto size = ctx.getSize();
+        if (size.x < 0 || size.y < 0) {
+            mrDbgPrint("*** ReduceTotalCS::dispatch(): size < 0 ***\n");
+            return;
+        }
+
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
@@ -205,7 +210,7 @@ void ReduceCountBits::dispatch()
         return;
 
     size_t rsize = m_src->getSize().y * sizeof(uint32_t);
-    if (!m_dst || m_dst->getSize() != rsize) {
+    if (!m_dst || m_dst->getSize() < rsize) {
         m_dst = Buffer::createStructured(rsize, sizeof(uint32_t));
     }
 
@@ -223,6 +228,10 @@ void ReduceCountBitsCS::dispatch(ICSContext& ctx_)
 {
     auto& ctx = static_cast<ReduceCountBits&>(ctx_);
     auto size = ctx.getSize();
+    if (size.x < 0 || size.y < 0) {
+        mrDbgPrint("*** ReduceCountBitsCS::dispatch(): size < 0 ***\n");
+        return;
+    }
 
     m_cs_pass1.setCBuffer(ctx.getParamsBuffer());
     m_cs_pass1.setSRV(ctx.m_src);
@@ -275,7 +284,7 @@ void ReduceMinMax::dispatch()
         return;
 
     size_t rsize = m_src->getSize().y * sizeof(Result);
-    if (!m_dst || m_dst->getSize() != rsize) {
+    if (!m_dst || m_dst->getSize() < rsize) {
         m_dst = Buffer::createStructured(rsize, sizeof(Result));
     }
 
@@ -297,6 +306,11 @@ void ReduceMinMaxCS::dispatch(ICSContext& ctx_)
 
     auto do_dispatch = [this, &ctx](auto& pass1, auto& pass2) {
         auto size = ctx.getSize();
+        if (size.x < 0 || size.y < 0) {
+            mrDbgPrint("*** ReduceMinMaxCS::dispatch(): size < 0 ***\n");
+            return;
+        }
+
         pass1.setCBuffer(ctx.getParamsBuffer());
         pass1.setSRV(ctx.m_src);
         pass1.setUAV(ctx.m_dst);
