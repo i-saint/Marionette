@@ -7,6 +7,11 @@ namespace mr {
 class Template : public RefCount<ITemplate>
 {
 public:
+    ITexture2DPtr getImage() const override { return image; }
+    ITexture2DPtr getMask() const override { return mask; }
+    uint32_t getMaskBits() const override { return mask_bits; }
+
+public:
     IFilterSetPtr filter;
     ITexture2DPtr image;
     ITexture2DPtr mask;
@@ -27,6 +32,8 @@ public:
     };
 
     ScreenMatcher(IGfxInterfacePtr gfx);
+    bool valid() const;
+
     ITemplatePtr createTemplate(const char* path_to_png) override;
 
     Result matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
@@ -46,7 +53,12 @@ private:
 
 mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
 {
-    return new ScreenMatcher(gfx);
+    auto ret = new ScreenMatcher(gfx);
+    if (!ret->valid()) {
+        delete ret;
+        ret = nullptr;
+    }
+    return ret;
 }
 
 ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
@@ -55,11 +67,17 @@ ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
     EnumerateMonitor([this](const MonitorInfo& info) {
         ScreenData data;
         data.info = info;
-        data.filter = CreateFilterSet(m_gfx);
         data.capture = m_gfx->createScreenCapture();
-        data.capture->startCapture(info.hmon);
-        m_screens[info.hmon] = std::move(data);
+        if (data.capture && data.capture->startCapture(info.hmon)) {
+            data.filter = CreateFilterSet(m_gfx);
+            m_screens[info.hmon] = std::move(data);
+        }
         });
+}
+
+bool ScreenMatcher::valid() const
+{
+    return m_gfx && !m_screens.empty();
 }
 
 ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
@@ -104,6 +122,7 @@ IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, 
     auto result = tmpl.filter->minmax(score, region).get();
 
     Result ret;
+    ret.surface = frame.surface;
     ret.region = Rect{
         rect.pos + int2(float2(result.pos_min) / screen_scale),
         int2(float2(tmpl.image->getSize()) / template_scale)

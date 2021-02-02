@@ -18,8 +18,8 @@
         _TestCase_##Name() { ::test::RegisterTestCaseImpl(#Name, Name); }\
     } g_TestCase_##Name;
 
-#define TestCase(Name) testExport void Name(); testRegisterTestCase(Name); testExport void Name()
-#define Expect(Body) if(!(Body)) { Print("%s(%d): failed - " #Body "\n", __FILE__, __LINE__); }
+#define testCase(Name) void Name(); testRegisterTestCase(Name); void Name()
+#define testExpect(Body) if(!(Body)) { throw std::runtime_error(::test::Format("%s(%d): failed - " #Body "\n", __FILE__, __LINE__)); }
 
 
 namespace test {
@@ -30,7 +30,8 @@ inline float NS2MS(nanosec ns) { return float(double(ns) / 1000000.0); }
 
 void RegisterInitializer(const std::function<void()>& init, const std::function<void()>& fini);
 void RegisterTestCaseImpl(const char* name, const std::function<void()>& body);
-void PrintImpl(const char *format, ...);
+std::string Format(const char* format, ...);
+void PrintImpl(const char* format, ...);
 template<class T> bool GetArg(const char* name, T& dst);
 
 template<class Body>

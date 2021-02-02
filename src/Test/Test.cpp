@@ -11,19 +11,37 @@ nanosec Now()
 
 static std::string g_log;
 
-void PrintImpl(const char *format, ...)
+std::string FormatImpl(const char* format, va_list args)
 {
     const int MaxBuf = 4096;
     char buf[MaxBuf];
+    vsprintf(buf, format, args);
+    return buf;
+}
 
+std::string Format(const char* format, ...)
+{
+    std::string ret;
     va_list args;
     va_start(args, format);
-    vsprintf(buf, format, args);
-    g_log += buf;
+    ret = FormatImpl(format, args);
+    va_end(args);
+    fflush(stdout);
+    return ret;
+}
+
+void PrintImpl(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    auto txt = FormatImpl(format, args);
+    g_log += txt;
 #ifdef _WIN32
-    ::OutputDebugStringA(buf);
+    ::OutputDebugStringA(txt.c_str());
 #endif
-    printf("%s", buf);
+    printf("%s", txt.c_str());
+
     va_end(args);
     fflush(stdout);
 }
@@ -121,7 +139,12 @@ static void RunTestImpl(const TestEntry& v)
 {
     testPrint("%s begin\n", v.name.c_str());
     auto begin = Now();
-    v.body();
+    try {
+        v.body();
+    }
+    catch (const std::runtime_error& e) {
+        testPrint("*** failed: %s ***\n", e.what());
+    }
     auto end = Now();
     testPrint("%s end (%.2fms)\n\n", v.name.c_str(), NS2MS(end - begin));
 }

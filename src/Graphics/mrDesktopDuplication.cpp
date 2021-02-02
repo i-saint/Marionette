@@ -8,14 +8,15 @@ namespace mr {
 class DesktopDuplication : public ScreenCaptureCommon
 {
 public:
+    DesktopDuplication();
     ~DesktopDuplication() override;
-
-    bool valid() const override;
+    bool valid() const;
 
     bool initializeDuplication(HMONITOR hmon);
     bool startCapture(HWND hwnd) override;
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
+    bool isCapturing() const override;
 
     // called from capture thread
     void captureLoop();
@@ -28,6 +29,10 @@ private:
 };
 
 
+DesktopDuplication::DesktopDuplication()
+{
+}
+
 DesktopDuplication::~DesktopDuplication()
 {
     stopCapture();
@@ -35,7 +40,8 @@ DesktopDuplication::~DesktopDuplication()
 
 bool DesktopDuplication::valid() const
 {
-    return m_duplication != nullptr;
+    // todo
+    return true;
 }
 
 bool DesktopDuplication::initializeDuplication(HMONITOR hmon)
@@ -100,6 +106,10 @@ void DesktopDuplication::stopCapture()
     m_duplication = nullptr;
 }
 
+bool DesktopDuplication::isCapturing() const
+{
+    return m_duplication != nullptr;
+}
 
 bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time)
 {
@@ -143,7 +153,12 @@ void DesktopDuplication::captureLoop()
 
 IScreenCapture* CreateDesktopDuplication_()
 {
-    return new DesktopDuplication();
+    auto ret = new DesktopDuplication();
+    if (!ret->valid()) {
+        delete ret;
+        ret = nullptr;
+    }
+    return ret;
 }
 
 } // namespace mr

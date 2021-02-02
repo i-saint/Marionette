@@ -28,8 +28,7 @@ class GraphicsCapture : public ScreenCaptureCommon
 public:
     GraphicsCapture();
     ~GraphicsCapture() override;
-
-    bool valid() const override;
+    bool valid() const;
 
     template<class CreateCaptureItem>
     bool startImpl(const CreateCaptureItem& body);
@@ -37,6 +36,7 @@ public:
     bool startCapture(HWND hwnd) override;
     bool startCapture(HMONITOR hmon) override;
     void stopCapture() override;
+    bool isCapturing() const override;
 
     // called from capture thread
     void onFrameArrived(
@@ -73,6 +73,11 @@ inline auto GetDXGIInterfaceFromObject(winrt::Windows::Foundation::IInspectable 
 GraphicsCapture::GraphicsCapture()
 {
     InitializeGraphicsCapture();
+
+    auto dxgi = As<IDXGIDevice>(mrGfxDevice());
+    com_ptr<::IInspectable> device_rt;
+    ::CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), device_rt.put());
+    m_device_rt = device_rt.as<IDirect3DDevice>();
 }
 
 GraphicsCapture::~GraphicsCapture()
@@ -82,7 +87,7 @@ GraphicsCapture::~GraphicsCapture()
 
 bool GraphicsCapture::valid() const
 {
-    return m_capture_session != nullptr;
+    return m_device_rt != nullptr;
 }
 
 
@@ -93,13 +98,6 @@ bool GraphicsCapture::startImpl(const CreateCaptureItem& cci)
 
     mrProfile("GraphicsCapture::start()");
     try {
-        if (!m_device_rt) {
-            auto dxgi = As<IDXGIDevice>(mrGfxDevice());
-            com_ptr<::IInspectable> device_rt;
-            check_hresult(::CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), device_rt.put()));
-            m_device_rt = device_rt.as<IDirect3DDevice>();
-        }
-
         auto factory = get_activation_factory<GraphicsCaptureItem>();
         if (auto interop = factory.as<IGraphicsCaptureItemInterop>()) {
             cci(interop);
@@ -146,6 +144,11 @@ void GraphicsCapture::stopCapture()
     }
 }
 
+bool GraphicsCapture::isCapturing() const
+{
+    return m_frame_pool != nullptr;
+}
+
 void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, winrt::Windows::Foundation::IInspectable const& args)
 {
     try {
@@ -171,7 +174,13 @@ IScreenCapture* CreateGraphicsCapture_()
 {
     if (!IsWindowsGraphicsCaptureSupported())
         return nullptr;
-    return new GraphicsCapture();
+
+    auto ret = new GraphicsCapture();
+    if (!ret->valid()) {
+        delete ret;
+        ret = nullptr;
+    }
+    return ret;
 }
 
 } // namespace mr

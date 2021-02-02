@@ -69,6 +69,8 @@ public:
     operator bool() const { return m_ptr; }
     bool operator==(const ref_ptr<T>& v) const { return m_ptr == v.m_ptr; }
     bool operator!=(const ref_ptr<T>& v) const { return m_ptr != v.m_ptr; }
+    bool operator==(const nullptr_t v) const { return m_ptr == v; }
+    bool operator!=(const nullptr_t v) const { return m_ptr != v; }
 
 private:
     T* m_ptr{};

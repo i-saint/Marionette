@@ -78,10 +78,11 @@ public:
     };
     using Callback = std::function<void(FrameInfo&)>;
 
-    virtual bool valid() const = 0;
     virtual bool startCapture(HWND hwnd) = 0;
     virtual bool startCapture(HMONITOR hmon) = 0;
     virtual void stopCapture() = 0;
+    virtual bool isCapturing() const = 0;
+
     virtual FrameInfo getFrame() = 0;
     virtual FrameInfo waitNextFrame() = 0;
     virtual void setOnFrameArrived(const Callback& cb) = 0;
@@ -220,7 +221,7 @@ class IShape : public ICSContext
 public:
     virtual void setDst(ITexture2DPtr v) = 0;
     virtual void addCircle(int2 pos, float radius, float border, float4 color) = 0;
-    virtual void addRect(int2 pos, int2 size, float border, float4 color) = 0;
+    virtual void addRect(Rect rect, float border, float4 color) = 0;
     virtual void clearShapes() = 0;
 };
 
@@ -281,6 +282,7 @@ class IFilterSet : public IObject
 public:
     virtual ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) = 0;
     inline  ITexture2DPtr copy(ITexture2DPtr src, int2 size, TextureFormat dst_format) { return copy(src, Rect{ {}, size }, dst_format); }
+    inline  ITexture2DPtr copy(ITexture2DPtr src, TextureFormat dst_format) { return copy(src, Rect{}, dst_format); }
     inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, Rect{}, TextureFormat::Unknown); }
     virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region = {}) = 0;
     inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
@@ -317,6 +319,9 @@ mrAPI Rect GetRect(HWND hwnd);
 class ITemplate : public IObject
 {
 public:
+    virtual ITexture2DPtr getImage() const = 0;
+    virtual ITexture2DPtr getMask() const = 0;
+    virtual uint32_t getMaskBits() const = 0;
 };
 
 class IScreenMatcher : public IObject
@@ -324,6 +329,7 @@ class IScreenMatcher : public IObject
 public:
     struct Result
     {
+        ITexture2DPtr surface;
         Rect region;
         float score{};
     };

@@ -38,7 +38,10 @@ ITexture2DPtr GfxInterface::createTextureFromFile(const char* path)
 
 IScreenCapturePtr GfxInterface::createScreenCapture()
 {
-    return CreateGraphicsCapture();
+    auto ret = CreateGraphicsCapture();
+    if (!ret)
+        ret = CreateDesktopDuplication();
+    return ret;
 }
 
 #define Body(Name) I##Name##Ptr GfxInterface::create##Name() { return mrGfxGetCS(Name##CS)->createContext(); }

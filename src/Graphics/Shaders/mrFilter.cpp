@@ -610,7 +610,7 @@ public:
     Shape(ShapeCS* v);
     void setDst(ITexture2DPtr v) override;
     void addCircle(int2 pos, float radius, float border, float4 color) override;
-    void addRect(int2 pos, int2 size, float border, float4 color) override;
+    void addRect(Rect rect, float border, float4 color) override;
     void clearShapes() override;
     void dispatch() override;
 
@@ -638,12 +638,12 @@ void Shape::addCircle(int2 pos, float radius, float border, float4 color)
     m_dirty = true;
 }
 
-void Shape::addRect(int2 pos, int2 size, float border, float4 color)
+void Shape::addRect(Rect rect, float border, float4 color)
 {
     ShapeData tmp;
     tmp.type = ShapeType::Rect;
-    tmp.pos = pos;
-    tmp.rect_size = size;
+    tmp.pos = rect.pos;
+    tmp.rect_size = rect.size;
     tmp.border = border;
     tmp.color = color;
     m_shapes.push_back(tmp);

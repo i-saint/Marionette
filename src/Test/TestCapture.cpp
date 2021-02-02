@@ -6,6 +6,7 @@ using mr::unorm8;
 using mr::int2;
 using mr::float2;
 using mr::float4;
+using mr::Rect;
 
 static void SetDllSearchPath()
 {
@@ -115,15 +116,15 @@ void DrawCircle(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, float
     filter->dispatch();
 }
 
-void DrawRect(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, int2 size, float border, float4 color)
+void DrawRect(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, Rect rect, float border, float4 color)
 {
     auto filter = gfx->createShape();
     filter->setDst(dst);
-    filter->addRect(pos, size, border, color);
+    filter->addRect(rect, border, color);
     filter->dispatch();
 }
 
-TestCase(Filter)
+testCase(Filter)
 {
     mr::CaptureMonitor(mr::GetPrimaryMonitor(), [](const void* data, int w, int h) {
         mr::SaveAsPNG("EntireScreen.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
@@ -243,7 +244,7 @@ TestCase(Filter)
             auto marked = mr::CreateFilterSet(gfx)->copy(tex);
             auto pos = int2(float2(result.pos_min + offset) / scale);
             auto size = int2(float2(tmp_size) / scale);
-            DrawRect(gfx, marked, pos, size, 2, {1.0f, 0.0f, 0.0f, 1.0f});
+            DrawRect(gfx, marked, Rect{ pos, size }, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
 
             //auto center = pos + size / 2;
             //auto radius = float(std::max(size.x, size.y)) / 2.0f;
@@ -264,7 +265,7 @@ TestCase(Filter)
     wait_async_ops();
 }
 
-TestCase(ScreenCapture)
+testCase(ScreenCapture)
 {
     std::vector<std::future<bool>> async_ops;
     auto wait_async_ops = [&]() {
@@ -278,7 +279,9 @@ TestCase(ScreenCapture)
 
     auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();
-    if (scap && scap->startCapture(mr::GetPrimaryMonitor())) {
+    testExpect(scap != nullptr);
+
+    if (scap->startCapture(mr::GetPrimaryMonitor())) {
         for (int i = 0; i < 5; ++i) {
             auto frame = scap->waitNextFrame();
             if (!frame.surface)
@@ -294,4 +297,35 @@ TestCase(ScreenCapture)
         scap->stopCapture();
     }
     wait_async_ops();
+}
+
+testCase(ScreenMatcher)
+{
+    auto gfx = mr::CreateGfxInterface();
+    auto matcher = mr::CreateScreenMatcher(gfx);
+    testExpect(matcher != nullptr);
+
+    auto tmpl = matcher->createTemplate("template.png");
+    testExpect(tmpl != nullptr);
+
+    auto primary_monitor = mr::GetPrimaryMonitor();
+    mr::IScreenMatcher::Result last_result;
+
+    auto time_start = mr::NowNS();
+    for (int i = 0; i < 10; ++i) {
+        auto time_begin_match = mr::NowNS();
+        auto result = matcher->match(tmpl, primary_monitor);
+        auto time_end_match = mr::NowNS();
+        auto elapsed = float(double(time_end_match - time_begin_match) / 1000000.0);
+
+        auto pos = result.region.pos;
+        testPrint("frame %d [%.2f ms]: score %.2f (%d, %d)\n", i, elapsed, result.score, pos.x, pos.y);
+        last_result = result;
+    }
+
+
+    auto marked = mr::CreateFilterSet(gfx)->copy(last_result.surface, mr::TextureFormat::RGBAu8);
+    auto region = last_result.region;
+    DrawRect(gfx, marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+    marked->save("ScreenMatcher.png");
 }
