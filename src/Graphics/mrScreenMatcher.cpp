@@ -36,6 +36,7 @@ public:
 private:
     IGfxInterfacePtr m_gfx;
     float m_scale = 1.0f;
+    bool m_care_scale_factor = false;
     int m_contour_block_size = 3;
     int m_expand_block_size = 3;
     float m_binarize_threshold = 0.2f;
@@ -83,23 +84,30 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
 
 IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
-    // todo: care screen->info.scale_factor
+    float template_scale = m_scale;
+    float screen_scale = m_scale;
+    if (m_care_scale_factor)
+        screen_scale /= sd.info.scale_factor;
 
-    Rect region = {
+    auto region = Rect{
         rect.pos - sd.info.rect.pos,
-        rect.size - tmpl.image->getSize()
-    };
+        rect.size
+    } * screen_scale;
+    region.size -= tmpl.image->getSize();
 
     auto frame = sd.capture->getFrame();
-    auto surface = sd.filter->transform(frame.surface, m_scale, true);
+    auto surface = sd.filter->transform(frame.surface, screen_scale, true);
+    auto contour = sd.filter->contour(surface, m_contour_block_size);
+    auto binarized = sd.filter->binarize(contour, m_binarize_threshold);
 
-    auto score = sd.filter->match(surface, tmpl.image, tmpl.mask, region, false);
+    auto score = sd.filter->match(binarized, tmpl.image, tmpl.mask, region, false);
     auto result = tmpl.filter->minmax(score, region).get();
 
-    // todo: care scale and offset
     Result ret;
-    ret.pos = result.pos_min;
-    ret.size = tmpl.image->getSize();
+    ret.region = Rect{
+        rect.pos + int2(float2(result.pos_min) / screen_scale),
+        int2(float2(tmpl.image->getSize()) / template_scale)
+    };
     ret.score = result.valf_min;
     return ret;
 }

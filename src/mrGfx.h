@@ -15,6 +15,17 @@ struct Rect
 
     bool operator==(const Rect& v) const { return pos == v.pos && size == v.size; }
     bool operator!=(const Rect& v) const { return pos != v.pos || size != v.size; }
+    Rect operator*(float v) const
+    {
+        return Rect{
+            int2(float2(pos) * v),
+            int2(float2(size) * v)
+        };
+    }
+    Rect operator/(float v) const
+    {
+        return *this * (1.0f / v);
+    }
 };
 
 enum class TextureFormat
@@ -313,8 +324,7 @@ class IScreenMatcher : public IObject
 public:
     struct Result
     {
-        int2 pos{};
-        int2 size{};
+        Rect region;
         float score{};
     };
 
