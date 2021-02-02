@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="Foundation\mrFoundation.cpp" />
     <ClCompile Include="Graphics\mrDesktopDuplication.cpp" />
+    <ClCompile Include="Graphics\mrFilterSet.cpp" />
     <ClCompile Include="Graphics\mrGDI.cpp" />
     <ClCompile Include="Graphics\mrGfxFoundation.cpp" />
     <ClCompile Include="Graphics\mrGfxInterface.cpp" />
