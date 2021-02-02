@@ -31,7 +31,7 @@ public:
         IFilterSetPtr filter;
     };
 
-    ScreenMatcher(IGfxInterfacePtr gfx);
+    ScreenMatcher(IGfxInterfacePtr gfx, const Params& params);
     bool valid() const;
 
     ITemplatePtr createTemplate(const char* path_to_png) override;
@@ -42,18 +42,14 @@ public:
 
 private:
     IGfxInterfacePtr m_gfx;
-    float m_scale = 1.0f;
-    bool m_care_scale_factor = false;
-    int m_contour_block_size = 3;
-    int m_expand_block_size = 3;
-    float m_binarize_threshold = 0.2f;
+    Params m_params;
 
     std::map<HMONITOR, ScreenData> m_screens;
 };
 
-mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
+mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params)
 {
-    auto ret = new ScreenMatcher(gfx);
+    auto ret = new ScreenMatcher(gfx, params);
     if (!ret->valid()) {
         delete ret;
         ret = nullptr;
@@ -61,8 +57,9 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx)
     return ret;
 }
 
-ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx)
+ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx, const Params& params)
     : m_gfx(gfx)
+    , m_params(params)
 {
     EnumerateMonitor([this](const MonitorInfo& info) {
         ScreenData data;
@@ -87,10 +84,10 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
         return nullptr;
 
     auto filter = CreateFilterSet(m_gfx);
-    tmpl = filter->transform(tmpl, m_scale, true);
-    tmpl = filter->contour(tmpl, m_contour_block_size);
-    tmpl = filter->binarize(tmpl, m_binarize_threshold);
-    auto mask = filter->expand(tmpl, m_expand_block_size);
+    tmpl = filter->transform(tmpl, m_params.scale, true);
+    tmpl = filter->contour(tmpl, m_params.contour_block_size);
+    tmpl = filter->binarize(tmpl, m_params.binarize_threshold);
+    auto mask = filter->expand(tmpl, m_params.expand_block_size);
 
     auto ret = make_ref<Template>();
     ret->filter = filter;
@@ -102,9 +99,9 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
 
 IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
-    float template_scale = m_scale;
-    float screen_scale = m_scale;
-    if (m_care_scale_factor)
+    float template_scale = m_params.scale;
+    float screen_scale = m_params.scale;
+    if (m_params.care_display_scale_factor)
         screen_scale /= sd.info.scale_factor;
 
     auto region = Rect{
@@ -115,19 +112,20 @@ IScreenMatcher::Result ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, 
 
     auto frame = sd.capture->getFrame();
     auto surface = sd.filter->transform(frame.surface, screen_scale, true);
-    auto contour = sd.filter->contour(surface, m_contour_block_size);
-    auto binarized = sd.filter->binarize(contour, m_binarize_threshold);
+    auto contour = sd.filter->contour(surface, m_params.contour_block_size);
+    auto binarized = sd.filter->binarize(contour, m_params.binarize_threshold);
 
-    auto score = sd.filter->match(binarized, tmpl.image, tmpl.mask, region, false);
-    auto result = tmpl.filter->minmax(score, region).get();
+    auto match_result = sd.filter->match(binarized, tmpl.image, tmpl.mask, region, false);
+    auto minmax = tmpl.filter->minmax(match_result, region.size).get();
 
     Result ret;
-    ret.surface = frame.surface;
     ret.region = Rect{
-        rect.pos + int2(float2(result.pos_min) / screen_scale),
+        rect.pos + int2(float2(minmax.pos_min) / screen_scale),
         int2(float2(tmpl.image->getSize()) / template_scale)
     };
-    ret.score = result.valf_min;
+    ret.score = float(double(minmax.vali_min) / double(tmpl.mask_bits));
+    ret.surface = frame.surface;
+    ret.match_result = match_result;
     return ret;
 }
 

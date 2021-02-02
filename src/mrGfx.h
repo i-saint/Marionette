@@ -327,19 +327,30 @@ public:
 class IScreenMatcher : public IObject
 {
 public:
+    struct Params
+    {
+        float scale = 0.5f;
+        bool care_display_scale_factor = false;
+        int contour_block_size = 3;
+        int expand_block_size = 3;
+        float binarize_threshold = 0.2f;
+    };
+
     struct Result
     {
-        ITexture2DPtr surface;
         Rect region;
         float score{};
+
+        ITexture2DPtr surface;
+        ITexture2DPtr match_result;
     };
 
     virtual ITemplatePtr createTemplate(const char* path_to_png) = 0;
     virtual Result match(ITemplatePtr tmpl, HMONITOR target) = 0;
     virtual Result match(ITemplatePtr tmpl, HWND target) = 0;
 };
-mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx);
-inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx) { return CreateScreenMatcher_(gfx); }
+mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params);
+inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx, const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(gfx, params); }
 
 
 #ifdef mrWithOpenCV

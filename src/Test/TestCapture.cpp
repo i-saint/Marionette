@@ -311,21 +311,28 @@ testCase(ScreenMatcher)
     auto primary_monitor = mr::GetPrimaryMonitor();
     mr::IScreenMatcher::Result last_result;
 
+    ::Sleep(2000);
     auto time_start = mr::NowNS();
     for (int i = 0; i < 10; ++i) {
         auto time_begin_match = mr::NowNS();
-        auto result = matcher->match(tmpl, primary_monitor);
+        //auto result = matcher->match(tmpl, primary_monitor);
+        auto result = matcher->match(tmpl, ::GetForegroundWindow());
         auto time_end_match = mr::NowNS();
         auto elapsed = float(double(time_end_match - time_begin_match) / 1000000.0);
 
         auto pos = result.region.pos;
-        testPrint("frame %d [%.2f ms]: score %.2f (%d, %d)\n", i, elapsed, result.score, pos.x, pos.y);
+        testPrint("frame %d [%.2f ms]: score %.4f (%d, %d)\n", i, elapsed, result.score, pos.x, pos.y);
         last_result = result;
     }
 
 
-    auto marked = mr::CreateFilterSet(gfx)->copy(last_result.surface, mr::TextureFormat::RGBAu8);
-    auto region = last_result.region;
-    DrawRect(gfx, marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
-    marked->save("ScreenMatcher.png");
+    {
+        auto marked = mr::CreateFilterSet(gfx)->copy(last_result.surface, mr::TextureFormat::RGBAu8);
+        auto region = last_result.region;
+        DrawRect(gfx, marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+        marked->save("ScreenMatcher.png");
+
+        auto score = mr::CreateFilterSet(gfx)->normalize(last_result.match_result, tmpl->getMaskBits());
+        score->save("ScreenMatcher_score.png");
+    }
 }
