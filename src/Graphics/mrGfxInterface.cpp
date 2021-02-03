@@ -69,9 +69,16 @@ void GfxInterface::unlock()
     mrGfxGlobals()->unlock();
 }
 
-mrAPI IGfxInterface* CreateGfxInterface_()
+
+static IGfxInterfacePtr g_gfx_ifs;
+
+mrAPI IGfxInterface* GetGfxInterface_()
 {
-    return new GfxInterface();
+    if (!g_gfx_ifs) {
+        g_gfx_ifs = make_ref<GfxInterface>();
+        AddFinalizeHandler([]() { g_gfx_ifs = nullptr; });
+    }
+    return g_gfx_ifs;
 }
 
 } // namespace mr

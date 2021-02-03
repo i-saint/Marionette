@@ -315,7 +315,7 @@ mrAPI void Initialize()
 
 mrAPI void Finalize()
 {
-    for (auto& h : GetFinalizeHandlers())
+    for (auto& h : GetFinalizeHandlers() | std::views::reverse)
         h();
 }
 

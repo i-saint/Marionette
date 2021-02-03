@@ -13,6 +13,11 @@ struct Rect
     int2 pos{};
     int2 size{};
 
+    int2 getCenter() const { return pos + (size / 2); }
+    int2 getTopRight() const { return pos; }
+    int2 getBottomLeft() const { return pos + size; }
+    int2 getSize() const { return size; }
+
     bool operator==(const Rect& v) const { return pos == v.pos && size == v.size; }
     bool operator!=(const Rect& v) const { return pos != v.pos || size != v.size; }
     Rect operator*(float v) const
@@ -251,8 +256,8 @@ public:
         body();
     }
 };
-mrAPI IGfxInterface* CreateGfxInterface_();
-mrDefShared(CreateGfxInterface);
+mrAPI IGfxInterface* GetGfxInterface_();
+mrDefShared(GetGfxInterface);
 
 
 using BitmapCallback = std::function<void(const void* data, int width, int height)>;
@@ -299,8 +304,8 @@ public:
     virtual std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, Rect region) = 0;
     inline  std::future<IReduceMinMax::Result> minmax(ITexture2DPtr src, int2 region = {}) { return minmax(src, Rect{ int2{}, region }); }
 };
-mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx);
-inline IFilterSetPtr CreateFilterSet(IGfxInterfacePtr gfx) { return CreateFilterSet_(gfx); }
+mrAPI IFilterSet* CreateFilterSet_();
+inline IFilterSetPtr CreateFilterSet() { return CreateFilterSet_(); }
 
 
 struct MonitorInfo
@@ -350,8 +355,8 @@ public:
     inline Result match(ITemplatePtr tmpl, HMONITOR target) { return match(MakeSpan(tmpl), target); }
     inline Result match(ITemplatePtr tmpl, HWND target) { return match(MakeSpan(tmpl), target); }
 };
-mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params);
-inline IScreenMatcherPtr CreateScreenMatcher(IGfxInterfacePtr gfx, const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(gfx, params); }
+mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params);
+inline IScreenMatcherPtr CreateScreenMatcher(const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(params); }
 
 
 #ifdef mrWithOpenCV

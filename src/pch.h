@@ -17,6 +17,7 @@
 #include <regex>
 #include <type_traits>
 #include <span>
+#include <ranges>
 
 #define NOMINMAX
 #include <windows.h>

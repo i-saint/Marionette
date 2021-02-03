@@ -7,7 +7,7 @@ namespace mr {
 class FilterSet : public RefCount<IFilterSet>
 {
 public:
-    FilterSet(IGfxInterfacePtr gfx);
+    FilterSet();
 
     ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) override;
     ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region) override;
@@ -38,13 +38,13 @@ public:
 };
 mrDeclPtr(FilterSet);
 
-mrAPI IFilterSet* CreateFilterSet_(IGfxInterface* gfx)
+mrAPI IFilterSet* CreateFilterSet_()
 {
-    return new FilterSet(gfx);
+    return new FilterSet();
 }
 
-FilterSet::FilterSet(IGfxInterfacePtr gfx)
-    : m_gfx(gfx)
+FilterSet::FilterSet()
+    : m_gfx(GetGfxInterface())
 {
 }
 #define mrMakeFilter(N, T)\

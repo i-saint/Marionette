@@ -110,15 +110,15 @@ mr::IReduceMinMax::Result MinMax_Reference(mr::ITexture2DPtr src, int2 range = {
 
 void DrawCircle(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, int2 pos, float radius, float border, float4 color)
 {
-    auto filter = gfx->createShape();
+    auto filter = mr::GetGfxInterface()->createShape();
     filter->setDst(dst);
     filter->addCircle(pos, radius, border, color);
     filter->dispatch();
 }
 
-void DrawRect(mr::IGfxInterfacePtr gfx, mr::ITexture2DPtr dst, Rect rect, float border, float4 color)
+void DrawRect(mr::ITexture2DPtr dst, Rect rect, float border, float4 color)
 {
-    auto filter = gfx->createShape();
+    auto filter = mr::GetGfxInterface()->createShape();
     filter->setDst(dst);
     filter->addRect(rect, border, color);
     filter->dispatch();
@@ -142,7 +142,7 @@ testCase(Filter)
     const int expand_block_size = 3;
     const float binarize_threshold = 0.2f;
 
-    auto gfx = mr::CreateGfxInterface();
+    auto gfx = mr::GetGfxInterface();
 
     mr::ITexture2DPtr tmp_image, tmp_mask;
     int2 tmp_size{};
@@ -151,7 +151,7 @@ testCase(Filter)
     if (tmp_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        auto filter = mr::CreateFilterSet(gfx);
+        auto filter = mr::CreateFilterSet();
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
         src = rtrans = filter->transform(tmp_image, scale, true);
         src = rcont = filter->contour(src, contour_block_size);
@@ -166,7 +166,7 @@ testCase(Filter)
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
         {
-            auto rce = mr::CreateFilterSet(gfx)->expand(rcont, expand_block_size);
+            auto rce = mr::CreateFilterSet()->expand(rcont, expand_block_size);
             async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
         }
 
@@ -184,8 +184,8 @@ testCase(Filter)
 
     if (tex) {
         // downscale filter test
-        auto with_filter = mr::CreateFilterSet(gfx)->transform(tex, 0.25f, false, true);
-        auto without_filter = mr::CreateFilterSet(gfx)->transform(tex, 0.25f, false, false);
+        auto with_filter = mr::CreateFilterSet()->transform(tex, 0.25f, false, true);
+        auto without_filter = mr::CreateFilterSet()->transform(tex, 0.25f, false, false);
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }
@@ -195,7 +195,7 @@ testCase(Filter)
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rmatch;
-        auto filter = mr::CreateFilterSet(gfx);
+        auto filter = mr::CreateFilterSet();
 
         auto time_begin = test::Now();
 
@@ -241,14 +241,14 @@ testCase(Filter)
             testPrint("MinMax  (cs):\n");
             print(result);
 
-            auto marked = mr::CreateFilterSet(gfx)->copy(tex);
+            auto marked = mr::CreateFilterSet()->copy(tex);
             auto pos = int2(float2(result.pos_min + offset) / scale);
             auto size = int2(float2(tmp_size) / scale);
-            DrawRect(gfx, marked, Rect{ pos, size }, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+            DrawRect(marked, Rect{ pos, size }, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
 
             //auto center = pos + size / 2;
             //auto radius = float(std::max(size.x, size.y)) / 2.0f;
-            //DrawCircle(gfx, marked, center, radius, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+            //DrawCircle(marked, center, radius, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
 
             async_ops.push_back(marked->saveAsync("result.png"));
         }
@@ -274,8 +274,8 @@ testCase(ScreenCapture)
         async_ops.clear();
     };
 
-    auto gfx = mr::CreateGfxInterface();
-    auto filter = mr::CreateFilterSet(gfx);
+    auto gfx = mr::GetGfxInterface();
+    auto filter = mr::CreateFilterSet();
 
     auto time_start = mr::NowNS();
     auto scap = gfx->createScreenCapture();
@@ -301,8 +301,7 @@ testCase(ScreenCapture)
 
 testCase(ScreenMatcher)
 {
-    auto gfx = mr::CreateGfxInterface();
-    auto matcher = mr::CreateScreenMatcher(gfx);
+    auto matcher = mr::CreateScreenMatcher();
     testExpect(matcher != nullptr);
 
     auto tmpl = matcher->createTemplate("template.png");
@@ -330,9 +329,9 @@ testCase(ScreenMatcher)
     }
 
     {
-        auto marked = mr::CreateFilterSet(gfx)->copy(last_result.surface, mr::TextureFormat::RGBAu8);
+        auto marked = mr::CreateFilterSet()->copy(last_result.surface, mr::TextureFormat::RGBAu8);
         auto region = last_result.region;
-        DrawRect(gfx, marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
+        DrawRect(marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
         marked->save("ScreenMatcher.png");
     }
 }

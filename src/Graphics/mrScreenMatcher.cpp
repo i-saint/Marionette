@@ -33,7 +33,7 @@ public:
         nanosec last_frame{};
     };
 
-    ScreenMatcher(IGfxInterfacePtr gfx, const Params& params);
+    ScreenMatcher(const Params& params);
     bool valid() const;
 
     ITemplatePtr createTemplate(const char* path_to_png) override;
@@ -49,15 +49,16 @@ private:
     IGfxInterfacePtr m_gfx;
     Params m_params;
 
+    std::map<std::string, ITemplatePtr> m_templates;
     std::map<HMONITOR, ScreenData> m_screens;
 
     std::deque<IReduceMinMaxPtr> m_reducers;
     std::vector<DeferredResult> m_deferred_results;
 };
 
-mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatcher::Params& params)
+mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params)
 {
-    auto ret = new ScreenMatcher(gfx, params);
+    auto ret = new ScreenMatcher(params);
     if (!ret->valid()) {
         delete ret;
         ret = nullptr;
@@ -65,8 +66,8 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(IGfxInterface* gfx, const IScreenMatc
     return ret;
 }
 
-ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx, const Params& params)
-    : m_gfx(gfx)
+ScreenMatcher::ScreenMatcher(const Params& params)
+    : m_gfx(GetGfxInterface())
     , m_params(params)
 {
     EnumerateMonitor([this](const MonitorInfo& info) {
@@ -74,7 +75,7 @@ ScreenMatcher::ScreenMatcher(IGfxInterfacePtr gfx, const Params& params)
         data.info = info;
         data.capture = m_gfx->createScreenCapture();
         if (data.capture && data.capture->startCapture(info.hmon)) {
-            data.filter = CreateFilterSet(m_gfx);
+            data.filter = CreateFilterSet();
             m_screens[info.hmon] = std::move(data);
         }
         });
@@ -85,19 +86,24 @@ bool ScreenMatcher::valid() const
     return m_gfx && !m_screens.empty();
 }
 
-ITemplatePtr ScreenMatcher::createTemplate(const char* path_to_png)
+ITemplatePtr ScreenMatcher::createTemplate(const char* path)
 {
-    auto tmpl = m_gfx->createTextureFromFile(path_to_png);
+    auto it = m_templates.find(path);
+    if (it != m_templates.end())
+        return it->second;
+
+    auto tmpl = m_gfx->createTextureFromFile(path);
     if (!tmpl)
         return nullptr;
 
-    auto filter = CreateFilterSet(m_gfx);
+    auto filter = CreateFilterSet();
     tmpl = filter->transform(tmpl, m_params.scale, true);
     tmpl = filter->contour(tmpl, m_params.contour_block_size);
     tmpl = filter->binarize(tmpl, m_params.binarize_threshold);
     auto mask = filter->expand(tmpl, m_params.expand_block_size);
 
     auto ret = make_ref<Template>();
+    m_templates[path] = ret;
     ret->image = tmpl;
     ret->mask = mask;
     ret->mask_bits = filter->countBits(ret->mask).get();
