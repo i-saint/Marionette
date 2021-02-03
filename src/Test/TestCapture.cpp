@@ -314,7 +314,7 @@ testCase(ScreenMatcher)
     mr::IScreenMatcher::Result last_result;
 
     auto time_start = mr::NowNS();
-    for (int i = 0; i < 600; ++i) {
+    for (int i = 0; i < 300; ++i) {
         auto time_begin_match = mr::NowNS();
         auto result = matcher->match(tmpl, capture_target);
         auto time_end_match = mr::NowNS();

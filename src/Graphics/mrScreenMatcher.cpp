@@ -23,6 +23,7 @@ class ScreenMatcher : public RefCount<IScreenMatcher>
 {
 public:
     using DeferredResult = std::future<Result>;
+
     struct ScreenData
     {
         MonitorInfo info;
@@ -34,6 +35,7 @@ public:
     };
 
     ScreenMatcher(const Params& params);
+    ~ScreenMatcher();
     bool valid() const;
 
     ITemplatePtr createTemplate(const char* path_to_png) override;
@@ -46,6 +48,18 @@ public:
     Result match(std::span<ITemplatePtr> tmpl, HWND target) override;
 
 private:
+    // shared with all instances
+    struct SharedData : public RefCount<IObject>
+    {
+        struct ScreenData
+        {
+            MonitorInfo info;
+            IScreenCapturePtr capture;
+        };
+        std::vector<ScreenData> screens;
+    };
+    static SharedData* s_data;
+
     IGfxInterfacePtr m_gfx;
     Params m_params;
 
@@ -66,24 +80,44 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params)
     return ret;
 }
 
+ScreenMatcher::SharedData* ScreenMatcher::s_data;
+
 ScreenMatcher::ScreenMatcher(const Params& params)
     : m_gfx(GetGfxInterface())
     , m_params(params)
 {
-    EnumerateMonitor([this](const MonitorInfo& info) {
+    if (!s_data) {
+        s_data = new SharedData();
+
+        // start capture all screens
+        EnumerateMonitor([](const MonitorInfo& info) {
+            SharedData::ScreenData sd;
+            sd.info = info;
+            sd.capture = GetGfxInterface()->createScreenCapture();
+            if (sd.capture && sd.capture->startCapture(info.hmon))
+                s_data->screens.push_back(sd);
+            });
+    }
+    s_data->addRef();
+
+    for (auto& sd : s_data->screens) {
         ScreenData data;
-        data.info = info;
-        data.capture = m_gfx->createScreenCapture();
-        if (data.capture && data.capture->startCapture(info.hmon)) {
-            data.filter = CreateFilterSet();
-            m_screens[info.hmon] = std::move(data);
-        }
-        });
+        data.info = sd.info;
+        data.capture = sd.capture;
+        data.filter = CreateFilterSet();
+        m_screens[sd.info.hmon] = std::move(data);
+    }
+}
+
+ScreenMatcher::~ScreenMatcher()
+{
+    if (s_data->release() == 0)
+        s_data = nullptr;
 }
 
 bool ScreenMatcher::valid() const
 {
-    return m_gfx && !m_screens.empty();
+    return !m_screens.empty();
 }
 
 ITemplatePtr ScreenMatcher::createTemplate(const char* path)
