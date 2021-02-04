@@ -143,11 +143,11 @@ std::string OpRecord::toText() const
         break;
 
     case OpType::MouseMoveAbs:
-        snprintf(buf, sizeof(buf), "%lld: MouseMoveAbs %d %d", time, data.mouse.x, data.mouse.y);
+        snprintf(buf, sizeof(buf), "%lld: MouseMoveAbs %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
         break;
 
     case OpType::MouseMoveRel:
-        snprintf(buf, sizeof(buf), "%lld: MouseMoveRel %d %d", time, data.mouse.x, data.mouse.y);
+        snprintf(buf, sizeof(buf), "%lld: MouseMoveRel %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
         break;
 
     case OpType::MouseMoveMatch:
@@ -192,9 +192,9 @@ bool OpRecord::fromText(const std::string& v)
         type = OpType::MouseDown;
     else if (sscanf(src, "%lld: MouseUp %d", &time, &data.mouse.button) == 2)
         type = OpType::MouseUp;
-    else if (sscanf(src, "%lld: MouseMoveAbs %d %d", &time, &data.mouse.x, &data.mouse.y) == 3)
+    else if (sscanf(src, "%lld: MouseMoveAbs %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
         type = OpType::MouseMoveAbs;
-    else if (sscanf(src, "%lld: MouseMoveRel %d %d", &time, &data.mouse.x, &data.mouse.y) == 3)
+    else if (sscanf(src, "%lld: MouseMoveRel %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
         type = OpType::MouseMoveRel;
     else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%lld: ", &time) == 1) {
         type = OpType::MouseMoveMatch;

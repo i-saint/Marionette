@@ -1,5 +1,6 @@
 #pragma once
 #include "mrFoundation.h"
+#include "mrGfx.h"
 
 namespace mr {
 
@@ -22,7 +23,7 @@ struct OpRecord
 {
     struct ImageData
     {
-        int handle = 0;
+        ITemplatePtr tmpl;
         std::string path;
     };
 
@@ -32,7 +33,8 @@ struct OpRecord
     {
         struct
         {
-            int x, y, button;
+            int2 pos;
+            int button;
         } mouse;
         struct
         {

@@ -3,31 +3,11 @@
 
 namespace mr {
 
-#ifdef mrWithOpenCV
-class ImageManager
-{
-public:
-    static ImageManager& instance();
-
-    int fetch(const std::string& path);
-    cv::Mat* get(int handle);
-
-private:
-    struct Record
-    {
-        std::string path;
-        cv::Mat image;
-        std::future<void> load;
-    };
-    using RecordPtr = std::unique_ptr<Record>;
-    int m_seed = 0;
-    std::map<int, RecordPtr> m_records;
-};
-#endif
-
 class Player : public RefCount<IPlayer>
 {
 public:
+    Player();
+    ~Player();
     bool start(uint32_t loop) override;
     bool stop() override;
     bool isPlaying() const override;
@@ -36,6 +16,14 @@ public:
     void setMatchTarget(MatchTarget v) override;
 
     void execRecord(const OpRecord& rec);
+
+private:
+    // shared with all instances
+    struct SharedData : public RefCount<IObject>
+    {
+        IScreenMatcherPtr smatch;
+    };
+    static SharedData* s_data;
 
 private:
     bool m_playing = false;
@@ -47,66 +35,30 @@ private:
 
     struct State
     {
-        int x = 0, y = 0;
+        int2 mouse_pos{};
     };
     State m_state;
     std::map<int, State> m_mouse_state_slots;
 };
 
 
-#ifdef mrWithOpenCV
+Player::SharedData* Player::s_data;
 
-ImageManager& ImageManager::instance()
+Player::Player()
 {
-    static ImageManager s_inst;
-    return s_inst;
-}
-
-int ImageManager::fetch(const std::string& path)
-{
-    for (auto& kvp : m_records) {
-        if (kvp.second->path == path)
-            return kvp.first;
+    if (!s_data) {
+        s_data = new SharedData();
+        s_data->smatch = CreateScreenMatcher();
     }
-
-    auto rec = std::make_unique<Record>();
-    auto p = rec.get();
-    rec->path = path;
-    rec->load = std::async(std::launch::async, [p]() {
-        try {
-            p->image = cv::imread(p->path, cv::IMREAD_GRAYSCALE);
-        }
-        catch (const cv::Exception& e) {
-            mrDbgPrint("*** cv::imread() failed: %s ***\n", e.what());
-        }
-        });
-
-    int handle = ++m_seed;
-    m_records[handle] = std::move(rec);
-    return handle;
+    s_data->addRef();
 }
 
-cv::Mat* ImageManager::get(int handle)
+Player::~Player()
 {
-    auto& i = m_records.find(handle);
-    if (i != m_records.end()) {
-        auto& rec = *i->second;
-        if (rec.load.valid()) {
-            rec.load.get();
-            rec.load = {};
-            if (rec.image.empty()) {
-                m_records.erase(i);
-                return nullptr;
-            }
-        }
-        return &rec.image;
+    if (s_data->release() == 0) {
+        s_data = nullptr;
     }
-    return nullptr;
 }
-
-#endif
-
-
 
 bool Player::start(uint32_t loop)
 {
@@ -122,8 +74,7 @@ bool Player::start(uint32_t loop)
     CURSORINFO ci;
     ci.cbSize = sizeof(ci);
     ::GetCursorInfo(&ci);
-    m_state.x = ci.ptScreenPos.x;
-    m_state.y = ci.ptScreenPos.y;
+    m_state.mouse_pos = (int2&)ci.ptScreenPos;
     return true;
 }
 
@@ -188,16 +139,19 @@ bool Player::update()
 
 void Player::execRecord(const OpRecord& rec)
 {
-    auto MakeMouseMove = [](INPUT& input, int x, int y) {
+    auto MakeMouseMove = [](INPUT& input, int2 screen_pos) {
         // http://msdn.microsoft.com/en-us/library/ms646260(VS.85).aspx
         // If MOUSEEVENTF_ABSOLUTE value is specified, dx and dy contain normalized absolute coordinates between 0 and 65,535.
         // The event procedure maps these coordinates onto the display surface.
         // Coordinate (0,0) maps onto the upper-left corner of the display surface, (65535,65535) maps onto the lower-right corner.
 
-        LONG screen_width = ::GetSystemMetrics(SM_CXSCREEN); // SM_CXVIRTUALSCREEN
-        LONG screen_height = ::GetSystemMetrics(SM_CYSCREEN); // SM_CYVIRTUALSCREEN
-        input.mi.dx = (LONG)(x * (65535.0f / screen_width));
-        input.mi.dy = (LONG)(y * (65535.0f / screen_height));
+        static float2 s2c = 65535.0f / float2{
+            float(::GetSystemMetrics(SM_CXSCREEN)),
+            float(::GetSystemMetrics(SM_CYSCREEN))
+        };
+        int2 cpos = int2(float2(screen_pos) * s2c);
+        input.mi.dx = cpos.x;
+        input.mi.dy = cpos.y;
         input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
     };
 
@@ -230,42 +184,34 @@ void Player::execRecord(const OpRecord& rec)
             }
         }
         else if (rec.type == OpType::MouseMoveAbs) {
-            m_state.x = rec.data.mouse.x;
-            m_state.y = rec.data.mouse.y;
-            MakeMouseMove(input, m_state.x, m_state.y);
+            m_state.mouse_pos = rec.data.mouse.pos;
+            MakeMouseMove(input, m_state.mouse_pos);
         }
         else if (rec.type == OpType::MouseMoveRel) {
-            m_state.x += rec.data.mouse.x;
-            m_state.y += rec.data.mouse.y;
-            MakeMouseMove(input, m_state.x, m_state.y);
+            m_state.mouse_pos = rec.data.mouse.pos;
+            MakeMouseMove(input, m_state.mouse_pos);
         }
         else if (rec.type == OpType::MouseMoveMatch) {
-#ifdef mrWithOpenCV
             const float score_threshold = 0.3f;
             bool matched = false;
 
-            MatchImageParams params;
-            params.match_target = m_match_target;
-            for (auto& id : rec.exdata.images) {
-                if (auto image = ImageManager::instance().get(id.handle))
-                    params.template_images.push_back(*image);
+            std::vector<ITemplatePtr> templates;
+            for (auto& i : rec.exdata.images)
+                if (i.tmpl)
+                    templates.push_back(i.tmpl);
+
+            auto match_target = ::GetForegroundWindow();
+            auto r = s_data->smatch->match(templates, match_target);
+            if (r.score <= score_threshold) {
+                m_state.mouse_pos = r.region.getCenter();
+                MakeMouseMove(input, m_state.mouse_pos);
+                matched = true;
             }
-            if (!params.template_images.empty()) {
-                float score = MatchImage(params);
-                if (score >= score_threshold) {
-                    m_state.x = params.position.x;
-                    m_state.y = params.position.y;
-                    MakeMouseMove(input, m_state.x, m_state.y);
-                    matched = true;
-                }
-            }
+
             if (!matched) {
                 stop();
                 break;
             }
-#else
-            break;
-#endif
         }
         ::SendInput(1, &input, sizeof(INPUT));
         break;
@@ -284,7 +230,7 @@ void Player::execRecord(const OpRecord& rec)
 
             INPUT input{};
             input.type = INPUT_MOUSE;
-            MakeMouseMove(input, m_state.x, m_state.y);
+            MakeMouseMove(input, m_state.mouse_pos);
 
             // it seems single mouse move can't step over display boundary. so SendInput twice.
             ::SendInput(1, &input, sizeof(INPUT));
@@ -324,12 +270,14 @@ bool Player::load(const char* path)
     while (std::getline(ifs, l)) {
         OpRecord rec;
         if (rec.fromText(l)) {
-#ifdef mrWithOpenCV
             if (rec.type == OpType::MouseMoveMatch) {
-                for (auto& id : rec.exdata.images)
-                    id.handle = ImageManager::instance().fetch(id.path);
+                for (auto& id : rec.exdata.images) {
+                    id.tmpl = s_data->smatch->createTemplate(id.path.c_str());
+                    if (!id.tmpl) {
+                        mrDbgPrint("*** failed to load template %s ***\n", id.path.c_str());
+                    }
+                }
             }
-#endif
             m_records.push_back(rec);
         }
     }

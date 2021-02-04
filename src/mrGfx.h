@@ -360,6 +360,8 @@ public:
     virtual Result match(std::span<ITemplatePtr> tmpl, HWND target) = 0;
     inline Result match(ITemplatePtr tmpl, HMONITOR target) { return match(MakeSpan(tmpl), target); }
     inline Result match(ITemplatePtr tmpl, HWND target) { return match(MakeSpan(tmpl), target); }
+    inline Result match(std::vector<ITemplatePtr>& tmpl, HMONITOR target) { return match(MakeSpan(tmpl), target); }
+    inline Result match(std::vector<ITemplatePtr>& tmpl, HWND target) { return match(MakeSpan(tmpl), target); }
 };
 mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params);
 inline IScreenMatcherPtr CreateScreenMatcher(const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(params); }

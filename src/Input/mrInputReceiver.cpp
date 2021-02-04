@@ -34,7 +34,7 @@ private:
 
     HWND m_hwnd = nullptr;
     bool m_lb = false, m_rb = false, m_mb = false;
-    int m_x = 0, m_y = 0;
+    int2 m_pos{};
 
     int m_handler_seed = 0;
     int m_recorder_seed = 0;
@@ -147,11 +147,10 @@ void InputReceiver::onInput(RAWINPUT& raw)
             CURSORINFO ci;
             ci.cbSize = sizeof(ci);
             ::GetCursorInfo(&ci);
-            if (m_x != ci.ptScreenPos.x || m_y != ci.ptScreenPos.y) {
+            if (m_pos.x != ci.ptScreenPos.x || m_pos.y != ci.ptScreenPos.y) {
                 OpRecord rec;
                 rec.type = OpType::MouseMoveAbs;
-                m_x = rec.data.mouse.x = ci.ptScreenPos.x;
-                m_y = rec.data.mouse.y = ci.ptScreenPos.y;
+                m_pos = rec.data.mouse.pos = (int2&)ci.ptScreenPos;
                 dispatchRecord(rec);
             }
         }
