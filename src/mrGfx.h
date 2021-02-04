@@ -17,6 +17,10 @@ struct Rect
     int2 getTopRight() const { return pos; }
     int2 getBottomLeft() const { return pos + size; }
     int2 getSize() const { return size; }
+    Rect expand(int v) const
+    {
+        return Rect{ pos - v, size + (v * 2), };
+    }
 
     bool operator==(const Rect& v) const { return pos == v.pos && size == v.size; }
     bool operator!=(const Rect& v) const { return pos != v.pos || size != v.size; }
@@ -325,6 +329,8 @@ mrAPI void WaitVSync();
 class ITemplate : public IObject
 {
 public:
+    // maybe not equal with getImage()->getSize() because image can be scaled
+    virtual int2 getSize() const = 0;
     virtual ITexture2DPtr getImage() const = 0;
     virtual ITexture2DPtr getMask() const = 0;
     virtual uint32_t getMaskBits() const = 0;

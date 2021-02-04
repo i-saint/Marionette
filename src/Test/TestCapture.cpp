@@ -299,6 +299,78 @@ testCase(ScreenCapture)
     wait_async_ops();
 }
 
+
+
+class Window
+{
+public:
+    bool open(int2 size, const TCHAR* title);
+    void processMessages();
+    void setPosition(int2 pos);
+
+private:
+    static LRESULT CALLBACK msgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    HWND m_hwnd{};
+};
+
+
+LRESULT CALLBACK Window::msgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_CLOSE:
+        ::PostQuitMessage(0);
+        break;
+    }
+    return ::DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+bool Window::open(int2 size, const TCHAR* title)
+{
+    const WCHAR* class_name = L"MarionetteTestWindow";
+
+    DWORD style = WS_POPUPWINDOW;
+    DWORD style_ex = WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_COMPOSITED;
+
+    WNDCLASS wc{};
+    wc.lpfnWndProc = &msgProc;
+    wc.hInstance = ::GetModuleHandle(nullptr);
+    wc.lpszClassName = class_name;
+
+    if (::RegisterClass(&wc) != 0) {
+        RECT r{ 0, 0, (LONG)size.x, (LONG)size.y };
+        ::AdjustWindowRect(&r, style, false);
+        int w = r.right - r.left;
+        int h = r.bottom - r.top;
+        m_hwnd = ::CreateWindowEx(style_ex, class_name, title, style, CW_USEDEFAULT, CW_USEDEFAULT, w, h, nullptr, nullptr, wc.hInstance, nullptr);
+        if (m_hwnd) {
+            ::SetLayeredWindowAttributes(m_hwnd, 0, 64, LWA_ALPHA);
+            ::ShowWindow(m_hwnd, SW_SHOWNORMAL);
+            return true;
+        }
+    }
+    return false;
+}
+
+void Window::processMessages()
+{
+    MSG msg;
+    while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        ::TranslateMessage(&msg);
+        ::DispatchMessage(&msg);
+    }
+}
+
+void Window::setPosition(int2 pos)
+{
+    RECT r{};
+    ::GetWindowRect(m_hwnd, &r);
+    ::SetWindowPos(m_hwnd, HWND_TOPMOST, pos.x, pos.y, (r.right - r.left), (r.bottom - r.top), SWP_NOSIZE);
+}
+
+
+
 testCase(ScreenMatcher)
 {
     auto matcher = mr::CreateScreenMatcher();
@@ -306,6 +378,9 @@ testCase(ScreenMatcher)
 
     auto tmpl = matcher->createTemplate("template.png");
     testExpect(tmpl != nullptr);
+
+    Window window;
+    window.open(tmpl->getSize(), L"Marionette Tracking");
 
     ::Sleep(2000);
 
@@ -325,10 +400,13 @@ testCase(ScreenMatcher)
         testPrint("frame %d (%.1f): score %.4f (%d, %d) [%.2f ms]\n", i, t, result.score, pos.x, pos.y, elapsed);
         last_result = result;
 
+        window.setPosition(pos);
+        window.processMessages();
+
         mr::WaitVSync();
     }
 
-    {
+    if (last_result.surface) {
         auto marked = mr::CreateFilterSet()->copy(last_result.surface, mr::TextureFormat::RGBAu8);
         auto region = last_result.region;
         DrawRect(marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });

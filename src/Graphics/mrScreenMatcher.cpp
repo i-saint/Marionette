@@ -7,13 +7,15 @@ namespace mr {
 class Template : public RefCount<ITemplate>
 {
 public:
+    int2 getSize() const { return size; }
     ITexture2DPtr getImage() const override { return image; }
     ITexture2DPtr getMask() const override { return mask; }
     uint32_t getMaskBits() const override { return mask_bits; }
 
 public:
-    ITexture2DPtr image;
-    ITexture2DPtr mask;
+    int2 size{};
+    ITexture2DPtr image{};
+    ITexture2DPtr mask{};
     uint32_t mask_bits{};
 };
 mrConvertile(Template, ITemplate);
@@ -130,6 +132,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     if (!tmpl)
         return nullptr;
 
+    auto orig_size = tmpl->getSize();
     auto filter = CreateFilterSet();
     tmpl = filter->transform(tmpl, m_params.scale, true);
     tmpl = filter->contour(tmpl, m_params.contour_block_size);
@@ -138,6 +141,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
 
     auto ret = make_ref<Template>();
     m_templates[path] = ret;
+    ret->size = orig_size;
     ret->image = tmpl;
     ret->mask = mask;
     ret->mask_bits = filter->countBits(ret->mask).get();

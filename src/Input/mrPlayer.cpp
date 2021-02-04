@@ -194,8 +194,8 @@ void Player::execRecord(const OpRecord& rec)
         // The event procedure maps these coordinates onto the display surface.
         // Coordinate (0,0) maps onto the upper-left corner of the display surface, (65535,65535) maps onto the lower-right corner.
 
-        LONG screen_width = ::GetSystemMetrics(SM_CXSCREEN) - 1; // SM_CXVIRTUALSCREEN
-        LONG screen_height = ::GetSystemMetrics(SM_CYSCREEN) - 1; // SM_CYVIRTUALSCREEN
+        LONG screen_width = ::GetSystemMetrics(SM_CXSCREEN); // SM_CXVIRTUALSCREEN
+        LONG screen_height = ::GetSystemMetrics(SM_CYSCREEN); // SM_CYVIRTUALSCREEN
         input.mi.dx = (LONG)(x * (65535.0f / screen_width));
         input.mi.dy = (LONG)(y * (65535.0f / screen_height));
         input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
