@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by MouseReplayer.rc
+// Used by Marionette.rc
 //
 #define IDD_MAINWINDOW                  102
 #define IDC_BUTTON_RECORDING            1001

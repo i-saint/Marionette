@@ -3,6 +3,7 @@
 #include "Marionette.h"
 
 using mr::unorm8;
+using mr::unorm8x4;
 using mr::int2;
 using mr::float2;
 using mr::float4;
@@ -305,13 +306,19 @@ class Window
 {
 public:
     bool open(int2 size, const TCHAR* title);
+    int2 getSize() const;
     void processMessages();
     void setPosition(int2 pos);
+
+    // data: RGBAu8
+    bool draw(Rect rect, const unorm8x4* src);
+    bool draw(const unorm8x4* src);
 
 private:
     static LRESULT CALLBACK msgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     HWND m_hwnd{};
+    int2 m_size;
 };
 
 
@@ -326,12 +333,18 @@ LRESULT CALLBACK Window::msgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     return ::DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+int2 Window::getSize() const
+{
+    return m_size;
+}
+
 bool Window::open(int2 size, const TCHAR* title)
 {
-    const WCHAR* class_name = L"MarionetteTestWindow";
+    m_size = size;
 
+    const WCHAR* class_name = L"MarionetteTestWindow";
     DWORD style = WS_POPUPWINDOW;
-    DWORD style_ex = WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_COMPOSITED;
+    DWORD style_ex = WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED;
 
     WNDCLASS wc{};
     wc.lpfnWndProc = &msgProc;
@@ -345,7 +358,7 @@ bool Window::open(int2 size, const TCHAR* title)
         int h = r.bottom - r.top;
         m_hwnd = ::CreateWindowEx(style_ex, class_name, title, style, CW_USEDEFAULT, CW_USEDEFAULT, w, h, nullptr, nullptr, wc.hInstance, nullptr);
         if (m_hwnd) {
-            ::SetLayeredWindowAttributes(m_hwnd, 0, 64, LWA_ALPHA);
+            //::SetLayeredWindowAttributes(m_hwnd, 0, 64, LWA_ALPHA);
             ::ShowWindow(m_hwnd, SW_SHOWNORMAL);
             return true;
         }
@@ -366,7 +379,71 @@ void Window::setPosition(int2 pos)
 {
     RECT r{};
     ::GetWindowRect(m_hwnd, &r);
-    ::SetWindowPos(m_hwnd, HWND_TOPMOST, pos.x, pos.y, (r.right - r.left), (r.bottom - r.top), SWP_NOSIZE);
+    ::SetWindowPos(m_hwnd, HWND_TOPMOST, pos.x, pos.y, (r.right - r.left), (r.bottom - r.top), SWP_NOSIZE | SWP_NOREDRAW);
+}
+
+bool Window::draw(Rect rect, const unorm8x4* src)
+{
+    HBITMAP hbmp{};
+    {
+        BITMAPV5HEADER bi{};
+        bi.bV5Size = sizeof(BITMAPV5HEADER);
+        bi.bV5Width = rect.size.x;
+        bi.bV5Height = rect.size.y;
+        bi.bV5Planes = 1;
+        bi.bV5BitCount = 32;
+        bi.bV5Compression = BI_BITFIELDS;
+        bi.bV5RedMask = 0x00FF0000;
+        bi.bV5GreenMask = 0x0000FF00;
+        bi.bV5BlueMask = 0x000000FF;
+        bi.bV5AlphaMask = 0xFF000000;
+
+        uint32_t* dst{};
+        HDC hdc = ::GetDC(m_hwnd);
+        hbmp = ::CreateDIBSection(hdc, (BITMAPINFO*)&bi, DIB_RGB_COLORS, (void**)&dst, nullptr, (DWORD)0);
+        ::ReleaseDC(m_hwnd, hdc);
+        if (hbmp == nullptr)
+            return false;
+
+        int l = rect.size.x * rect.size.y;
+        for (int i = 0; i < l; ++i) {
+            auto p = *src++;
+            // RGBA -> ARGB
+            *dst++ = (p.w.value << 24) | (p.x.value << 16) | (p.y.value << 8) | (p.z.value << 0);
+        }
+    }
+
+    RECT  rc;
+    ::GetWindowRect(m_hwnd, &rc);
+    POINT screen_pos{ rc.left , rc.top };
+    SIZE  size{ rect.size.x, rect.size.y };
+
+    BLENDFUNCTION blend{};
+    blend.BlendOp = AC_SRC_OVER;
+    blend.BlendFlags = 0;
+    blend.SourceConstantAlpha = 255;
+    blend.AlphaFormat = AC_SRC_ALPHA;
+
+    HDC hsdc = ::GetDC(nullptr);
+    HDC hdc = ::GetDC(m_hwnd);
+    HDC hmemdc = ::CreateCompatibleDC(hdc);
+
+    POINT po{};
+    HGDIOBJ hOldObj = ::SelectObject(hmemdc, hbmp);
+    ::BitBlt(hdc, rect.pos.x, rect.pos.y, rect.size.x, rect.size.y, hmemdc, 0, 0, SRCCOPY | CAPTUREBLT);
+    ::UpdateLayeredWindow(m_hwnd, hsdc, &screen_pos, &size, hmemdc, &po, 0, &blend, ULW_ALPHA);
+    ::SelectObject(hmemdc, hOldObj);
+    ::DeleteDC(hmemdc);
+    ::ReleaseDC(m_hwnd, hdc);
+    ::ReleaseDC(0, hsdc);
+
+    ::DeleteObject(hbmp);
+    return true;
+}
+
+bool Window::draw(const unorm8x4* src)
+{
+    return draw(Rect{ {}, m_size }, src);
 }
 
 
@@ -379,19 +456,43 @@ testCase(ScreenMatcher)
     auto tmpl = matcher->createTemplate("template.png");
     testExpect(tmpl != nullptr);
 
+    auto tsize = tmpl->getSize();
+
     Window window;
-    window.open(tmpl->getSize(), L"Marionette Tracking");
+    window.open(tsize, L"Marionette Tracking");
+    {
+        std::vector<unorm8x4> pixels(tsize.x * tsize.y);
+        auto* dst = pixels.data();
+        int bw = 2;
+        unorm8x4 border_color = { 1.0f, 0.0f, 0.0f, 1.0f };
+        unorm8x4 bg_color = { 0.0f, 0.0f, 0.0f, 0.0f };
+        for (int y = 0; y < tsize.y; ++y) {
+            for (int x = 0; x < tsize.x; ++x) {
+                if (y < bw || y >= (tsize.y - bw) ||
+                    x < bw || x >= (tsize.x - bw))
+                {
+                    *dst++ = border_color;
+                }
+                else {
+                    *dst++ = bg_color;
+                }
+            }
+        }
+        window.draw(pixels.data());
+    }
 
     ::Sleep(2000);
 
-    //auto capture_target = mr::GetPrimaryMonitor();
-    auto capture_target = ::GetForegroundWindow();
+    auto get_target = []() {
+        //return mr::GetPrimaryMonitor();
+        return ::GetForegroundWindow();
+    };
     mr::IScreenMatcher::Result last_result;
 
     auto time_start = mr::NowNS();
     for (int i = 0; i < 300; ++i) {
         auto time_begin_match = mr::NowNS();
-        auto result = matcher->match(tmpl, capture_target);
+        auto result = matcher->match(tmpl, get_target());
         auto time_end_match = mr::NowNS();
 
         auto elapsed = float(double(time_end_match - time_begin_match) / 1000000.0);
