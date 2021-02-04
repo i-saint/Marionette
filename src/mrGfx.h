@@ -366,24 +366,4 @@ public:
 mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params);
 inline IScreenMatcherPtr CreateScreenMatcher(const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(params); }
 
-
-#ifdef mrWithOpenCV
-struct MatchImageParams
-{
-    // inputs
-    std::vector<cv::Mat> template_images;
-    int block_size = 11;
-    float color_offset = -10.0;
-    bool care_scale_factor = true;
-    MatchTarget match_target = MatchTarget::EntireScreen;
-
-    // outputs
-    HWND target_window = nullptr;
-    float score = 0.0f;
-    cv::Point position{};
-};
-mrAPI float MatchImage(MatchImageParams& params);
-cv::Mat MakeCVImage(const void* data, int width, int height, int pitch, int ch = 4, bool flip_y = false);
-#endif // mrWithOpenCV
-
 } // namespace mr

@@ -26,12 +26,3 @@
 #include <d3d11.h>
 #include <d3d11_4.h>
 #include <dwmapi.h>
-
-//#define mrWithOpenCV
-
-#ifdef mrWithOpenCV
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#endif // mrWithOpenCV
-
