@@ -44,6 +44,9 @@
     <ClCompile Include="Graphics\mrFilterSet.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Input\mrInput.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

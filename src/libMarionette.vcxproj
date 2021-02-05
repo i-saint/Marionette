@@ -22,6 +22,7 @@
     <ClCompile Include="Graphics\Shaders\mrFilter.cpp" />
     <ClCompile Include="Graphics\Shaders\mrReducer.cpp" />
     <ClCompile Include="Graphics\mrWindowsGraphicsCapture.cpp" />
+    <ClCompile Include="Input\mrInput.cpp" />
     <ClCompile Include="Input\mrInputReceiver.cpp" />
     <ClCompile Include="Input\mrPlayer.cpp" />
     <ClCompile Include="Input\mrRecorder.cpp" />
