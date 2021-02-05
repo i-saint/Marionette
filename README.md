@@ -4,7 +4,7 @@
 シンプルなマウス＆キーボードマクロ。  
 
 ## 使い方
-[MouseReplayer.zip](https://github.com/i-saint/Marionette/releases/download/20210205/Marionette.zip)
+[Marionette.zip](https://github.com/i-saint/Marionette/releases/download/20210205/Marionette.zip)
 - ●ボタンもしくは Ctrl + F2 で記録開始。❚❚ボタンもしくは Esc で記録停止。
 - ▶ボタンもしくは Ctrl + F1 で再生開始。❚❚ボタンもしくは Esc で再生停止。
 - Marionette.exe にファイルをドロップ、もしくは起動後ウィンドウにファイルをドロップでそのファイルからデータを読み書きする。指定がない場合 replay.txt というファイルを生成して読み書きする。
