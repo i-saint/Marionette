@@ -212,7 +212,8 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
 #ifdef mrDebug
         if (g_dbg_sm_writeout) {
-            sd.binarized->save(Format("frame_%llu.png", sd.last_frame));
+            surface->save(Format("frame_%llu_trans.png", sd.last_frame));
+            sd.binarized->save(Format("frame_%llu_bin.png", sd.last_frame));
         }
 #endif
     }

@@ -176,17 +176,15 @@ void Player::execRecord(const OpRecord& rec)
             make_mouse_move(input, m_state.mouse_pos);
         }
         else if (rec.type == OpType::MouseMoveMatch) {
-            const float score_threshold = 0.3f;
-            bool matched = false;
-
             std::vector<ITemplatePtr> templates;
             for (auto& i : rec.exdata.templates)
                 if (i.tmpl)
                     templates.push_back(i.tmpl);
 
+            bool matched = false;
             auto match_target = ::GetForegroundWindow();
             auto r = m_smatch->match(templates, match_target);
-            if (r.score <= score_threshold) {
+            if (r.score <= rec.exdata.match_threshold) {
                 m_state.mouse_pos = r.region.getCenter();
                 make_mouse_move(input, m_state.mouse_pos);
                 matched = true;

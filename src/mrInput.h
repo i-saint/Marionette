@@ -47,8 +47,9 @@ struct OpRecord
     {
         int save_slot = 0;
         IScreenMatcher::Params match_params{};
+        float match_threshold = 0.3f;
         std::vector<TemplateData> templates;
-    } exdata;
+    } exdata{};
 
     std::string toText() const;
     bool fromText(const std::string& v);

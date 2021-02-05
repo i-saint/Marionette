@@ -14,8 +14,9 @@ void main(uint2 tid : SV_DispatchThreadID)
     uint w, h;
     g_image.GetDimensions(w, h);
 
-    int2 ul = max(int2(tid) - int(g_radius), 0);
-    int2 br = min(int2(tid) + int(g_radius) + 1, int2(w, h));
+    int radius = ceil(g_radius);
+    int2 ul = max(int2(tid) - radius, 0);
+    int2 br = min(int2(tid) + radius + 1, int2(w, h));
 
     float cmin, cmax;
     cmin = cmax = g_image[tid];
