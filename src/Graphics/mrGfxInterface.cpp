@@ -42,6 +42,8 @@ IScreenCapturePtr GfxInterface::createScreenCapture()
     if (!ret)
         ret = CreateDesktopDuplication();
     return ret;
+
+    //return CreateDesktopDuplication();
 }
 
 #define Body(Name) I##Name##Ptr GfxInterface::create##Name() { return mrGfxGetCS(Name##CS)->createContext(); }

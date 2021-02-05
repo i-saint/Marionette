@@ -11,7 +11,6 @@
 #include <Windows.Graphics.Capture.Interop.h>
 
 #pragma comment(lib, "windowsapp.lib")
-#pragma comment(lib, "dwmapi.lib")
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;

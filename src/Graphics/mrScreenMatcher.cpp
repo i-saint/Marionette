@@ -2,6 +2,8 @@
 #include "mrInternal.h"
 #include "mrGfxFoundation.h"
 
+#pragma comment(lib, "dwmapi.lib")
+
 namespace mr {
 
 class Template : public RefCount<ITemplate>

@@ -29,7 +29,7 @@ struct OpRecord
     };
 
     OpType type = OpType::Unknown;
-    millisec time = -1;
+    millisec time{};
     union
     {
         struct
@@ -46,7 +46,7 @@ struct OpRecord
     struct
     {
         int save_slot = 0;
-        IScreenMatcher::Params match_params;
+        IScreenMatcher::Params match_params{};
         std::vector<TemplateData> templates;
     } exdata;
 

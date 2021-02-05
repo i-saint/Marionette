@@ -38,46 +38,15 @@ FenceEvent::operator HANDLE() const
 }
 
 
-static struct RegisterGfxInitializer
-{
-    RegisterGfxInitializer()
-    {
-        AddInitializeHandler([]() { GfxGlobals::initializeInstance(); });
-        AddFinalizeHandler([]() { GfxGlobals::finalizeInstance(); });
-    }
-} s_register_gfx;
-
-
-
-static std::unique_ptr<GfxGlobals>& GetDeviceManagerPtr()
-{
-    static std::unique_ptr<GfxGlobals> s_inst;
-    return s_inst;
-}
-
-bool GfxGlobals::initializeInstance()
-{
-    auto& inst = GetDeviceManagerPtr();
-    if (!inst) {
-        inst = std::make_unique<GfxGlobals>();
-        return inst->initialize();
-    }
-    return false;
-}
-
-bool GfxGlobals::finalizeInstance()
-{
-    auto& inst = GetDeviceManagerPtr();
-    if (inst) {
-        inst = nullptr;
-        return true;
-    }
-    return false;
-}
-
 GfxGlobals* GfxGlobals::get()
 {
-    return GetDeviceManagerPtr().get();
+    static std::unique_ptr<GfxGlobals> s_inst;
+    if (!s_inst) {
+        s_inst = std::make_unique<GfxGlobals>();
+        s_inst->initialize();
+        AddFinalizeHandler([]() { s_inst = {}; });
+    }
+    return s_inst.get();
 }
 
 GfxGlobals::GfxGlobals()
@@ -86,9 +55,13 @@ GfxGlobals::GfxGlobals()
 
 GfxGlobals::~GfxGlobals()
 {
-    m_sampler = nullptr;
-    m_fence = nullptr;
-    m_context = nullptr;
+#define Body(Name) m_cs_##Name = {};
+    mrEachCS(Body)
+#undef Body
+
+    m_sampler = {};
+    m_fence = {};
+    m_context = {};
 
 //#ifdef mrDebug
 //    com_ptr<ID3D11Debug> debug;

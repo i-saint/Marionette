@@ -36,8 +36,6 @@ private:
 class GfxGlobals
 {
 public:
-    static bool initializeInstance();
-    static bool finalizeInstance();
     static GfxGlobals* get();
 
     bool valid() const;
@@ -143,6 +141,8 @@ public:
     bool map(const ReadCallback& callback) override;
     bool read(const ReadCallback& callback, int size = 0) override; // download() & map()
 
+    com_ptr<ID3D11Buffer>& get() { return m_buffer; }
+
 private:
     int m_size{};
     int m_stride{};
@@ -180,6 +180,8 @@ public:
     static bool saveImpl(const std::string& path, int2 size, TextureFormat format, const void* data, int pitch);
     bool save(const std::string& path) override;
     std::future<bool> saveAsync(const std::string& path) override;
+
+    com_ptr<ID3D11Texture2D>& get() { return m_texture; }
 
 private:
     int2 m_size{};

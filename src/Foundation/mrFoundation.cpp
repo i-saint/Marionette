@@ -158,13 +158,15 @@ void AddFinalizeHandler(const std::function<void()>& v)
 
 mrAPI void Initialize()
 {
-    for (auto& h : GetInitializeHandlers())
+    auto& handlers = GetInitializeHandlers();
+    for (auto& h : handlers)
         h();
 }
 
 mrAPI void Finalize()
 {
-    for (auto& h : GetFinalizeHandlers() | std::views::reverse)
+    auto& handlers = GetFinalizeHandlers();
+    for (auto& h : handlers | std::views::reverse)
         h();
 }
 

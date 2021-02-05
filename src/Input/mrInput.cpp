@@ -43,7 +43,7 @@ std::string OpRecord::toText() const
         ret += Format(" CareDisplayScale=%d", (int)p.care_display_scale);
         ret += Format(" ContourBlockSize=%d", p.contour_block_size);
         ret += Format(" ExpandBlockSize=%d", p.expand_block_size);
-        ret += Format(" BinarizeThreshold=%d", p.binarize_threshold);
+        ret += Format(" BinarizeThreshold=%.2f", p.binarize_threshold);
         return ret;
     }
 
@@ -64,8 +64,6 @@ std::string OpRecord::toText() const
 bool OpRecord::fromText(const std::string& v)
 {
     type = OpType::Unknown;
-
-    char buf[MAX_PATH]{};
     const char* src = v.c_str();
 
     auto skip = [&src]() {
@@ -97,17 +95,18 @@ bool OpRecord::fromText(const std::string& v)
     else if (sscanf(src, "%lld: LoadMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::LoadMousePos;
     else if (std::strstr(src, "MatchParams ")) {
-        skip();
+        type = OpType::MatchParams;
 
         auto& p = exdata.match_params;
         float fv;
         int iv;
+        skip();
         while (*src != '\0') {
             if (sscanf(src, "Scale=%f", &fv) == 1) p.scale = fv;
             else if (sscanf(src, "CareDisplayScale=%d", &iv) == 1) p.care_display_scale = iv != 0;
             else if (sscanf(src, "ContourBlockSize=%d", &iv) == 1) p.contour_block_size = iv;
             else if (sscanf(src, "ExpandBlockSize=%d", &iv) == 1) p.expand_block_size = iv;
-            else if (sscanf(src, "BinarizeThreshold=%d", &iv) == 1) p.binarize_threshold = iv;
+            else if (sscanf(src, "BinarizeThreshold=%f", &fv) == 1) p.binarize_threshold = fv;
             skip();
         }
     }

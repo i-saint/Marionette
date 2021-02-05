@@ -18,14 +18,12 @@ public:
     void stopCapture() override;
     bool isCapturing() const override;
 
-    // called from capture thread
-    void captureLoop();
-    bool getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time);
+    bool getFrameInternal(int timeout_ms);
+    FrameInfo getFrame() override;
+    FrameInfo waitNextFrame() override;
 
 private:
     com_ptr<IDXGIOutputDuplication> m_duplication;
-    std::atomic_bool m_end_flag = false;
-    std::thread m_capture_thread;
 };
 
 
@@ -64,17 +62,18 @@ bool DesktopDuplication::initializeDuplication(HMONITOR hmon)
     // find output by hmon
     DXGI_OUTPUT_DESC desc{};
     for (int i = 0; ; ++i) {
-        if (FAILED(adapter->EnumOutputs(i, output.put())))
-            return false;
+        com_ptr<IDXGIOutput> tmp;
+        if (FAILED(adapter->EnumOutputs(i, tmp.put())) || hmon == nullptr)
+            break;
 
-        if (hmon == nullptr)
+        tmp->GetDesc(&desc);
+        if (desc.Monitor == hmon) {
+            output = tmp;
             break;
-        output->GetDesc(&desc);
-        if (desc.Monitor == hmon)
-            break;
+        }
     }
 
-    if (FAILED(output->QueryInterface(IID_PPV_ARGS(output1.put()))))
+    if (!output || FAILED(output->QueryInterface(IID_PPV_ARGS(output1.put()))))
         return false;
     if (FAILED(output1->DuplicateOutput(device, m_duplication.put())))
         return false;
@@ -89,7 +88,6 @@ bool DesktopDuplication::startCapture(HWND hwnd)
 bool DesktopDuplication::startCapture(HMONITOR hmon)
 {
     if (initializeDuplication(hmon)) {
-        m_capture_thread = std::thread([this]() { captureLoop(); });
         return true;
     }
     return false;
@@ -97,13 +95,8 @@ bool DesktopDuplication::startCapture(HMONITOR hmon)
 
 void DesktopDuplication::stopCapture()
 {
-    if (m_capture_thread.joinable()) {
-        m_end_flag = true;
-        m_capture_thread.join();
-        m_capture_thread = {};
-        m_end_flag = false;
-    }
     m_duplication = nullptr;
+    m_frame_info = {};
 }
 
 bool DesktopDuplication::isCapturing() const
@@ -111,7 +104,7 @@ bool DesktopDuplication::isCapturing() const
     return m_duplication != nullptr;
 }
 
-bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2D>& surface, uint64_t& time)
+bool DesktopDuplication::getFrameInternal(int timeout_ms)
 {
     if (!m_duplication)
         return false;
@@ -121,9 +114,22 @@ bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2
     DXGI_OUTDUPL_FRAME_INFO frame_info{};
     auto hr = m_duplication->AcquireNextFrame(timeout_ms, &frame_info, resource.put());
     if (SUCCEEDED(hr)) {
-        if (frame_info.LastPresentTime.QuadPart != 0) {
+        uint64_t time = frame_info.LastPresentTime.QuadPart;
+        if (time != 0 && m_frame_info.present_time != time) {
+            com_ptr<ID3D11Texture2D> surface;
             resource->QueryInterface(IID_PPV_ARGS(surface.put()));
-            time = frame_info.LastPresentTime.QuadPart;
+
+            if (!m_frame_info.surface) {
+                D3D11_TEXTURE2D_DESC desc{};
+                surface->GetDesc(&desc);
+                m_frame_info.surface = Texture2D::create(desc.Width, desc.Height, GetMRFormat(desc.Format));
+                m_frame_info.size = m_frame_info.surface->getSize();
+            }
+            m_frame_info.present_time = time;
+
+            // ReleaseFrame() seems invalidate surface. so, need to dispatch copy at this point.
+            DispatchCopy(cast(m_frame_info.surface)->ptr(), surface.get());
+
             ret = true;
         }
         m_duplication->ReleaseFrame();
@@ -133,22 +139,26 @@ bool DesktopDuplication::getFrameInternal(int timeout_ms, com_ptr<ID3D11Texture2
     }
     else {
         // DXGI_ERROR_ACCESS_LOST or other something fatal. can not be continued.
-        m_duplication = nullptr;
+        stopCapture();
     }
     return ret;
 }
 
-void DesktopDuplication::captureLoop()
+IScreenCapture::FrameInfo DesktopDuplication::getFrame()
 {
-    const int kTimeout = 30; // in ms
+    // AcquireNextFrame() before the first vsync seems result empty frame. so, wait before first call.
+    if (m_frame_info.present_time == 0)
+        WaitVSync();
 
-    while (valid() && !m_end_flag) {
-        com_ptr<ID3D11Texture2D> surface{};
-        uint64_t time{};
-        if (getFrameInternal(kTimeout, surface, time)) {
-            updateFrame(surface, {}, time);
-        }
-    }
+    getFrameInternal(0);
+    return m_frame_info;
+}
+
+IScreenCapture::FrameInfo DesktopDuplication::waitNextFrame()
+{
+    WaitVSync();
+    getFrameInternal(17);
+    return m_frame_info;
 }
 
 IScreenCapture* CreateDesktopDuplication_()
