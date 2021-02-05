@@ -329,10 +329,17 @@ mrAPI void WaitVSync();
 class ITemplate : public IObject
 {
 public:
+    enum class MatchPattern
+    {
+        Binarized, // default
+        Contour,
+        Grayscale,
+    };
+
+    virtual void setMatchPattern(MatchPattern v) = 0;
+
     // maybe not equal with getImage()->getSize() because image can be scaled
     virtual int2 getSize() const = 0;
-    virtual ITexture2DPtr getImage() const = 0;
-    virtual ITexture2DPtr getMask() const = 0;
     virtual uint32_t getMaskBits() const = 0;
 };
 
@@ -365,5 +372,9 @@ public:
 };
 mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params);
 inline IScreenMatcherPtr CreateScreenMatcher(const IScreenMatcher::Params& params = {}) { return CreateScreenMatcher_(params); }
+
+#ifdef mrDebug
+void DbgSetScreenMatcherWriteout(bool v);
+#endif // mrDebug
 
 } // namespace mr

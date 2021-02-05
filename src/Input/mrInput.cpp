@@ -48,9 +48,15 @@ std::string OpRecord::toText() const
     }
 
     case OpType::MouseMoveMatch:
+    case OpType::WaitUntilMatch:
     {
         std::string ret;
-        ret += Format("%lld: MouseMoveMatch", time);
+        ret += Format("%lld: ", time);
+        if (type == OpType::MouseMoveMatch)
+            ret += "MouseMoveMatch";
+        else if(type==OpType::MouseMoveMatch)
+            ret += "WaitUntilMatch";
+
         for (auto& id : exdata.templates)
             ret += Format(" \"%s\"", id.path.c_str());
         return ret;
@@ -110,8 +116,12 @@ bool OpRecord::fromText(const std::string& v)
             skip();
         }
     }
-    else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%lld: ", &time) == 1) {
-        type = OpType::MouseMoveMatch;
+    else if ((std::strstr(src, "MouseMoveMatch") || std::strstr(src, "WaitUntilMatch")) && sscanf(src, "%lld: ", &time) == 1) {
+        if (std::strstr(src, "MouseMoveMatch"))
+            type = OpType::MouseMoveMatch;
+        else if (std::strstr(src, "WaitUntilMatch"))
+            type = OpType::WaitUntilMatch;
+
         Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
             exdata.templates.push_back({ 0, path });
             });

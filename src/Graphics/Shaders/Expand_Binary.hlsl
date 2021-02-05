@@ -36,10 +36,9 @@ void main(uint2 tid : SV_DispatchThreadID)
         uint bits = 0;
         for (uint py = top; py < bottom; ++py) {
             uint mask = 0;
-            for (uint x = left; x < right; ++x) {
+            for (uint x = left; x < right; ++x)
                 if (distance(float2(bx, tid.y), float2(x, py)) <= g_radius)
                     mask |= 1 << (x - left);
-            }
 
             uint p = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], shift);
             bits += countbits(p & mask);

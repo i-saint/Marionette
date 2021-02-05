@@ -9,14 +9,17 @@ namespace mr {
 class Template : public RefCount<ITemplate>
 {
 public:
-    int2 getSize() const { return size; }
-    ITexture2DPtr getImage() const override { return image; }
-    ITexture2DPtr getMask() const override { return mask; }
+    void setMatchPattern(MatchPattern v) override { match_pattern = v; }
+    int2 getSize() const override { return size; }
     uint32_t getMaskBits() const override { return mask_bits; }
 
 public:
+    MatchPattern match_pattern{};
     int2 size{};
     ITexture2DPtr image{};
+    ITexture2DPtr grayscale{};
+    ITexture2DPtr contour{};
+    ITexture2DPtr binarized{};
     ITexture2DPtr mask{};
     uint32_t mask_bits{};
 };
@@ -34,6 +37,9 @@ public:
         IScreenCapturePtr capture;
 
         IFilterSetPtr filter;
+        ITexture2DPtr surface;
+        ITexture2DPtr grayscale;
+        ITexture2DPtr contour;
         ITexture2DPtr binarized;
         nanosec last_frame{};
     };
@@ -46,6 +52,7 @@ public:
 
     IReduceMinMaxPtr pullReduceMinmax();
     void pushReduceMinmax(IReduceMinMaxPtr v);
+    void updateScreen(ScreenData& sd);
     void matchImpl(Template& tmpl, ScreenData& sd, Rect rect);
     Result reduceResults(std::span<ITemplatePtr> tmpl);
     Result match(std::span<ITemplatePtr> tmpl, HMONITOR target) override;
@@ -85,8 +92,13 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params)
 }
 
 #ifdef mrDebug
-static bool g_dbg_sm_writeout = true;
-#endif
+static bool g_dbg_sm_writeout = false;
+
+void DbgSetScreenMatcherWriteout(bool v)
+{
+    g_dbg_sm_writeout = v;
+}
+#endif // mrDebug
 
 ScreenMatcher::SharedData* ScreenMatcher::s_data;
 
@@ -138,18 +150,19 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     if (!tmpl)
         return nullptr;
 
-    auto orig_size = tmpl->getSize();
-    auto filter = CreateFilterSet();
-    auto trans = filter->transform(tmpl, m_params.scale, true);
-    auto contour = filter->contour(trans, m_params.contour_radius);
-    auto binalized = filter->binarize(contour, m_params.binarize_threshold);
-    auto mask = filter->expand(binalized, m_params.expand_radius);
-    tmpl = binalized;
+    auto orig_size  = tmpl->getSize();
+    auto filter     = CreateFilterSet();
+    auto grayscale  = filter->transform(tmpl, m_params.scale, true);
+    auto contour    = filter->contour(grayscale, m_params.contour_radius);
+    auto binarized  = filter->binarize(contour, m_params.binarize_threshold);
+    auto mask       = filter->expand(binarized, m_params.expand_radius);
 
 #ifdef mrDebug
-    if (g_dbg_sm_writeout) {
+    //if (g_dbg_sm_writeout)
+    {
+        grayscale->save(Replace(path, ".png", "_grayscale.png"));
         contour->save(Replace(path, ".png", "_contour.png"));
-        binalized->save(Replace(path, ".png", "_binalized.png"));
+        binarized->save(Replace(path, ".png", "_binarized.png"));
         mask->save(Replace(path, ".png", "_mask.png"));
     }
 #endif
@@ -158,6 +171,9 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     m_templates[path] = ret;
     ret->size = orig_size;
     ret->image = tmpl;
+    ret->grayscale = grayscale;
+    ret->contour = contour;
+    ret->binarized = binarized;
     ret->mask = mask;
     ret->mask_bits = filter->countBits(ret->mask).get();
     return ret;
@@ -181,6 +197,35 @@ void ScreenMatcher::pushReduceMinmax(IReduceMinMaxPtr v)
     m_reducers.push_back(v);
 }
 
+void ScreenMatcher::updateScreen(ScreenData& sd)
+{
+    float screen_scale = m_params.scale;
+    if (m_params.care_display_scale)
+        screen_scale /= sd.info.scale_factor;
+
+    auto frame = sd.capture->getFrame();
+    if (!frame.surface)
+        return;
+
+    if (frame.present_time != sd.last_frame) {
+        // make binarized surface
+        sd.last_frame = frame.present_time;
+        sd.surface = frame.surface;
+        sd.grayscale = sd.filter->transform(sd.surface, screen_scale, true);
+        sd.contour = sd.filter->contour(sd.grayscale, m_params.contour_radius);
+        sd.binarized = sd.filter->binarize(sd.contour, m_params.binarize_threshold);
+
+#ifdef mrDebug
+        if (g_dbg_sm_writeout) {
+            mrDbgPrint("writing frame %llu\n", sd.last_frame);
+            sd.grayscale->save(Format("frame_%llu_grayscale.png", sd.last_frame));
+            sd.contour->save(Format("frame_%llu_contour.png", sd.last_frame));
+            sd.binarized->save(Format("frame_%llu_bin.png", sd.last_frame));
+        }
+#endif
+    }
+}
+
 void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
     float template_scale = m_params.scale;
@@ -192,34 +237,26 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
         rect.pos - sd.info.rect.pos,
         rect.size
     } * screen_scale;
-    region.size -= tmpl.image->getSize();
+    region.size -= tmpl.binarized->getSize();
 
     if (region.size.x < 0 || region.size.y < 0) {
-        // rect is smaller than template
+        // rect is smaller than template. this should not be happened.
         return;
-    }
-
-    auto frame = sd.capture->getFrame();
-    if (!frame.surface) {
-        return;
-    }
-    if (frame.present_time != sd.last_frame) {
-        // make binarized surface
-        sd.last_frame = frame.present_time;
-        auto surface = sd.filter->transform(frame.surface, screen_scale, true);
-        auto contour = sd.filter->contour(surface, m_params.contour_radius);
-        sd.binarized = sd.filter->binarize(contour, m_params.binarize_threshold);
-
-#ifdef mrDebug
-        if (g_dbg_sm_writeout) {
-            surface->save(Format("frame_%llu_trans.png", sd.last_frame));
-            sd.binarized->save(Format("frame_%llu_bin.png", sd.last_frame));
-        }
-#endif
     }
 
     // dispatch template match & minmax
-    auto match = sd.filter->match(sd.binarized, tmpl.image, tmpl.mask, region, false);
+    ITexture2DPtr match;
+    switch (tmpl.match_pattern) {
+    case ITemplate::MatchPattern::Grayscale:
+        match = sd.filter->match(sd.grayscale, tmpl.grayscale, nullptr, region, false);
+        break;
+    case ITemplate::MatchPattern::Contour:
+        match = sd.filter->match(sd.contour, tmpl.contour, nullptr, region, false);
+        break;
+    default:
+        match = sd.filter->match(sd.binarized, tmpl.binarized, tmpl.mask, region, false);
+        break;
+    }
 
     auto minmax = pullReduceMinmax();
     minmax->setSrc(match);
@@ -228,18 +265,29 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
     // make deferred result to dispatch next matching without blocking
     auto deferred = std::async(std::launch::deferred,
-        [this, &tmpl, surface = frame.surface, minmax = std::move(minmax), template_scale, screen_scale, rect]() mutable
+        [this, &tmpl, &sd, minmax, template_scale, screen_scale, rect]() mutable
     {
+        auto tsize = tmpl.binarized->getSize();
         auto mm = minmax->getResult();
         pushReduceMinmax(minmax);
 
         Result ret;
-        ret.surface = surface;
-        ret.score = float(double(mm.vali_min) / double(tmpl.mask_bits));
+        ret.surface = sd.surface;
         ret.region = Rect{
             rect.pos + int2(float2(mm.pos_min) / screen_scale),
-            int2(float2(tmpl.image->getSize()) / template_scale)
+            int2(float2(tsize) / template_scale)
         };
+
+        switch (tmpl.match_pattern) {
+        case ITemplate::MatchPattern::Grayscale:
+        case ITemplate::MatchPattern::Contour:
+            ret.score = float(double(mm.valf_min) / double(tsize.x * tsize.y));
+            break;
+        default:
+            ret.score = float(double(mm.vali_min) / double(tmpl.mask_bits));
+            break;
+        }
+
         return ret;
     });
     m_deferred_results.push_back(std::move(deferred));
@@ -262,6 +310,7 @@ IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HMONI
     auto i = m_screens.find(target);
     if (i != m_screens.end()) {
         auto& sd = i->second;
+        updateScreen(sd);
         for (auto& t : tmpls)
             matchImpl(cast(*t), sd, sd.info.rect);
     }
@@ -273,6 +322,7 @@ IScreenMatcher::Result ScreenMatcher::match(std::span<ITemplatePtr> tmpls, HWND 
     auto i = m_screens.find(::MonitorFromWindow(target, MONITOR_DEFAULTTONULL));
     if (i != m_screens.end()) {
         auto& sd = i->second;
+        updateScreen(sd);
         auto rect = GetRect(target);
         for (auto& t : tmpls)
             matchImpl(cast(*t), sd, rect);

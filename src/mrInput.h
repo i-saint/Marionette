@@ -7,7 +7,6 @@ namespace mr {
 enum class OpType : int
 {
     Unknown,
-    Wait,
     KeyDown,
     KeyUp,
     MouseDown,
@@ -18,6 +17,9 @@ enum class OpType : int
     LoadMousePos,
     MatchParams,
     MouseMoveMatch,
+    Wait,
+    WaitUntilMatch,
+    TimeShift,
 };
 
 struct OpRecord

@@ -63,7 +63,7 @@ uint32_t CountBits_Reference(mr::ITexture2DPtr src)
         auto size = src->getSize();
         for (int i = 0; i < size.y; ++i) {
             auto data = (const uint32_t*)((const byte*)data_ + (pitch * i));
-            ret += process_line(data, size.x);
+            ret += process_line(data, mr::ceildiv(size.x, 32));
         }
         });
     return ret;
@@ -139,8 +139,8 @@ testCase(Filter)
     };
 
     const float scale = 0.5f;
-    const int contour_block_size = 3;
-    const int expand_block_size = 3;
+    const float contour_radius = 1.0f;
+    const float expand_radius = 1.0f;
     const float binarize_threshold = 0.2f;
 
     auto gfx = mr::GetGfxInterface();
@@ -155,19 +155,19 @@ testCase(Filter)
         auto filter = mr::CreateFilterSet();
         mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
         src = rtrans = filter->transform(tmp_image, scale, true);
-        src = rcont = filter->contour(src, contour_block_size);
+        src = rcont = filter->contour(src, contour_radius);
         src =
             rbin = filter->binarize(src, binarize_threshold);
         tmp_image = src;
         tmp_mask =
-            rexp = filter->expand(src, expand_block_size);
+            rexp = filter->expand(src, expand_radius);
 
         async_ops.push_back(rcont->saveAsync("template_contour.png"));
         async_ops.push_back(rbin->saveAsync("template_binary.png"));
         async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
 
         {
-            auto rce = mr::CreateFilterSet()->expand(rcont, expand_block_size);
+            auto rce = mr::CreateFilterSet()->expand(rcont, expand_radius);
             async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
         }
 
@@ -201,7 +201,7 @@ testCase(Filter)
         auto time_begin = test::Now();
 
         src = rtrans = filter->transform(tex, scale, true);
-        src = rcont = filter->contour(src, contour_block_size);
+        src = rcont = filter->contour(src, contour_radius);
         src =
             rbin = filter->binarize(src, binarize_threshold);
 
@@ -450,7 +450,10 @@ bool Window::draw(const unorm8x4* src)
 
 testCase(ScreenMatcher)
 {
-    auto matcher = mr::CreateScreenMatcher();
+    mr::IScreenMatcher::Params sm_params;
+    sm_params.contour_radius = 1.5f;
+    sm_params.expand_radius = 1.5f;
+    auto matcher = mr::CreateScreenMatcher(sm_params);
     testExpect(matcher != nullptr);
 
     auto tmpl = matcher->createTemplate("template.png");

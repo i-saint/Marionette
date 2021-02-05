@@ -15,7 +15,7 @@ public:
     bool load(const char* path) override;
     void setMatchTarget(MatchTarget v) override;
 
-    void execRecord(const OpRecord& rec);
+    bool execRecord(const OpRecord& rec);
 
 private:
     bool m_playing = false;
@@ -88,28 +88,35 @@ bool Player::update()
 
         millisec time_now = NowMS();
         millisec time_rec = time_now - m_time_start;
+
         if (time_rec >= rec.time) {
-            execRecord(rec);
-            if (!m_playing)
+            auto go_next = execRecord(rec);
+
+            millisec elapsed = NowMS() - time_now;
+            if (!go_next) {
+                m_time_start += elapsed;
                 break;
+            }
+            else if (!m_playing) {
+                break;
+            }
+            mrDbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
             ++m_record_index;
 
             // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
-            millisec elapsed = NowMS() - time_now;
             if (rec.type == OpType::MouseMoveMatch)
                 m_time_start += elapsed;
-            mrDbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
 
-            if (m_record_index == m_records.size()) {
+            if (m_record_index >= m_records.size()) {
                 // go next loop or stop
+                m_record_index = 0;
+                m_time_start = NowMS();
                 ++m_loop_count;
                 if (m_loop_count >= m_loop_required) {
                     m_playing = false;
                     return false;
                 }
                 else {
-                    m_record_index = 0;
-                    m_time_start = NowMS();
                     break;
                 }
             }
@@ -121,7 +128,7 @@ bool Player::update()
     return true;
 }
 
-void Player::execRecord(const OpRecord& rec)
+bool Player::execRecord(const OpRecord& rec)
 {
     auto make_mouse_move = [](INPUT& input, int2 screen_pos) {
         // http://msdn.microsoft.com/en-us/library/ms646260(VS.85).aspx
@@ -139,6 +146,7 @@ void Player::execRecord(const OpRecord& rec)
         input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
     };
 
+    bool ret = true;
     switch (rec.type)
     {
     case OpType::MouseDown:
@@ -157,6 +165,7 @@ void Player::execRecord(const OpRecord& rec)
             case 3: input.mi.dwFlags |= MOUSEEVENTF_MIDDLEDOWN; break;
             default: break;
             }
+            ::SendInput(1, &input, sizeof(INPUT));
         }
         else if (rec.type == OpType::MouseUp) {
             // handle buttons
@@ -166,36 +175,44 @@ void Player::execRecord(const OpRecord& rec)
             case 3: input.mi.dwFlags |= MOUSEEVENTF_MIDDLEUP; break;
             default: break;
             }
+            ::SendInput(1, &input, sizeof(INPUT));
         }
         else if (rec.type == OpType::MouseMoveAbs) {
             m_state.mouse_pos = rec.data.mouse.pos;
             make_mouse_move(input, m_state.mouse_pos);
+            ::SendInput(1, &input, sizeof(INPUT));
         }
         else if (rec.type == OpType::MouseMoveRel) {
-            m_state.mouse_pos = rec.data.mouse.pos;
+            m_state.mouse_pos += rec.data.mouse.pos;
             make_mouse_move(input, m_state.mouse_pos);
+            ::SendInput(1, &input, sizeof(INPUT));
         }
-        else if (rec.type == OpType::MouseMoveMatch) {
+        else if (rec.type == OpType::MouseMoveMatch || rec.type == OpType::WaitUntilMatch) {
             std::vector<ITemplatePtr> templates;
             for (auto& i : rec.exdata.templates)
                 if (i.tmpl)
                     templates.push_back(i.tmpl);
 
-            bool matched = false;
             auto match_target = ::GetForegroundWindow();
             auto r = m_smatch->match(templates, match_target);
+            mrDbgPrint("match score: %.2f (%d, %d)\n", r.score, r.region.getCenter().x, r.region.getCenter().y);
             if (r.score <= rec.exdata.match_threshold) {
-                m_state.mouse_pos = r.region.getCenter();
-                make_mouse_move(input, m_state.mouse_pos);
-                matched = true;
+                if (rec.type == OpType::MouseMoveMatch) {
+                    m_state.mouse_pos = r.region.getCenter();
+                    make_mouse_move(input, m_state.mouse_pos);
+                    ::SendInput(1, &input, sizeof(INPUT));
+                }
             }
-
-            if (!matched) {
-                stop();
-                break;
+            else {
+                if (rec.type == OpType::MouseMoveMatch) {
+                    stop();
+                }
+                else if (rec.type == OpType::WaitUntilMatch) {
+                    WaitVSync();
+                    ret = false;
+                }
             }
         }
-        ::SendInput(1, &input, sizeof(INPUT));
         break;
     }
 
@@ -238,6 +255,7 @@ void Player::execRecord(const OpRecord& rec)
     default:
         break;
     }
+    return ret;
 }
 
 bool Player::load(const char* path)
