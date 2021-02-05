@@ -35,6 +35,7 @@ namespace mr {
 using millisec = uint64_t;
 using nanosec = uint64_t;
 
+std::string Format(const char* format, ...);
 void Print(const char* fmt, ...);
 void Print(const wchar_t* fmt, ...);
 millisec NowMS();

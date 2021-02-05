@@ -342,7 +342,7 @@ public:
     struct Params
     {
         float scale = 0.5f;
-        bool care_display_scale_factor = false;
+        bool care_display_scale = false;
         int contour_block_size = 3;
         int expand_block_size = 3;
         float binarize_threshold = 0.2f;

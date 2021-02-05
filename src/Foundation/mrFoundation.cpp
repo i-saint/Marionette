@@ -5,6 +5,25 @@
 
 namespace mr {
 
+std::string FormatImpl(const char* format, va_list args)
+{
+    const int MaxBuf = 4096;
+    char buf[MaxBuf];
+    vsprintf(buf, format, args);
+    return buf;
+}
+
+std::string Format(const char* format, ...)
+{
+    std::string ret;
+    va_list args;
+    va_start(args, format);
+    ret = FormatImpl(format, args);
+    va_end(args);
+    fflush(stdout);
+    return ret;
+}
+
 void Print(const char* fmt, ...)
 {
     char buf[1024 * 2];
@@ -24,7 +43,6 @@ void Print(const wchar_t* fmt, ...)
     va_end(args);
     ::OutputDebugStringW(buf);
 }
-
 
 millisec NowMS()
 {
@@ -150,18 +168,6 @@ std::string OpRecord::toText() const
         snprintf(buf, sizeof(buf), "%lld: MouseMoveRel %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
         break;
 
-    case OpType::MouseMoveMatch:
-    {
-        std::string ret;
-        snprintf(buf, sizeof(buf), "%lld: MouseMoveMatch", time);
-        ret += buf;
-        for (auto& id : exdata.images) {
-            snprintf(buf, sizeof(buf), " \"%s\"", id.path.c_str());
-            ret += buf;
-        }
-        return ret;
-    }
-
     case OpType::SaveMousePos:
         snprintf(buf, sizeof(buf), "%lld: SaveMousePos %d", time, exdata.save_slot);
         break;
@@ -170,6 +176,30 @@ std::string OpRecord::toText() const
         snprintf(buf, sizeof(buf), "%lld: LoadMousePos %d", time, exdata.save_slot);
         break;
 
+
+    case OpType::MatchParams:
+    {
+        std::string ret;
+        auto& p = exdata.match_params;
+        ret += "MatchParams";
+        ret += Format(" Scale=%.2f", p.scale);
+        ret += Format(" CareDisplayScale=%d", (int)p.care_display_scale);
+        ret += Format(" ContourBlockSize=%d", p.contour_block_size);
+        ret += Format(" ExpandBlockSize=%d", p.expand_block_size);
+        ret += Format(" BinarizeThreshold=%d", p.binarize_threshold);
+        break;
+    }
+    case OpType::MouseMoveMatch:
+    {
+        std::string ret;
+        snprintf(buf, sizeof(buf), "%lld: MouseMoveMatch", time);
+        ret += buf;
+        for (auto& id : exdata.templates) {
+            snprintf(buf, sizeof(buf), " \"%s\"", id.path.c_str());
+            ret += buf;
+        }
+        return ret;
+    }
     default:
         break;
     }
@@ -182,6 +212,17 @@ bool OpRecord::fromText(const std::string& v)
 
     char buf[MAX_PATH]{};
     const char* src = v.c_str();
+
+    auto skip = [&src]() {
+        while (*src != '\0') {
+            if (src[0] == ' ' && src[1] != ' ') {
+                ++src;
+                break;
+            }
+            ++src;
+        }
+    };
+
     if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1)
         type = OpType::Wait;
     else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
@@ -196,16 +237,31 @@ bool OpRecord::fromText(const std::string& v)
         type = OpType::MouseMoveAbs;
     else if (sscanf(src, "%lld: MouseMoveRel %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
         type = OpType::MouseMoveRel;
-    else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%lld: ", &time) == 1) {
-        type = OpType::MouseMoveMatch;
-        Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
-            exdata.images.push_back({0, path});
-            });
-    }
     else if (sscanf(src, "%lld: SaveMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::SaveMousePos;
     else if (sscanf(src, "%lld: LoadMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::LoadMousePos;
+    else if (std::strstr(src, "MatchParams ")) {
+        skip();
+
+        auto& p = exdata.match_params;
+        float fv;
+        int iv;
+        while (*src != '\0') {
+            if (sscanf(src, "Scale=%f", &fv) == 1) p.scale = fv;
+            else if (sscanf(src, "CareDisplayScale=%d", &iv) == 1) p.care_display_scale = iv != 0;
+            else if (sscanf(src, "ContourBlockSize=%d", &iv) == 1) p.contour_block_size = iv;
+            else if (sscanf(src, "ExpandBlockSize=%d", &iv) == 1) p.expand_block_size = iv;
+            else if (sscanf(src, "BinarizeThreshold=%d", &iv) == 1) p.binarize_threshold = iv;
+            skip();
+        }
+    }
+    else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%lld: ", &time) == 1) {
+        type = OpType::MouseMoveMatch;
+        Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
+            exdata.templates.push_back({ 0, path });
+            });
+    }
     return type != OpType::Unknown;
 }
 

@@ -170,7 +170,7 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
     float template_scale = m_params.scale;
     float screen_scale = m_params.scale;
-    if (m_params.care_display_scale_factor)
+    if (m_params.care_display_scale)
         screen_scale /= sd.info.scale_factor;
 
     auto region = Rect{

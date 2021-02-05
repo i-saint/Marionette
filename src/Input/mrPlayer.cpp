@@ -18,19 +18,10 @@ public:
     void execRecord(const OpRecord& rec);
 
 private:
-    // shared with all instances
-    struct SharedData : public RefCount<IObject>
-    {
-        IScreenMatcherPtr smatch;
-    };
-    static SharedData* s_data;
-
-private:
     bool m_playing = false;
     millisec m_time_start = 0;
     uint32_t m_record_index = 0;
     uint32_t m_loop_required = 0, m_loop_count = 0;
-    MatchTarget m_match_target = MatchTarget::EntireScreen;
     std::vector<OpRecord> m_records;
 
     struct State
@@ -39,25 +30,18 @@ private:
     };
     State m_state;
     std::map<int, State> m_mouse_state_slots;
+
+    MatchTarget m_match_target = MatchTarget::EntireScreen;
+    IScreenMatcherPtr m_smatch;
 };
 
 
-Player::SharedData* Player::s_data;
-
 Player::Player()
 {
-    if (!s_data) {
-        s_data = new SharedData();
-        s_data->smatch = CreateScreenMatcher();
-    }
-    s_data->addRef();
 }
 
 Player::~Player()
 {
-    if (s_data->release() == 0) {
-        s_data = nullptr;
-    }
 }
 
 bool Player::start(uint32_t loop)
@@ -139,7 +123,7 @@ bool Player::update()
 
 void Player::execRecord(const OpRecord& rec)
 {
-    auto MakeMouseMove = [](INPUT& input, int2 screen_pos) {
+    auto make_mouse_move = [](INPUT& input, int2 screen_pos) {
         // http://msdn.microsoft.com/en-us/library/ms646260(VS.85).aspx
         // If MOUSEEVENTF_ABSOLUTE value is specified, dx and dy contain normalized absolute coordinates between 0 and 65,535.
         // The event procedure maps these coordinates onto the display surface.
@@ -185,26 +169,26 @@ void Player::execRecord(const OpRecord& rec)
         }
         else if (rec.type == OpType::MouseMoveAbs) {
             m_state.mouse_pos = rec.data.mouse.pos;
-            MakeMouseMove(input, m_state.mouse_pos);
+            make_mouse_move(input, m_state.mouse_pos);
         }
         else if (rec.type == OpType::MouseMoveRel) {
             m_state.mouse_pos = rec.data.mouse.pos;
-            MakeMouseMove(input, m_state.mouse_pos);
+            make_mouse_move(input, m_state.mouse_pos);
         }
         else if (rec.type == OpType::MouseMoveMatch) {
             const float score_threshold = 0.3f;
             bool matched = false;
 
             std::vector<ITemplatePtr> templates;
-            for (auto& i : rec.exdata.images)
+            for (auto& i : rec.exdata.templates)
                 if (i.tmpl)
                     templates.push_back(i.tmpl);
 
             auto match_target = ::GetForegroundWindow();
-            auto r = s_data->smatch->match(templates, match_target);
+            auto r = m_smatch->match(templates, match_target);
             if (r.score <= score_threshold) {
                 m_state.mouse_pos = r.region.getCenter();
-                MakeMouseMove(input, m_state.mouse_pos);
+                make_mouse_move(input, m_state.mouse_pos);
                 matched = true;
             }
 
@@ -230,7 +214,7 @@ void Player::execRecord(const OpRecord& rec)
 
             INPUT input{};
             input.type = INPUT_MOUSE;
-            MakeMouseMove(input, m_state.mouse_pos);
+            make_mouse_move(input, m_state.mouse_pos);
 
             // it seems single mouse move can't step over display boundary. so SendInput twice.
             ::SendInput(1, &input, sizeof(INPUT));
@@ -270,9 +254,15 @@ bool Player::load(const char* path)
     while (std::getline(ifs, l)) {
         OpRecord rec;
         if (rec.fromText(l)) {
-            if (rec.type == OpType::MouseMoveMatch) {
-                for (auto& id : rec.exdata.images) {
-                    id.tmpl = s_data->smatch->createTemplate(id.path.c_str());
+            if (rec.type == OpType::MatchParams) {
+                m_smatch = CreateScreenMatcher(rec.exdata.match_params);
+            }
+            else if (rec.type == OpType::MouseMoveMatch) {
+                if (!m_smatch)
+                    m_smatch = CreateScreenMatcher();
+
+                for (auto& id : rec.exdata.templates) {
+                    id.tmpl = m_smatch->createTemplate(id.path.c_str());
                     if (!id.tmpl) {
                         mrDbgPrint("*** failed to load template %s ***\n", id.path.c_str());
                     }

@@ -14,14 +14,15 @@ enum class OpType : int
     MouseUp,
     MouseMoveAbs,
     MouseMoveRel,
-    MouseMoveMatch,
     SaveMousePos,
     LoadMousePos,
+    MatchParams,
+    MouseMoveMatch,
 };
 
 struct OpRecord
 {
-    struct ImageData
+    struct TemplateData
     {
         ITemplatePtr tmpl;
         std::string path;
@@ -45,7 +46,8 @@ struct OpRecord
     struct
     {
         int save_slot = 0;
-        std::vector<ImageData> images;
+        IScreenMatcher::Params match_params;
+        std::vector<TemplateData> templates;
     } exdata;
 
     std::string toText() const;
