@@ -13,8 +13,8 @@ public:
     ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region) override;
     ITexture2DPtr normalize(ITexture2DPtr src, float denom) override;
     ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
-    ITexture2DPtr contour(ITexture2DPtr src, int block_size) override;
-    ITexture2DPtr expand(ITexture2DPtr src, int block_size) override;
+    ITexture2DPtr contour(ITexture2DPtr src, float radius) override;
+    ITexture2DPtr expand(ITexture2DPtr src, float radius) override;
     ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region, bool fit) override;
 
     std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) override;
@@ -93,20 +93,20 @@ ITexture2DPtr FilterSet::binarize(ITexture2DPtr src, float threshold)
     return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::contour(ITexture2DPtr src, int block_size)
+ITexture2DPtr FilterSet::contour(ITexture2DPtr src, float radius)
 {
     mrMakeFilter(m_contour, Contour);
     filter->setSrc(src);
-    filter->setBlockSize(block_size);
+    filter->setRadius(radius);
     filter->dispatch();
     return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::expand(ITexture2DPtr src, int block_size)
+ITexture2DPtr FilterSet::expand(ITexture2DPtr src, float radius)
 {
     mrMakeFilter(m_expand, Expand);
     filter->setSrc(src);
-    filter->setBlockSize(block_size);
+    filter->setRadius(radius);
     filter->dispatch();
     return filter->getDst();
 }

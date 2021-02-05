@@ -306,19 +306,20 @@ class Contour : public FilterCommon<IContour>
 {
 public:
     Contour(ContourCS* v);
-    void setBlockSize(int v) override;
+    void setRadius(float v) override;
     void dispatch() override;
 
 public:
     ContourCS* m_cs{};
     BufferPtr m_const;
 
-    int m_block_size = 3;
+    float m_radius = 1.0f;
+    float m_strength = 1.0f;
     bool m_dirty = true;
 };
 
 Contour::Contour(ContourCS* v) : m_cs(v) {}
-void Contour::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
+void Contour::setRadius(float v) { mrCheckDirty(v == m_radius); m_radius = v; }
 
 void Contour::dispatch()
 {
@@ -333,10 +334,12 @@ void Contour::dispatch()
     if (m_dirty) {
         struct
         {
-            int block_size;
-            int3 pad;
+            float radius;
+            float strength;
+            int2 pad;
         } params{};
-        params.block_size = m_block_size;
+        params.radius = m_radius;
+        params.strength = m_strength;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;
@@ -374,19 +377,19 @@ class Expand : public FilterCommon<IExpand>
 {
 public:
     Expand(ExpandCS* v);
-    void setBlockSize(int v) override;
+    void setRadius(float v) override;
     void dispatch() override;
 
 public:
     ExpandCS* m_cs{};
     BufferPtr m_const;
 
-    int m_block_size = 3;
+    float m_radius = 1.0f;
     bool m_dirty = true;
 };
 
 Expand::Expand(ExpandCS* v) : m_cs(v) {}
-void Expand::setBlockSize(int v) { mrCheckDirty(v == m_block_size); m_block_size = v; }
+void Expand::setRadius(float v) { mrCheckDirty(v == m_radius); m_radius = v; }
 
 void Expand::dispatch()
 {
@@ -404,10 +407,10 @@ void Expand::dispatch()
     if (m_dirty) {
         struct
         {
-            int block_size;
+            float radius;
             int3 pad;
         } params{};
-        params.block_size = m_block_size;
+        params.radius = m_radius;
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;

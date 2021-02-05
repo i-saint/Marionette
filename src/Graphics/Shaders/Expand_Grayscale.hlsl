@@ -1,6 +1,6 @@
 cbuffer Constants : register(b0)
 {
-    uint g_block_size;
+    float g_radius;
     int3 g_pad;
 };
 
@@ -13,14 +13,13 @@ void main(uint2 tid : SV_DispatchThreadID)
     uint w, h;
     g_image.GetDimensions(w, h);
 
-    int _b = (g_block_size >> 1);
-    int b_ = (g_block_size >> 1) + (g_block_size & 0x1);
-    int2 tl = max(int2(tid) - _b, 0);
-    int2 br = min(int2(tid) + b_, int2(w, h));
+    int2 tl = max(int2(tid) - int(g_radius), 0);
+    int2 br = min(int2(tid) + int(g_radius) + 1, int2(w, h));
 
     float r = g_image[tid];
     for (int i = tl.y; i < br.y; ++i)
         for (int j = tl.x; j < br.x; ++j)
-            r = max(r, g_image[uint2(j, i)]);
+            if (distance(float2(tid), float2(j, i)) <= g_radius)
+                r = max(r, g_image[uint2(j, i)]);
     g_result[tid] = r;
 }

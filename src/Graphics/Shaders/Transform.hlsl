@@ -81,6 +81,7 @@ void main(uint2 tid : SV_DispatchThreadID)
 
     if (g_flags & F_Grayscale) {
         g_dst[tid] = dot(p.rgb, float3(0.2126f, 0.7152f, 0.0722f));
+        //g_dst[tid] = min(min(p.r, p.g), p.b);
     }
     else {
         if (g_flags & F_FillAlpha)

@@ -45,6 +45,7 @@ std::string GetCurrentModuleDirectory();
 
 void Split(const std::string& str, const std::string& separator, const std::function<void(std::string sub)>& body);
 void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body);
+std::string Replace(const std::string& str, const std::string& before, const std::string& after);
 
 template<class T> inline std::span<T> MakeSpan(T& v) { return { &v, 1 }; }
 template<class T> inline std::span<T> MakeSpan(std::vector<T>& v) { return { v.data(), v.size() }; }

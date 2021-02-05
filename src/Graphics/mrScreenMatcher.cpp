@@ -84,6 +84,10 @@ mrAPI IScreenMatcher* CreateScreenMatcher_(const IScreenMatcher::Params& params)
     return ret;
 }
 
+#ifdef mrDebug
+static bool g_dbg_sm_writeout = true;
+#endif
+
 ScreenMatcher::SharedData* ScreenMatcher::s_data;
 
 ScreenMatcher::ScreenMatcher(const Params& params)
@@ -136,10 +140,19 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
 
     auto orig_size = tmpl->getSize();
     auto filter = CreateFilterSet();
-    tmpl = filter->transform(tmpl, m_params.scale, true);
-    tmpl = filter->contour(tmpl, m_params.contour_block_size);
-    tmpl = filter->binarize(tmpl, m_params.binarize_threshold);
-    auto mask = filter->expand(tmpl, m_params.expand_block_size);
+    auto trans = filter->transform(tmpl, m_params.scale, true);
+    auto contour = filter->contour(trans, m_params.contour_radius);
+    auto binalized = filter->binarize(contour, m_params.binarize_threshold);
+    auto mask = filter->expand(binalized, m_params.expand_radius);
+    tmpl = binalized;
+
+#ifdef mrDebug
+    if (g_dbg_sm_writeout) {
+        contour->save(Replace(path, ".png", "_contour.png"));
+        binalized->save(Replace(path, ".png", "_binalized.png"));
+        mask->save(Replace(path, ".png", "_mask.png"));
+    }
+#endif
 
     auto ret = make_ref<Template>();
     m_templates[path] = ret;
@@ -194,8 +207,14 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
         // make binarized surface
         sd.last_frame = frame.present_time;
         auto surface = sd.filter->transform(frame.surface, screen_scale, true);
-        auto contour = sd.filter->contour(surface, m_params.contour_block_size);
+        auto contour = sd.filter->contour(surface, m_params.contour_radius);
         sd.binarized = sd.filter->binarize(contour, m_params.binarize_threshold);
+
+#ifdef mrDebug
+        if (g_dbg_sm_writeout) {
+            sd.binarized->save(Format("frame_%llu.png", sd.last_frame));
+        }
+#endif
     }
 
     // dispatch template match & minmax

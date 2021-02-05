@@ -167,13 +167,13 @@ public:
 class IExpand : public IFilter
 {
 public:
-    virtual void setBlockSize(int v) = 0;
+    virtual void setRadius(float v) = 0;
 };
 
 class IContour : public IFilter
 {
 public:
-    virtual void setBlockSize(int v) = 0;
+    virtual void setRadius(float v) = 0;
 };
 
 class ITemplateMatch : public IFilter
@@ -297,8 +297,8 @@ public:
     inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
     virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
     virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
-    virtual ITexture2DPtr contour(ITexture2DPtr src, int block_size) = 0;
-    virtual ITexture2DPtr expand(ITexture2DPtr src, int block_size) = 0;
+    virtual ITexture2DPtr contour(ITexture2DPtr src, float radius) = 0;
+    virtual ITexture2DPtr expand(ITexture2DPtr src, float radius) = 0;
     virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, Rect region = {}, bool fit = true) = 0;
 
     virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) = 0;
@@ -343,8 +343,8 @@ public:
     {
         float scale = 0.5f;
         bool care_display_scale = false;
-        int contour_block_size = 3;
-        int expand_block_size = 3;
+        float contour_radius = 1.0f;
+        float expand_radius = 1.0f;
         float binarize_threshold = 0.2f;
     };
 

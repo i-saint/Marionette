@@ -81,7 +81,7 @@ void Split(const std::string& str, const std::string& separator, const std::func
         else
             offset = pos + separator.size();
     }
-};
+}
 
 void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body)
 {
@@ -97,7 +97,21 @@ void Scan(const std::string& str, const std::regex& exp, const std::function<voi
             break;
         }
     }
+}
 
+std::string Replace(const std::string& str, const std::string& before, const std::string& after)
+{
+    auto pos = str.find(before);
+    if (pos != std::string::npos) {
+        std::string ret;
+        ret += std::string_view(str.begin(), str.begin() + pos);
+        ret += after;
+        ret += std::string_view(str.begin() + (pos + before.size()), str.end());
+        return ret;
+    }
+    else {
+        return str;
+    }
 }
 
 Timer::Timer()
