@@ -146,7 +146,7 @@ bool DesktopDuplication::getFrameInternal(int timeout_ms)
 
 IScreenCapture::FrameInfo DesktopDuplication::getFrame()
 {
-    // AcquireNextFrame() before the first vsync seems result empty frame. so, wait before first call.
+    // AcquireNextFrame() before the first vsync seems result empty frame. so, wait before the first call.
     if (m_frame_info.present_time == 0)
         WaitVSync();
 
