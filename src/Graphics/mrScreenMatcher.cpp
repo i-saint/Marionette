@@ -153,6 +153,8 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     auto orig_size  = tmpl->getSize();
     auto filter     = CreateFilterSet();
     auto grayscale  = filter->transform(tmpl, m_params.scale, true);
+    if (m_params.grayscale_bias != 0.0f)
+        grayscale = filter->bias(grayscale, m_params.grayscale_bias);
     auto contour    = filter->contour(grayscale, m_params.contour_radius);
     auto binarized  = filter->binarize(contour, m_params.binarize_threshold);
     auto mask       = filter->expand(binarized, m_params.expand_radius);
@@ -212,7 +214,9 @@ void ScreenMatcher::updateScreen(ScreenData& sd)
         sd.last_frame = frame.present_time;
         sd.surface = frame.surface;
         sd.grayscale = sd.filter->transform(sd.surface, screen_scale, true);
-        sd.contour = sd.filter->contour(sd.grayscale, m_params.contour_radius);
+        if (m_params.grayscale_bias != 0.0f)
+            sd.grayscale = sd.filter->bias(sd.grayscale, m_params.grayscale_bias);
+        sd.contour   = sd.filter->contour(sd.grayscale, m_params.contour_radius);
         sd.binarized = sd.filter->binarize(sd.contour, m_params.binarize_threshold);
 
 #ifdef mrDebug

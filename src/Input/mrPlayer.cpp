@@ -279,7 +279,10 @@ bool Player::load(const char* path)
 
                 for (auto& id : rec.exdata.templates) {
                     id.tmpl = m_smatch->createTemplate(id.path.c_str());
-                    if (!id.tmpl) {
+                    if (id.tmpl) {
+                        //id.tmpl->setMatchPattern(ITemplate::MatchPattern::Grayscale);
+                    }
+                    else {
                         mrDbgPrint("*** failed to load template %s ***\n", id.path.c_str());
                     }
                 }

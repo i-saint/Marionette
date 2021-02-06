@@ -50,6 +50,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Graphics\Shaders\Bias.hlsl" />
     <FxCompile Include="Graphics\Shaders\Binarize.hlsl" />
     <FxCompile Include="Graphics\Shaders\Contour.hlsl" />
     <FxCompile Include="Graphics\Shaders\Expand_Binary.hlsl" />

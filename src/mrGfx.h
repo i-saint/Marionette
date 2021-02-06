@@ -100,6 +100,7 @@ public:
 
 #define mrEachCS(Body)\
     Body(Transform)\
+    Body(Bias)\
     Body(Normalize)\
     Body(Binarize)\
     Body(Contour)\
@@ -149,6 +150,12 @@ public:
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
     virtual void setFiltering(bool v) = 0;
+};
+
+class IBias : public IFilter
+{
+public:
+    virtual void setBias(float v) = 0;
 };
 
 class INormalize : public IFilter
@@ -295,6 +302,7 @@ public:
     inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, Rect{}, TextureFormat::Unknown); }
     virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region = {}) = 0;
     inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
+    virtual ITexture2DPtr bias(ITexture2DPtr src, float bias) = 0;
     virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
     virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
     virtual ITexture2DPtr contour(ITexture2DPtr src, float radius) = 0;
@@ -350,6 +358,7 @@ public:
     {
         float scale = 0.5f;
         bool care_display_scale = false;
+        float grayscale_bias = 0.0f;
         float contour_radius = 1.0f;
         float expand_radius = 1.0f;
         float binarize_threshold = 0.2f;

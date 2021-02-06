@@ -3,6 +3,7 @@
 
 // shader binaries
 #include "Transform.hlsl.h"
+#include "Bias.hlsl.h"
 #include "Normalize_F.hlsl.h"
 #include "Normalize_I.hlsl.h"
 #include "Binarize.hlsl.h"
@@ -154,6 +155,78 @@ ITransformPtr TransformCS::createContext()
 }
 
 
+class Bias : public FilterCommon<IBias>
+{
+public:
+    Bias(BiasCS* v);
+    void setBias(float v) override;
+    void dispatch() override;
+
+public:
+    BiasCS* m_cs{};
+    BufferPtr m_const;
+
+    float m_bias = 0.0f;
+    bool m_dirty = true;
+};
+
+Bias::Bias(BiasCS* v) : m_cs(v) {}
+
+void Bias::setBias(float v)
+{
+    mrCheckDirty(m_bias == v);
+    m_bias = v;
+}
+
+void Bias::dispatch()
+{
+    if (!m_src)
+        return;
+
+    if (!m_dst) {
+        auto size = m_src->getSize();
+        m_dst = Texture2D::create(size.x, size.y, m_src->getFormat());
+    }
+    if (m_dirty) {
+        struct
+        {
+            float bias;
+            float mul;
+            int2 pad;
+        } params{};
+        params.bias = m_bias;
+        params.mul = 1.0f / (1.0f + m_bias);
+
+        m_const = Buffer::createConstant(params);
+        m_dirty = false;
+    }
+
+    m_cs->dispatch(*this);
+}
+
+BiasCS::BiasCS()
+{
+    m_cs.initialize(mrBytecode(g_hlsl_Bias));
+}
+
+void BiasCS::dispatch(ICSContext& ctx)
+{
+    auto& c = static_cast<Bias&>(ctx);
+
+    auto size = c.m_dst->getInternalSize();
+    m_cs.setCBuffer(c.m_const);
+    m_cs.setSRV(c.m_src);
+    m_cs.setUAV(c.m_dst);
+    m_cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
+}
+
+IBiasPtr BiasCS::createContext()
+{
+    return make_ref<Bias>(this);
+}
+
 
 class Normalize : public FilterCommon<INormalize>
 {
@@ -167,7 +240,7 @@ public:
     NormalizeCS* m_cs{};
     BufferPtr m_const;
 
-    float m_rmax= 1.0f;
+    float m_rmax = 1.0f;
     bool m_dirty = true;
 };
 
@@ -210,22 +283,13 @@ void NormalizeCS::dispatch(ICSContext& ctx)
     auto& c = static_cast<Normalize&>(ctx);
 
     auto size = c.m_dst->getInternalSize();
-    if (IsIntFormat(c.m_src->getFormat())) {
-        m_cs_i.setCBuffer(c.m_const);
-        m_cs_i.setSRV(c.m_src);
-        m_cs_i.setUAV(c.m_dst);
-        m_cs_i.dispatch(
-            ceildiv(size.x, 32),
-            ceildiv(size.y, 32));
-    }
-    else {
-        m_cs_f.setCBuffer(c.m_const);
-        m_cs_f.setSRV(c.m_src);
-        m_cs_f.setUAV(c.m_dst);
-        m_cs_f.dispatch(
-            ceildiv(size.x, 32),
-            ceildiv(size.y, 32));
-    }
+    auto& cs = IsIntFormat(c.m_src->getFormat()) ? m_cs_i : m_cs_f;
+    cs.setCBuffer(c.m_const);
+    cs.setSRV(c.m_src);
+    cs.setUAV(c.m_dst);
+    cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
 }
 
 INormalizePtr NormalizeCS::createContext()
