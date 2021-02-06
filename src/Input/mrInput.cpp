@@ -7,9 +7,6 @@ std::string OpRecord::toText() const
 {
     switch (type)
     {
-    case OpType::Wait:
-        return Format("%lld: Wait", time);
-
     case OpType::KeyDown:
         return Format("%lld: KeyDown %d", time, data.key.code);
 
@@ -62,6 +59,9 @@ std::string OpRecord::toText() const
             ret += Format(" \"%s\"", id.path.c_str());
         return ret;
     }
+
+    case OpType::Wait:
+        return Format("%lld: Wait %d", time, exdata.wait_time);
 
     default:
         return "";
@@ -129,7 +129,7 @@ bool OpRecord::fromText(const std::string& v)
             exdata.templates.push_back({ 0, path });
             });
     }
-    else if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1) {
+    else if (sscanf(src, "%lld: Wait %d", &time, &exdata.wait_time) == 2) {
         type = OpType::Wait;
     }
     return type != OpType::Unknown;

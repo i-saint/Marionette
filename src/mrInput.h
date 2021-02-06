@@ -47,6 +47,7 @@ struct OpRecord
 
     struct
     {
+        int wait_time = 0;
         int time_shift = 0;
         int save_slot = 0;
         IScreenMatcher::Params match_params{};
