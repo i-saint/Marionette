@@ -55,7 +55,7 @@ std::string OpRecord::toText() const
         ret += Format("%lld: ", time);
         if (type == OpType::MouseMoveMatch)
             ret += "MouseMoveMatch";
-        else if(type==OpType::MouseMoveMatch)
+        else if (type == OpType::WaitUntilMatch)
             ret += "WaitUntilMatch";
 
         for (auto& id : exdata.templates)
@@ -83,8 +83,8 @@ bool OpRecord::fromText(const std::string& v)
         }
     };
 
-    if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1)
-        type = OpType::Wait;
+    if (sscanf(src, "TimeShift %d", &exdata.time_shift) == 1)
+        type = OpType::TimeShift;
     else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
     else if (sscanf(src, "%lld: KeyUp %d", &time, &data.key.code) == 2)
@@ -127,6 +127,9 @@ bool OpRecord::fromText(const std::string& v)
         Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
             exdata.templates.push_back({ 0, path });
             });
+    }
+    else if (std::strstr(src, "Wait") && sscanf(src, "%lld: ", &time) == 1) {
+        type = OpType::Wait;
     }
     return type != OpType::Unknown;
 }

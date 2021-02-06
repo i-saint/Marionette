@@ -47,9 +47,10 @@ struct OpRecord
 
     struct
     {
+        int time_shift = 0;
         int save_slot = 0;
         IScreenMatcher::Params match_params{};
-        float match_threshold = 0.3f;
+        float match_threshold = 0.2f;
         std::vector<TemplateData> templates;
     } exdata{};
 

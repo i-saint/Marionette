@@ -86,15 +86,16 @@ bool Player::update()
     for (;;) {
         const auto& rec = m_records[m_record_index];
 
-        millisec time_now = NowMS();
-        millisec time_rec = time_now - m_time_start;
+        millisec time_before_exec = NowMS();
+        millisec time_rec = time_before_exec - m_time_start;
 
         if (time_rec >= rec.time) {
             auto go_next = execRecord(rec);
 
-            millisec elapsed = NowMS() - time_now;
+            millisec time_after_exec = NowMS();
+            millisec elapsed = time_after_exec - time_before_exec;
             if (!go_next) {
-                m_time_start += elapsed;
+                m_time_start = time_after_exec - rec.time;
                 break;
             }
             else if (!m_playing) {
@@ -154,6 +155,7 @@ bool Player::execRecord(const OpRecord& rec)
     case OpType::MouseMoveAbs:
     case OpType::MouseMoveRel:
     case OpType::MouseMoveMatch:
+    case OpType::WaitUntilMatch:
     {
         INPUT input{};
         input.type = INPUT_MOUSE;
@@ -266,14 +268,19 @@ bool Player::load(const char* path)
     if (!ifs)
         return false;
 
+    int time_shift = 0;
     std::string l;
     while (std::getline(ifs, l)) {
         OpRecord rec;
         if (rec.fromText(l)) {
-            if (rec.type == OpType::MatchParams) {
+            if (rec.type == OpType::TimeShift) {
+                time_shift = rec.exdata.time_shift;
+                continue;
+            }
+            else if (rec.type == OpType::MatchParams) {
                 m_smatch = CreateScreenMatcher(rec.exdata.match_params);
             }
-            else if (rec.type == OpType::MouseMoveMatch) {
+            else if (rec.type == OpType::MouseMoveMatch || rec.type == OpType::WaitUntilMatch) {
                 if (!m_smatch)
                     m_smatch = CreateScreenMatcher();
 
@@ -287,6 +294,7 @@ bool Player::load(const char* path)
                     }
                 }
             }
+            rec.time += time_shift;
             m_records.push_back(rec);
         }
     }
