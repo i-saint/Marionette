@@ -11,7 +11,7 @@ public:
 
     void copy(ITexture2DPtr dst, ITexture2DPtr src, Rect src_region) override;
     void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region) override;
-    void bias(ITexture2DPtr dst, ITexture2DPtr src, float bias) override;
+    void bias(ITexture2DPtr dst, ITexture2DPtr src, float2 range) override;
     void normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom) override;
     void binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold) override;
     void contour(ITexture2DPtr dst, ITexture2DPtr src, float radius) override;
@@ -75,12 +75,12 @@ void FilterSet::transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, 
     filter->dispatch();
 }
 
-void FilterSet::bias(ITexture2DPtr dst, ITexture2DPtr src, float bias)
+void FilterSet::bias(ITexture2DPtr dst, ITexture2DPtr src, float2 range)
 {
     mrMakeFilter(m_bias, Bias);
     filter->setDst(dst);
     filter->setSrc(src);
-    filter->setBias(bias);
+    filter->setRange(range);
     filter->dispatch();
 }
 

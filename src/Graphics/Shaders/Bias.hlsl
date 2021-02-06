@@ -11,5 +11,5 @@ RWTexture2D<float> g_dst : register(u0);
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
-    g_dst[tid] = saturate((g_src[tid] + g_bias) * g_mul);
+    g_dst[tid] = saturate((g_src[tid] - g_bias) * g_mul);
 }

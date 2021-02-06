@@ -152,7 +152,7 @@ public:
 class IBias : public IFilter
 {
 public:
-    virtual void setBias(float v) = 0;
+    virtual void setRange(float2 v) = 0;
 };
 
 class INormalize : public IFilter
@@ -298,7 +298,7 @@ public:
     virtual void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region = {}) = 0;
     inline  void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale) { return transform(dst, src, grayscale, dst->getSize().x < src->getSize().x); }
 
-    virtual void bias(ITexture2DPtr dst, ITexture2DPtr src, float bias) = 0;
+    virtual void bias(ITexture2DPtr dst, ITexture2DPtr src, float2 range) = 0;
     virtual void normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom) = 0;
     virtual void binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold) = 0;
     virtual void contour(ITexture2DPtr dst, ITexture2DPtr src, float radius) = 0;
@@ -354,7 +354,7 @@ public:
     {
         float scale = 0.5f;
         bool care_display_scale = false;
-        float grayscale_bias = 0.0f;
+        float2 color_range = { 0.0f, 1.0f };
         float contour_radius = 1.0f;
         float expand_radius = 1.0f;
         float binarize_threshold = 0.2f;

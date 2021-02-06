@@ -142,23 +142,23 @@ class Bias : public FilterCommon<IBias>
 {
 public:
     Bias(BiasCS* v);
-    void setBias(float v) override;
+    void setRange(float2 v) override;
     void dispatch() override;
 
 public:
     BiasCS* m_cs{};
     BufferPtr m_const;
 
-    float m_bias = 0.0f;
+    float2 m_range = { 0.0f, 1.0f };
     bool m_dirty = true;
 };
 
 Bias::Bias(BiasCS* v) : m_cs(v) {}
 
-void Bias::setBias(float v)
+void Bias::setRange(float2 v)
 {
-    mrCheckDirty(m_bias == v);
-    m_bias = v;
+    mrCheckDirty(m_range == v);
+    m_range = v;
 }
 
 void Bias::dispatch()
@@ -175,8 +175,8 @@ void Bias::dispatch()
             float mul;
             int2 pad;
         } params{};
-        params.bias = m_bias;
-        params.mul = 1.0f / (1.0f + m_bias);
+        params.bias = m_range.x;
+        params.mul = 1.0f / (m_range.y - m_range.x);
 
         m_const = Buffer::createConstant(params);
         m_dirty = false;

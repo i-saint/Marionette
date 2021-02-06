@@ -187,9 +187,9 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
 
     auto filter = CreateFilterSet();
     filter->transform(ret->grayscale, ret->image, true);
-    if (m_params.grayscale_bias != 0.0f) {
+    if (m_params.color_range != float2{ 0.0f, 1.0f }) {
         auto tmp = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
-        filter->bias(tmp, ret->grayscale, m_params.grayscale_bias);
+        filter->bias(tmp, ret->grayscale, m_params.color_range);
         std::swap(tmp, ret->grayscale);
     }
     filter->binarize(ret->binary, ret->grayscale, m_params.binarize_threshold);
@@ -246,8 +246,8 @@ void ScreenMatcher::updateScreen(ScreenData& sd)
         sd.last_frame = frame.present_time;
         sd.surface = frame.surface;
         sd.filter->transform(sd.grayscale, sd.surface, true);
-        if (m_params.grayscale_bias != 0.0f) {
-            sd.filter->bias(sd.biased, sd.grayscale, m_params.grayscale_bias);
+        if (m_params.color_range != float2{ 0.0f, 1.0f }) {
+            sd.filter->bias(sd.biased, sd.grayscale, m_params.color_range);
             std::swap(sd.biased, sd.grayscale);
         }
         sd.filter->binarize(sd.binary, sd.grayscale, m_params.binarize_threshold);

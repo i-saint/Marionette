@@ -41,7 +41,7 @@ std::string OpRecord::toText() const
         ret += "MatchParams";
         ret += Format(" Scale=%.2f", p.scale);
         ret += Format(" CareDisplayScale=%d", (int)p.care_display_scale);
-        ret += Format(" Bias=%.2f", p.grayscale_bias);
+        ret += Format(" ColorRange=%.2f,%.2f", p.color_range.x, p.color_range.y);
         ret += Format(" ContourRadius=%.2f", p.contour_radius);
         ret += Format(" ExpandRadius=%.2f", p.expand_radius);
         ret += Format(" BinarizeThreshold=%.2f", p.binarize_threshold);
@@ -106,12 +106,13 @@ bool OpRecord::fromText(const std::string& v)
 
         auto& p = exdata.match_params;
         float fv;
+        float2 f2v;
         int iv;
         skip();
         while (*src != '\0') {
             if (sscanf(src, "Scale=%f", &fv) == 1) p.scale = fv;
             else if (sscanf(src, "CareDisplayScale=%d", &iv) == 1) p.care_display_scale = iv != 0;
-            else if (sscanf(src, "Bias=%f", &fv) == 1) p.grayscale_bias = fv;
+            else if (sscanf(src, "ColorRange=%f,%f", &f2v.x, &f2v.y) == 2) p.color_range = f2v;
             else if (sscanf(src, "ContourRadius=%f", &fv) == 1) p.contour_radius = fv;
             else if (sscanf(src, "ExpandRadius=%f", &fv) == 1) p.expand_radius = fv;
             else if (sscanf(src, "BinarizeThreshold=%f", &fv) == 1) p.binarize_threshold = fv;
