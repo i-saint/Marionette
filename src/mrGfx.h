@@ -128,7 +128,6 @@ class IFilter : public ICSContext
 public:
     virtual void setSrc(ITexture2DPtr v) = 0;
     virtual void setDst(ITexture2DPtr v) = 0;
-    virtual ITexture2DPtr getDst() const = 0;
 };
 
 class IReducer : public ICSContext
@@ -144,9 +143,7 @@ public:
 class ITransform : public IFilter
 {
 public:
-    virtual void setDstFormat(TextureFormat v) = 0; // ignored if dst is set
     virtual void setSrcRegion(Rect v) = 0;
-    virtual void setScale(float v) = 0; // ignored if dst is set
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
     virtual void setFiltering(bool v) = 0;
@@ -189,7 +186,6 @@ public:
     virtual void setTemplate(ITexture2DPtr v) = 0;
     virtual void setMask(ITexture2DPtr v) = 0;
     virtual void setRegion(Rect v) = 0;
-    virtual void setFitDstSize(bool v) = 0;
 };
 
 class IReduceTotal : public IReducer
@@ -296,18 +292,18 @@ mrDeclPtr(IScreenMatcher);
 class IFilterSet : public IObject
 {
 public:
-    virtual ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) = 0;
-    inline  ITexture2DPtr copy(ITexture2DPtr src, int2 size, TextureFormat dst_format) { return copy(src, Rect{ {}, size }, dst_format); }
-    inline  ITexture2DPtr copy(ITexture2DPtr src, TextureFormat dst_format) { return copy(src, Rect{}, dst_format); }
-    inline  ITexture2DPtr copy(ITexture2DPtr src) { return copy(src, Rect{}, TextureFormat::Unknown); }
-    virtual ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region = {}) = 0;
-    inline  ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale = false) { return transform(src, scale, grayscale, scale < 1.0f); }
-    virtual ITexture2DPtr bias(ITexture2DPtr src, float bias) = 0;
-    virtual ITexture2DPtr normalize(ITexture2DPtr src, float denom) = 0;
-    virtual ITexture2DPtr binarize(ITexture2DPtr src, float threshold) = 0;
-    virtual ITexture2DPtr contour(ITexture2DPtr src, float radius) = 0;
-    virtual ITexture2DPtr expand(ITexture2DPtr src, float radius) = 0;
-    virtual ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, Rect region = {}, bool fit = true) = 0;
+    virtual void copy(ITexture2DPtr dst, ITexture2DPtr src, Rect src_region) = 0;
+    inline  void copy(ITexture2DPtr dst, ITexture2DPtr src, int2 size) { return copy(dst, src, Rect{ {}, size }); }
+    inline  void copy(ITexture2DPtr dst, ITexture2DPtr src) { return copy(dst, src, Rect{}); }
+    virtual void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region = {}) = 0;
+    inline  void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale) { return transform(dst, src, grayscale, dst->getSize().x < src->getSize().x); }
+
+    virtual void bias(ITexture2DPtr dst, ITexture2DPtr src, float bias) = 0;
+    virtual void normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom) = 0;
+    virtual void binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold) = 0;
+    virtual void contour(ITexture2DPtr dst, ITexture2DPtr src, float radius) = 0;
+    virtual void expand(ITexture2DPtr dst, ITexture2DPtr src, float radius) = 0;
+    virtual void match(ITexture2DPtr dst, ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask = nullptr, Rect region = {}) = 0;
 
     virtual std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) = 0;
     inline  std::future<IReduceTotal::Result> total(ITexture2DPtr src, int2 region = {}) { return total(src, Rect{ int2{}, region }); }
@@ -339,8 +335,8 @@ class ITemplate : public IObject
 public:
     enum class MatchPattern
     {
-        Binarized, // default
-        Contour,
+        BinaryContour, // default
+        Binary,
         Grayscale,
     };
 

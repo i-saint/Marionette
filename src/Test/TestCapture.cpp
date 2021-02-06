@@ -144,105 +144,102 @@ testCase(Filter)
     const float binarize_threshold = 0.2f;
 
     auto gfx = mr::GetGfxInterface();
+    auto filter = mr::CreateFilterSet();
 
-    mr::ITexture2DPtr tmp_image, tmp_mask;
+    mr::ITexture2DPtr tmp_image, tmp_gray, tmp_contour, tmp_bin, tmp_mask;
     int2 tmp_size{};
     uint32_t tmp_bits{};
     tmp_image = gfx->createTextureFromFile("template.png");
     if (tmp_image) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        auto filter = mr::CreateFilterSet();
-        mr::ITexture2DPtr src, rtrans, rcont, rbin, rexp;
-        src = rtrans = filter->transform(tmp_image, scale, true);
-        src = rcont = filter->contour(src, contour_radius);
-        src =
-            rbin = filter->binarize(src, binarize_threshold);
-        tmp_image = src;
-        tmp_mask =
-            rexp = filter->expand(src, expand_radius);
+        int2 size = int2(float2(tmp_image->getSize()) * scale);
 
-        async_ops.push_back(rcont->saveAsync("template_contour.png"));
-        async_ops.push_back(rbin->saveAsync("template_binary.png"));
-        async_ops.push_back(rexp->saveAsync("template_binary_expand.png"));
+        tmp_gray = gfx->createTexture(size.x, size.y, mr::TextureFormat::Ru8);
+        tmp_contour = gfx->createTexture(size.x, size.y, mr::TextureFormat::Ru8);
+        tmp_bin = gfx->createTexture(size.x, size.y, mr::TextureFormat::Binary);
+        tmp_mask = gfx->createTexture(size.x, size.y, mr::TextureFormat::Binary);
 
-        {
-            auto rce = mr::CreateFilterSet()->expand(rcont, expand_radius);
-            async_ops.push_back(rce->saveAsync("template_contour_expand.png"));
-        }
+        filter->transform(tmp_gray, tmp_image, scale, true);
+        filter->contour(tmp_contour, tmp_gray, contour_radius);
+        filter->binarize(tmp_bin, tmp_contour, binarize_threshold);
+        filter->expand(tmp_mask, tmp_bin, expand_radius);
 
-        testPrint("Total (ref): %f\n", Total_Reference(rcont).valf);
-        testPrint("Total  (cs): %f\n", filter->total(rcont).get().valf);
+        async_ops.push_back(tmp_contour->saveAsync("template_contour.png"));
+        async_ops.push_back(tmp_bin->saveAsync("template_binary.png"));
+        async_ops.push_back(tmp_mask->saveAsync("template_mask.png"));
 
-        tmp_size = tmp_image->getSize();
-        tmp_bits = filter->countBits(rexp).get();
-        testPrint("CountBits (ref): %d\n", CountBits_Reference(rexp));
+        testPrint("Total (ref): %f\n", Total_Reference(tmp_contour).valf);
+        testPrint("Total  (cs): %f\n", filter->total(tmp_contour).get().valf);
+
+        tmp_size = tmp_gray->getSize();
+        tmp_bits = filter->countBits(tmp_mask).get();
+        testPrint("CountBits (ref): %d\n", CountBits_Reference(tmp_mask));
         testPrint("CountBits  (cs): %d\n", tmp_bits);
         testPrint("\n");
     }
 
-    auto tex = gfx->createTextureFromFile("EntireScreen.png");
-
-    if (tex) {
+    auto surface = gfx->createTextureFromFile("EntireScreen.png");
+    if (surface) {
         // downscale filter test
-        auto with_filter = mr::CreateFilterSet()->transform(tex, 0.25f, false, true);
-        auto without_filter = mr::CreateFilterSet()->transform(tex, 0.25f, false, false);
+        int2 size = int2(float2(surface->getSize()) * 0.25f);
+
+        auto with_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
+        auto without_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
+
+        filter->transform(with_filter, surface, false, true);
+        filter->transform(without_filter, surface, false, false);
+
         async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
         async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
     }
     wait_async_ops();
 
-    if (tex) {
+    if (surface) {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
-        mr::ITexture2DPtr src, rtrans, rcont, rbin, rmatch;
-        auto filter = mr::CreateFilterSet();
+        //auto surf_gray, surf_cont, surf_binary, match;
+
+        int2 size = int2(float2(surface->getSize()) * scale);
+        auto surf_gray = gfx->createTexture(size.x, size.y, mr::TextureFormat::Ru8);
+        auto surf_cont = gfx->createTexture(size.x, size.y, mr::TextureFormat::Ru8);
+        auto surf_bin = gfx->createTexture(size.x, size.y, mr::TextureFormat::Binary);
+        auto match = gfx->createTexture(size.x, size.y, mr::TextureFormat::Ri32);
+        auto match_normalized = gfx->createTexture(size.x, size.y, mr::TextureFormat::Rf32);
 
         auto time_begin = test::Now();
 
-        src = rtrans = filter->transform(tex, scale, true);
-        src = rcont = filter->contour(src, contour_radius);
-        src =
-            rbin = filter->binarize(src, binarize_threshold);
+        filter->transform(surf_gray, surface, true);
+        filter->contour(surf_cont, surf_gray, contour_radius);
+        filter->binarize(surf_bin, surf_cont, binarize_threshold);
 
         int2 offset = { 0, 0 };
-        int2 range = src->getSize() - offset - tmp_size;
+        int2 range = surf_gray->getSize() - offset - tmp_size;
         if (tmp_image) {
-            src = filter->match(src, tmp_image, tmp_mask, {offset, range}, false);
-
-            float denom{};
-            if (tmp_image->getFormat() == mr::TextureFormat::Binary)
-                denom = float(tmp_mask ? tmp_bits : uint32_t(tmp_size.x * tmp_size.y));
-            else
-                denom = tmp_size.x * tmp_size.y;
-            src = rmatch = filter->normalize(src, denom);
+            filter->match(match, surf_bin, tmp_bin, tmp_mask, {offset, range});
+            filter->normalize(match_normalized, match, tmp_bits);
         }
 
-        auto result = filter->minmax(src, range).get();
+        auto result = filter->minmax(match_normalized, range).get();
 
         auto elapsed = test::Now() - time_begin;
         testPrint("elapsed: %.2f ms\n", test::NS2MS(elapsed));
         testPrint("\n");
 
-        if (rmatch) {
+        if (match_normalized) {
             auto print = [&](auto r) {
-                if (rmatch->getFormat() == mr::TextureFormat::Ri32) {
-                    testPrint("  Min: %d (%d, %d)\n", r.vali_min, r.pos_min.x, r.pos_min.y);
-                    testPrint("  Max: %d (%d, %d)\n", r.vali_max, r.pos_max.x, r.pos_max.y);
-                }
-                else {
-                    testPrint("  Min: %f (%d, %d)\n", r.valf_min, r.pos_min.x, r.pos_min.y);
-                    testPrint("  Max: %f (%d, %d)\n", r.valf_max, r.pos_max.x, r.pos_max.y);
-                }
+                testPrint("  Min: %f (%d, %d)\n", r.valf_min, r.pos_min.x, r.pos_min.y);
+                testPrint("  Max: %f (%d, %d)\n", r.valf_max, r.pos_max.x, r.pos_max.y);
             };
 
             testPrint("MinMax (ref):\n");
-            print(MinMax_Reference(rmatch, range));
+            print(MinMax_Reference(match_normalized, range));
 
             testPrint("MinMax  (cs):\n");
             print(result);
 
-            auto marked = mr::CreateFilterSet()->copy(tex);
+            auto marked = gfx->createTexture(surface->getSize().x, surface->getSize().y, mr::TextureFormat::RGBAu8);
+            filter->copy(marked, surface);
             auto pos = int2(float2(result.pos_min + offset) / scale);
             auto size = int2(float2(tmp_size) / scale);
             DrawRect(marked, Rect{ pos, size }, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
@@ -251,17 +248,17 @@ testCase(Filter)
             //auto radius = float(std::max(size.x, size.y)) / 2.0f;
             //DrawCircle(marked, center, radius, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
 
-            async_ops.push_back(marked->saveAsync("result.png"));
+            async_ops.push_back(marked->saveAsync("EntireScreen_match_result.png"));
         }
 
-        if (rtrans)
-            async_ops.push_back(rtrans->saveAsync("grayscale.png"));
-        if (rcont)
-            async_ops.push_back(rcont->saveAsync("contour.png"));
-        if (rbin)
-            async_ops.push_back(rbin->saveAsync("binarize.png"));
-        if (rmatch)
-            async_ops.push_back(rmatch->saveAsync("match.png"));
+        if (surf_gray)
+            async_ops.push_back(surf_gray->saveAsync("EntireScreen_grayscale.png"));
+        if (surf_cont)
+            async_ops.push_back(surf_cont->saveAsync("EntireScreen_contour.png"));
+        if (surf_bin)
+            async_ops.push_back(surf_bin->saveAsync("EntireScreen_binarize.png"));
+        if (match_normalized)
+            async_ops.push_back(match_normalized->saveAsync("EntireScreen_score.png"));
     }
     wait_async_ops();
 }
@@ -282,6 +279,7 @@ testCase(ScreenCapture)
     auto scap = gfx->createScreenCapture();
     testExpect(scap != nullptr);
 
+    mr::ITexture2DPtr surface;
     if (scap->startCapture(mr::GetPrimaryMonitor())) {
         for (int i = 0; i < 5; ++i) {
             auto frame = scap->waitNextFrame();
@@ -289,7 +287,9 @@ testCase(ScreenCapture)
                 continue;
 
             testPrint("frame %d [%.2f ms]\n", i, float(double(frame.present_time - time_start) / 1000000.0));
-            auto surface = filter->copy(frame.surface, frame.size, mr::TextureFormat::RGBAu8);
+            if (!surface)
+                surface = gfx->createTexture(frame.size.x, frame.size.y, mr::TextureFormat::RGBAu8);
+            filter->copy(surface, frame.surface);
 
             char filename[256];
             snprintf(filename, std::size(filename), "Frame%02d.png", i);
@@ -513,7 +513,7 @@ testCase(ScreenMatcher)
 
 #ifdef mrDebug
     if (last_result.result) {
-        mr::CreateFilterSet()->normalize(last_result.result, float(tsize.x * tsize.y))->save("score.png");
+        //mr::CreateFilterSet()->normalize(last_result.result, float(tsize.x * tsize.y))->save("score.png");
     }
 #endif
 }

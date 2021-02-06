@@ -29,7 +29,6 @@ class FilterCommon : public RefCount<T>
 public:
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
-    ITexture2DPtr getDst() const override;
 
 public:
     Texture2DPtr m_src;
@@ -38,7 +37,6 @@ public:
 
 template<class T> void FilterCommon<T>::setSrc(ITexture2DPtr v) { m_src = cast(v); }
 template<class T> void FilterCommon<T>::setDst(ITexture2DPtr v) { m_dst = cast(v); }
-template<class T> ITexture2DPtr FilterCommon<T>::getDst() const { return m_dst; }
 
 
 class Transform : public FilterCommon<ITransform>
@@ -51,9 +49,7 @@ public:
     };
 
     Transform(TransformCS* v);
-    void setDstFormat(TextureFormat v) override;
     void setSrcRegion(Rect v) override;
-    void setScale(float v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
     void setFiltering(bool v) override;
@@ -63,9 +59,7 @@ public:
     TransformCS* m_cs{};
     BufferPtr m_const;
 
-    TextureFormat m_dst_format = TextureFormat::Unknown;
     Rect m_region{};
-    float m_scale = 1.0f;
     bool m_grayscale = false;
     bool m_fill_alpha = false;
     bool m_filtering = false;
@@ -73,27 +67,16 @@ public:
 };
 
 Transform::Transform(TransformCS* v) : m_cs(v) {}
-void Transform::setDstFormat(TextureFormat v) { m_dst_format = v; }
 void Transform::setSrcRegion(Rect v) { mrCheckDirty(m_region == v); m_region = v; }
-void Transform::setScale(float v) { mrCheckDirty(m_scale == v); m_scale = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
 void Transform::setFiltering(bool v) { mrCheckDirty(m_filtering == v); m_filtering = v; }
 
 void Transform::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Transform::dispatch(): invaid params ***\n");
         return;
-
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        if (m_scale != 1.0f)
-            size = int2(float2(size) * m_scale);
-
-        TextureFormat format = m_dst_format;
-        if (format == TextureFormat::Unknown)
-            format = m_grayscale ? TextureFormat::Ru8 : m_src->getFormat();
-        m_dst = Texture2D::create(size.x, size.y, format);
     }
 
     if (m_dirty) {
@@ -180,13 +163,11 @@ void Bias::setBias(float v)
 
 void Bias::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Bias::dispatch(): invaid params ***\n");
         return;
-
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, m_src->getFormat());
     }
+
     if (m_dirty) {
         struct
         {
@@ -250,13 +231,11 @@ void Normalize::setMax(uint32_t v_) { setMax(float(v_)); }
 
 void Normalize::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Normalize::dispatch(): invaid params ***\n");
         return;
-
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Rf32);
     }
+
     if (m_dirty) {
         struct
         {
@@ -323,12 +302,9 @@ void Binarize::setThreshold(float v) { mrCheckDirty(v == m_threshold); m_thresho
 
 void Binarize::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Binarize::dispatch(): invaid params ***\n");
         return;
-
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Binary);
     }
 
     if (m_dirty) {
@@ -387,12 +363,9 @@ void Contour::setRadius(float v) { mrCheckDirty(v == m_radius); m_radius = v; }
 
 void Contour::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Contour::dispatch(): invaid params ***\n");
         return;
-
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, TextureFormat::Ru8);
     }
 
     if (m_dirty) {
@@ -457,15 +430,9 @@ void Expand::setRadius(float v) { mrCheckDirty(v == m_radius); m_radius = v; }
 
 void Expand::dispatch()
 {
-    if (!m_src)
+    if (!m_src || !m_dst) {
+        mrDbgPrint("*** Expand::dispatch(): invaid params ***\n");
         return;
-
-    if (m_dst && m_dst->getFormat() != m_src->getFormat()) {
-        m_dst = nullptr;
-    }
-    if (!m_dst) {
-        auto size = m_src->getSize();
-        m_dst = Texture2D::create(size.x, size.y, m_src->getFormat());
     }
 
     if (m_dirty) {
@@ -525,7 +492,6 @@ public:
     void setTemplate(ITexture2DPtr v) override;
     void setMask(ITexture2DPtr v) override;
     void setRegion(Rect v) override;
-    void setFitDstSize(bool v) override;
     void dispatch() override;
 
     int2 getSize() const;
@@ -538,7 +504,6 @@ public:
 
     int2 m_template_size{};
     Rect m_region{};
-    bool m_fit_dst_size = true;
     bool m_dirty = true;
 };
 
@@ -561,11 +526,6 @@ void TemplateMatch::setRegion(Rect v)
     m_region = v;
 }
 
-void TemplateMatch::setFitDstSize(bool v)
-{
-    m_fit_dst_size = v;
-}
-
 int2 TemplateMatch::getSize() const
 {
     return m_region.size.x == 0 ? (m_src ? m_src->getSize() : int2::zero()) : m_region.size;
@@ -573,21 +533,13 @@ int2 TemplateMatch::getSize() const
 
 void TemplateMatch::dispatch()
 {
-    if (!m_src || !m_template)
+    if (!m_src || !m_dst || !m_template) {
+        mrDbgPrint("*** TemplateMatch::dispatch(): invaid params ***\n");
         return;
+    }
     if (m_src->getFormat() != m_template->getFormat()) {
         mrDbgPrint("*** TemplateMatch::dispatch(): format mismatch ***\n");
         return;
-    }
-
-    if (!m_dst) {
-        int2 size;
-        if (m_fit_dst_size)
-            size = getSize() - m_template->getSize();
-        else
-            size = m_src->getSize();
-        auto format = m_src->getFormat() == TextureFormat::Binary ? TextureFormat::Ri32 : TextureFormat::Rf32;
-        m_dst = Texture2D::create(size.x, size.y, format);
     }
 
     if (m_dirty) {

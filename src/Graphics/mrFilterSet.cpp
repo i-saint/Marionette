@@ -9,14 +9,14 @@ class FilterSet : public RefCount<IFilterSet>
 public:
     FilterSet();
 
-    ITexture2DPtr copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format) override;
-    ITexture2DPtr transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region) override;
-    ITexture2DPtr bias(ITexture2DPtr src, float bias) override;
-    ITexture2DPtr normalize(ITexture2DPtr src, float denom) override;
-    ITexture2DPtr binarize(ITexture2DPtr src, float threshold) override;
-    ITexture2DPtr contour(ITexture2DPtr src, float radius) override;
-    ITexture2DPtr expand(ITexture2DPtr src, float radius) override;
-    ITexture2DPtr match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region, bool fit) override;
+    void copy(ITexture2DPtr dst, ITexture2DPtr src, Rect src_region) override;
+    void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region) override;
+    void bias(ITexture2DPtr dst, ITexture2DPtr src, float bias) override;
+    void normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom) override;
+    void binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold) override;
+    void contour(ITexture2DPtr dst, ITexture2DPtr src, float radius) override;
+    void expand(ITexture2DPtr dst, ITexture2DPtr src, float radius) override;
+    void match(ITexture2DPtr dst, ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region) override;
 
     std::future<IReduceTotal::Result> total(ITexture2DPtr src, Rect region) override;
     std::future<IReduceCountBits::Result> countBits(ITexture2DPtr src, Rect region) override;
@@ -55,83 +55,80 @@ FilterSet::FilterSet()
     auto& filter = N;
 
 
-ITexture2DPtr FilterSet::copy(ITexture2DPtr src, Rect src_region, TextureFormat dst_format)
+void FilterSet::copy(ITexture2DPtr dst, ITexture2DPtr src, Rect src_region)
 {
     mrMakeFilter(m_copy, Transform);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setSrcRegion(src_region);
-    filter->setDstFormat(dst_format);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::transform(ITexture2DPtr src, float scale, bool grayscale, bool filtering, Rect src_region)
+void FilterSet::transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region)
 {
     mrMakeFilter(m_transform, Transform);
+    filter->setDst(dst);
     filter->setSrc(src);
-    filter->setScale(scale);
     filter->setSrcRegion(src_region);
     filter->setGrayscale(grayscale);
     filter->setFiltering(filtering);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::bias(ITexture2DPtr src, float bias)
+void FilterSet::bias(ITexture2DPtr dst, ITexture2DPtr src, float bias)
 {
     mrMakeFilter(m_bias, Bias);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setBias(bias);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::normalize(ITexture2DPtr src, float denom)
+void FilterSet::normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom)
 {
     mrMakeFilter(m_normalize, Normalize);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setMax(denom);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::binarize(ITexture2DPtr src, float threshold)
+void FilterSet::binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold)
 {
     mrMakeFilter(m_binarize, Binarize);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setThreshold(threshold);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::contour(ITexture2DPtr src, float radius)
+void FilterSet::contour(ITexture2DPtr dst, ITexture2DPtr src, float radius)
 {
     mrMakeFilter(m_contour, Contour);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setRadius(radius);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::expand(ITexture2DPtr src, float radius)
+void FilterSet::expand(ITexture2DPtr dst, ITexture2DPtr src, float radius)
 {
     mrMakeFilter(m_expand, Expand);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setRadius(radius);
     filter->dispatch();
-    return filter->getDst();
 }
 
-ITexture2DPtr FilterSet::match(ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region, bool fit)
+void FilterSet::match(ITexture2DPtr dst, ITexture2DPtr src, ITexture2DPtr tmp, ITexture2DPtr mask, Rect region)
 {
     mrMakeFilter(m_match, TemplateMatch);
+    filter->setDst(dst);
     filter->setSrc(src);
     filter->setTemplate(tmp);
     filter->setMask(mask);
     filter->setRegion(region);
-    filter->setFitDstSize(fit);
     filter->dispatch();
-    return filter->getDst();
 }
 
 
