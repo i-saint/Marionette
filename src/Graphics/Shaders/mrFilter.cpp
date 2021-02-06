@@ -563,25 +563,15 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
         return;
     }
 
-    if (c.m_src->getFormat() == TextureFormat::Binary) {
-        m_cs_binary.setCBuffer(c.m_const, 0);
-        m_cs_binary.setSRV(c.m_src, 0);
-        m_cs_binary.setSRV(c.m_template, 1);
-        m_cs_binary.setSRV(c.m_mask, 2);
-        m_cs_binary.setUAV(c.m_dst);
-        m_cs_binary.dispatch(
-            ceildiv(size.x, 32),
-            ceildiv(size.y, 32));
-    }
-    else {
-        m_cs_grayscale.setSRV(c.m_src, 0);
-        m_cs_grayscale.setSRV(c.m_template, 1);
-        m_cs_grayscale.setSRV(c.m_mask, 2);
-        m_cs_grayscale.setUAV(c.m_dst);
-        m_cs_grayscale.dispatch(
-            ceildiv(size.x, 32),
-            ceildiv(size.y, 32));
-    }
+    auto& cs = c.m_src->getFormat() == TextureFormat::Binary ? m_cs_binary : m_cs_grayscale;
+    cs.setCBuffer(c.m_const, 0);
+    cs.setSRV(c.m_src, 0);
+    cs.setSRV(c.m_template, 1);
+    cs.setSRV(c.m_mask, 2);
+    cs.setUAV(c.m_dst);
+    cs.dispatch(
+        ceildiv(size.x, 32),
+        ceildiv(size.y, 32));
 }
 
 ITemplateMatchPtr TemplateMatchCS::createContext()

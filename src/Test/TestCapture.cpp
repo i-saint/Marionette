@@ -458,6 +458,7 @@ testCase(ScreenMatcher)
 
     auto tmpl = matcher->createTemplate("template.png");
     testExpect(tmpl != nullptr);
+    //tmpl->setMatchPattern(mr::ITemplate::MatchPattern::Grayscale);
 
     auto tsize = tmpl->getSize();
 
@@ -510,10 +511,9 @@ testCase(ScreenMatcher)
         mr::WaitVSync();
     }
 
-    if (last_result.surface) {
-        auto marked = mr::CreateFilterSet()->copy(last_result.surface, mr::TextureFormat::RGBAu8);
-        auto region = last_result.region;
-        DrawRect(marked, region, 2, { 1.0f, 0.0f, 0.0f, 1.0f });
-        marked->save("ScreenMatcher.png");
+#ifdef mrDebug
+    if (last_result.result) {
+        mr::CreateFilterSet()->normalize(last_result.result, float(tsize.x * tsize.y))->save("score.png");
     }
+#endif
 }

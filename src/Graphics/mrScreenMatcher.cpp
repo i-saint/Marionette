@@ -265,7 +265,7 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
     // make deferred result to dispatch next matching without blocking
     auto deferred = std::async(std::launch::deferred,
-        [this, &tmpl, &sd, minmax, template_scale, screen_scale, rect]() mutable
+        [this, &tmpl, &sd, match, minmax, template_scale, screen_scale, rect]() mutable
     {
         auto tsize = tmpl.binarized->getSize();
         auto mm = minmax->getResult();
@@ -277,6 +277,9 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
             rect.pos + int2(float2(mm.pos_min) / screen_scale),
             int2(float2(tsize) / template_scale)
         };
+#ifdef mrDebug
+        ret.result = match;
+#endif
 
         switch (tmpl.match_pattern) {
         case ITemplate::MatchPattern::Grayscale:

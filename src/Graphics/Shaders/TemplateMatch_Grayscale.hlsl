@@ -26,7 +26,6 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = g_range - template_size;
     const uint2 bpos = g_tl + tid;
     const uint tw = template_size.x;
     const uint th = template_size.y;
@@ -97,7 +96,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
         }
     }
 
-    if (tid.x < result_size.x && tid.y < result_size.y)
+    if (tid.x < g_range.x && tid.y < g_range.y)
         g_result[tid] = r;
 }
 
@@ -110,7 +109,6 @@ void main(uint2 tid : SV_DispatchThreadID)
     g_template.GetDimensions(template_size.x, template_size.y);
     g_mask.GetDimensions(mask_size.x, mask_size.y);
 
-    const uint2 result_size = g_range - template_size;
     const uint2 bpos = g_tl + tid;
     const uint tw = template_size.x;
     const uint th = template_size.y;
@@ -141,7 +139,7 @@ void main(uint2 tid : SV_DispatchThreadID)
         }
     }
 
-    if (tid.x < result_size.x && tid.y < result_size.y)
+    if (tid.x < g_range.x && tid.y < g_range.y)
         g_result[tid] = r;
 }
 
