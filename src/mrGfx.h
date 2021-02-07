@@ -43,7 +43,10 @@ enum class TextureFormat
     Ru8,
     RGBAu8,
     BGRAu8,
+    Rf16,
+    RGBAf16,
     Rf32,
+    RGBAf32,
     Ri32,
     Binary,
 };
@@ -344,7 +347,6 @@ public:
 
     // maybe not equal with getImage()->getSize() because image can be scaled
     virtual int2 getSize() const = 0;
-    virtual uint32_t getMaskBits() const = 0;
 };
 
 class IScreenMatcher : public IObject

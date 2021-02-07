@@ -10,19 +10,28 @@ class Template : public RefCount<ITemplate>
 {
 public:
     void setMatchPattern(MatchPattern v) override { match_pattern = v; }
-    int2 getSize() const override { return size; }
-    uint32_t getMaskBits() const override { return mask_bits; }
+    int2 getSize() const override { return base_image->getSize(); }
 
 public:
     MatchPattern match_pattern{};
-    int2 size{};
-    ITexture2DPtr image{};
-    ITexture2DPtr grayscale{};
-    ITexture2DPtr binary{};
-    ITexture2DPtr contour{};
-    ITexture2DPtr contour_b{};
-    ITexture2DPtr mask{};
-    uint32_t mask_bits{};
+
+    // make images for each display resolution scales.
+    // (normalizing screen image is too erroneous)
+
+    struct Image
+    {
+        float scale_factor{}; // corresponding display scale factor
+        ITexture2DPtr grayscale{};
+        ITexture2DPtr binary{};
+        ITexture2DPtr contour{};
+        ITexture2DPtr contour_b{};
+        ITexture2DPtr mask{};
+        uint32_t mask_bits{};
+    };
+    std::vector<Image> images;
+    ITexture2DPtr base_image;
+
+    Image& getImage(float display_scale_factor);
 };
 mrConvertile(Template, ITemplate);
 
@@ -106,6 +115,16 @@ void DbgSetScreenMatcherWriteout(bool v)
 }
 #endif // mrDebug
 
+Template::Image& Template::getImage(float display_scale_factor)
+{
+    for (auto& i : images) {
+        if (i.scale_factor == display_scale_factor)
+            return i;
+    }
+    return images.front();
+}
+
+
 ScreenMatcher::SharedData* ScreenMatcher::s_data;
 
 ScreenMatcher::ScreenMatcher(const Params& params)
@@ -133,11 +152,7 @@ ScreenMatcher::ScreenMatcher(const Params& params)
 
         data.filter = CreateFilterSet();
 
-        float screen_scale = m_params.scale;
-        if (m_params.care_display_scale)
-            screen_scale /= sd.info.scale_factor;
-        int2 size = int2(float2(data.info.rect.size) * screen_scale);
-
+        int2 size = int2(float2(data.info.rect.size) * m_params.scale);
         data.grayscale  = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
         data.biased     = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
         data.binary     = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
@@ -167,49 +182,64 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     if (it != m_templates.end())
         return it->second;
 
-    auto image = m_gfx->createTextureFromFile(path);
-    if (!image)
+    auto base_image = m_gfx->createTextureFromFile(path);
+    if (!base_image)
         return nullptr;
-
-    auto orig_size  = image->getSize();
-    int2 size = int2(float2(orig_size) * m_params.scale);
 
     auto ret = make_ref<Template>();
     m_templates[path] = ret;
-    ret->size = orig_size;
-    ret->image = image;
-    ret->grayscale = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
-    ret->binary = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
-    ret->contour = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
-    ret->contour_b = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
-    ret->mask = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
+    ret->base_image = base_image;
 
+    auto create_image = [&](float scale_factor) {
+        for (auto& i : ret->images) {
+            if (i.scale_factor == scale_factor)
+                return;
+        }
 
-    auto filter = CreateFilterSet();
-    filter->transform(ret->grayscale, ret->image, true);
-    if (m_params.color_range != float2{ 0.0f, 1.0f }) {
-        auto tmp = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
-        filter->bias(tmp, ret->grayscale, m_params.color_range);
-        std::swap(tmp, ret->grayscale);
-    }
-    filter->binarize(ret->binary, ret->grayscale, m_params.binarize_threshold);
+        int2 size = int2(float2(base_image->getSize()) * m_params.scale * scale_factor);
 
-    filter->contour(ret->contour, ret->grayscale, m_params.contour_radius);
-    filter->binarize(ret->contour_b, ret->contour, m_params.binarize_threshold);
-    filter->expand(ret->mask, ret->contour_b, m_params.expand_radius);
+        Template::Image img{};
+        img.scale_factor= scale_factor;
+        img.grayscale   = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
+        img.binary      = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
+        img.contour     = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
+        img.contour_b   = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
+        img.mask        = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
+
+        auto filter = CreateFilterSet();
+        filter->transform(img.grayscale, base_image, true);
+        if (m_params.color_range != float2{ 0.0f, 1.0f }) {
+            auto tmp = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
+            filter->bias(tmp, img.grayscale, m_params.color_range);
+            std::swap(tmp, img.grayscale);
+        }
+        filter->binarize(img.binary, img.grayscale, m_params.binarize_threshold);
+
+        filter->contour(img.contour, img.grayscale, m_params.contour_radius);
+        filter->binarize(img.contour_b, img.contour, m_params.binarize_threshold);
+        filter->expand(img.mask, img.contour_b, m_params.expand_radius);
+        img.mask_bits = filter->countBits(img.mask).get();
 
 #ifdef mrDebug
-    //if (g_dbg_sm_writeout)
-    {
-        ret->grayscale->save(Replace(path, ".png", "_grayscale.png"));
-        ret->binary->save(Replace(path, ".png", "_binary.png"));
-        ret->contour->save(Replace(path, ".png", "_contour.png"));
-        ret->contour_b->save(Replace(path, ".png", "_contour_binary.png"));
-        ret->mask->save(Replace(path, ".png", "_mask.png"));
-    }
+        //if (g_dbg_sm_writeout)
+        {
+            float percent = scale_factor * 100.0f;
+            img.grayscale->save(Replace(path, ".png", Format("_grayscale_%.0f.png", percent)));
+            img.binary->save(Replace(path, ".png", Format("_binary_%.0f.png", percent)));
+            img.contour->save(Replace(path, ".png", Format("_contour_%.0f.png", percent)));
+            img.contour_b->save(Replace(path, ".png", Format("_contour_binary_%.0f.png", percent)));
+            img.mask->save(Replace(path, ".png", Format("_mask_%.0f.png", percent)));
+        }
 #endif
+        ret->images.push_back(std::move(img));
+    };
 
-    ret->mask_bits = filter->countBits(ret->mask).get();
+    create_image(1.0f);
+    if (m_params.care_display_scale) {
+        for (auto& kvp : m_screens)
+            create_image(kvp.second.info.scale_factor);
+    }
+
     return ret;
 }
 
@@ -233,10 +263,6 @@ void ScreenMatcher::pushReduceMinmax(IReduceMinMaxPtr v)
 
 void ScreenMatcher::updateScreen(ScreenData& sd)
 {
-    float screen_scale = m_params.scale;
-    if (m_params.care_display_scale)
-        screen_scale /= sd.info.scale_factor;
-
     auto frame = sd.capture->getFrame();
     if (!frame.surface)
         return;
@@ -268,16 +294,15 @@ void ScreenMatcher::updateScreen(ScreenData& sd)
 
 void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 {
-    float template_scale = m_params.scale;
-    float screen_scale = m_params.scale;
-    if (m_params.care_display_scale)
-        screen_scale /= sd.info.scale_factor;
+    auto& img = tmpl.getImage(sd.info.scale_factor);
+
+    float scale = m_params.scale;
 
     auto region = Rect{
         rect.pos - sd.info.rect.pos,
         rect.size
-    } * screen_scale;
-    region.size -= tmpl.image->getSize();
+    } * scale;
+    region.size -= img.grayscale->getSize();
 
     if (region.size.x < 0 || region.size.y < 0) {
         // rect is smaller than template. this should not be happened.
@@ -290,15 +315,15 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
     switch (tmpl.match_pattern) {
     case ITemplate::MatchPattern::Grayscale:
-        sd.filter->match(sd.match_f, sd.grayscale, tmpl.grayscale, nullptr, region);
+        sd.filter->match(sd.match_f, sd.grayscale, img.grayscale, nullptr, region);
         minmax->setSrc(sd.match_f);
         break;
     case ITemplate::MatchPattern::Binary:
-        sd.filter->match(sd.match_i, sd.binary, tmpl.binary, nullptr, region);
+        sd.filter->match(sd.match_i, sd.binary, img.binary, nullptr, region);
         minmax->setSrc(sd.match_i);
         break;
     default:
-        sd.filter->match(sd.match_i, sd.contour_b, tmpl.contour_b, tmpl.mask, region);
+        sd.filter->match(sd.match_i, sd.contour_b, img.contour_b, img.mask, region);
         minmax->setSrc(sd.match_i);
         break;
     }
@@ -306,17 +331,17 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
 
     // make deferred result to dispatch next matching without blocking
     auto deferred = std::async(std::launch::deferred,
-        [this, &tmpl, &sd, minmax, template_scale, screen_scale, rect]() mutable
+        [this, &tmpl, &img, &sd, minmax, scale, rect]() mutable
     {
-        auto tsize = tmpl.binary->getSize();
+        auto tsize = img.binary->getSize();
         auto mm = minmax->getResult();
         pushReduceMinmax(minmax);
 
         Result ret;
         ret.surface = sd.surface;
         ret.region = Rect{
-            rect.pos + int2(float2(mm.pos_min) / screen_scale),
-            int2(float2(tsize) / template_scale)
+            rect.pos + int2(float2(mm.pos_min) / scale),
+            int2(float2(tsize) / scale)
         };
 #ifdef mrDebug
         ret.result = sd.match_f;
@@ -330,7 +355,7 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
             ret.score = float(double(mm.vali_min) / double(tsize.x * tsize.y));
             break;
         default:
-            ret.score = float(double(mm.vali_min) / double(tmpl.mask_bits));
+            ret.score = float(double(mm.vali_min) / double(img.mask_bits));
             break;
         }
 

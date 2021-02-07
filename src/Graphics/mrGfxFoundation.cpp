@@ -571,7 +571,10 @@ TextureFormat GetMRFormat(DXGI_FORMAT f)
     case DXGI_FORMAT_R8_UNORM: return TextureFormat::Ru8;
     case DXGI_FORMAT_R8G8B8A8_UNORM: return TextureFormat::RGBAu8;
     case DXGI_FORMAT_B8G8R8A8_UNORM: return TextureFormat::BGRAu8;
+    case DXGI_FORMAT_R16_FLOAT: return TextureFormat::Rf16;
+    case DXGI_FORMAT_R16G16B16A16_FLOAT: return TextureFormat::RGBAf16;
     case DXGI_FORMAT_R32_FLOAT: return TextureFormat::Rf32;
+    case DXGI_FORMAT_R32G32B32A32_FLOAT: return TextureFormat::RGBAf32;
     case DXGI_FORMAT_R32_SINT: return TextureFormat::Ri32;
     default: return TextureFormat::Unknown;
     }
@@ -583,7 +586,10 @@ DXGI_FORMAT GetDXFormat(TextureFormat f)
     case TextureFormat::Ru8: return DXGI_FORMAT_R8_UNORM;
     case TextureFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_UNORM;
     case TextureFormat::BGRAu8: return DXGI_FORMAT_B8G8R8A8_UNORM;
+    case TextureFormat::Rf16: return DXGI_FORMAT_R16_FLOAT;
+    case TextureFormat::RGBAf16: return DXGI_FORMAT_R16G16B16A16_FLOAT;
     case TextureFormat::Rf32: return DXGI_FORMAT_R32_FLOAT;
+    case TextureFormat::RGBAf32: return DXGI_FORMAT_R32G32B32A32_FLOAT;
     case TextureFormat::Ri32: return DXGI_FORMAT_R32_UINT;
     case TextureFormat::Binary: return DXGI_FORMAT_R32_UINT;
     default: return DXGI_FORMAT_UNKNOWN;
