@@ -41,6 +41,7 @@ template<class T> void FilterCommon<T>::setDst(ITexture2DPtr v) { m_dst = cast(v
 
 class Transform : public FilterCommon<ITransform>
 {
+using super = FilterCommon<ITransform>;
 public:
     enum class Flag
     {
@@ -49,6 +50,8 @@ public:
     };
 
     Transform(TransformCS* v);
+    void setSrc(ITexture2DPtr v) override;
+    void setDst(ITexture2DPtr v) override;
     void setSrcRegion(Rect v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
@@ -67,6 +70,8 @@ public:
 };
 
 Transform::Transform(TransformCS* v) : m_cs(v) {}
+void Transform::setSrc(ITexture2DPtr v) { mrCheckDirty(m_src.get() == v.get()); super::setSrc(v); }
+void Transform::setDst(ITexture2DPtr v) { mrCheckDirty(m_dst.get() == v.get()); super::setDst(v); }
 void Transform::setSrcRegion(Rect v) { mrCheckDirty(m_region == v); m_region = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
@@ -487,8 +492,10 @@ IExpandPtr ExpandCS::createContext()
 
 class TemplateMatch : public FilterCommon<ITemplateMatch>
 {
+using super = FilterCommon<ITemplateMatch>;
 public:
     TemplateMatch(TemplateMatchCS* v);
+    void setSrc(ITexture2DPtr v) override;
     void setTemplate(ITexture2DPtr v) override;
     void setMask(ITexture2DPtr v) override;
     void setRegion(Rect v) override;
@@ -502,6 +509,7 @@ public:
     Texture2DPtr m_mask;
     BufferPtr m_const;
 
+    int2 m_src_size{};
     int2 m_template_size{};
     Rect m_region{};
     bool m_dirty = true;
@@ -509,10 +517,20 @@ public:
 
 TemplateMatch::TemplateMatch(TemplateMatchCS* v) : m_cs(v) {}
 
-void TemplateMatch::setTemplate(ITexture2DPtr v) {
+void TemplateMatch::setSrc(ITexture2DPtr v)
+{
+    super::setSrc(v);
+    int2 s = v ? v->getSize() : int2{};
+    mrCheckDirty(m_src_size == s);
+    m_src_size = s;
+}
+
+void TemplateMatch::setTemplate(ITexture2DPtr v)
+{
     m_template = cast(v);
-    mrCheckDirty(m_template_size == m_template->getSize());
-    m_template_size = m_template->getSize();
+    int2 s = v ? v->getSize() : int2{};
+    mrCheckDirty(m_template_size == s);
+    m_template_size = s;
 }
 
 void TemplateMatch::setMask(ITexture2DPtr v)
@@ -528,7 +546,7 @@ void TemplateMatch::setRegion(Rect v)
 
 int2 TemplateMatch::getSize() const
 {
-    return m_region.size.x == 0 ? (m_src ? m_src->getSize() : int2::zero()) : m_region.size;
+    return m_region.size.x == 0 ? m_src_size : m_region.size;
 }
 
 void TemplateMatch::dispatch()

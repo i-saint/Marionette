@@ -344,9 +344,7 @@ public:
     };
 
     virtual void setMatchPattern(MatchPattern v) = 0;
-
-    // maybe not equal with getImage()->getSize() because image can be scaled
-    virtual int2 getSize() const = 0;
+    virtual ITexture2DPtr getImage() const = 0;
 };
 
 class IScreenMatcher : public IObject

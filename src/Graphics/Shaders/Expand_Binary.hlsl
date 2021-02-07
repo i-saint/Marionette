@@ -19,7 +19,7 @@ void main(uint2 tid : SV_DispatchThreadID)
     uint w, h;
     g_image.GetDimensions(w, h);
 
-    int radius = ceil(g_radius);
+    int radius = int(g_radius);
     uint top = max(int(tid.y) - radius, 0);
     uint bottom = min(tid.y + radius + 1, h);
 

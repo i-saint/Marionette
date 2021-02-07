@@ -10,7 +10,7 @@ class Template : public RefCount<ITemplate>
 {
 public:
     void setMatchPattern(MatchPattern v) override { match_pattern = v; }
-    int2 getSize() const override { return base_image->getSize(); }
+    ITexture2DPtr getImage() const override { return base_image; }
 
 public:
     MatchPattern match_pattern{};
@@ -190,10 +190,11 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
     m_templates[path] = ret;
     ret->base_image = base_image;
 
+    auto filter = CreateFilterSet();
     auto create_image = [&](float scale_factor) {
         for (auto& i : ret->images) {
             if (i.scale_factor == scale_factor)
-                return;
+                return; // already created
         }
 
         int2 size = int2(float2(base_image->getSize()) * m_params.scale * scale_factor);
@@ -206,7 +207,6 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
         img.contour_b   = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
         img.mask        = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
 
-        auto filter = CreateFilterSet();
         filter->transform(img.grayscale, base_image, true);
         if (m_params.color_range != float2{ 0.0f, 1.0f }) {
             auto tmp = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
@@ -234,10 +234,12 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
         ret->images.push_back(std::move(img));
     };
 
-    create_image(1.0f);
     if (m_params.care_display_scale) {
         for (auto& kvp : m_screens)
             create_image(kvp.second.info.scale_factor);
+    }
+    else {
+        create_image(1.0f);
     }
 
     return ret;
