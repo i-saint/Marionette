@@ -160,9 +160,27 @@ std::string Replace(const std::string& str, const std::string& before, const std
     }
 }
 
-// T: int, float, float2, std::string
-template<> int ToValue(const std::string& str) { return std::stoi(str); }
-template<> float ToValue(const std::string& str) { return std::stof(str); }
+
+template<> bool ToValue(const std::string& str)
+{
+    if (str == "true")
+        return true;
+    else if (str == "false")
+        return false;
+    else
+        return std::stoi(str) != 0;
+}
+
+template<> int ToValue(const std::string& str)
+{
+    return std::stoi(str);
+}
+
+template<> float ToValue(const std::string& str)
+{
+    return std::stof(str);
+}
+
 template<> float2 ToValue(const std::string& str)
 {
     float2 r{};
@@ -170,6 +188,7 @@ template<> float2 ToValue(const std::string& str)
         return r;
     return float2{};
 }
+
 template<> std::string ToValue(const std::string& str)
 {
     if (str.size() >= 2 && str.front() == '"' && str.back() == '"')

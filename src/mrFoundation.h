@@ -51,7 +51,7 @@ const char* ScanKVP(const char* s, const std::function<void(std::string k, std::
 const char* ScanKVP(const std::string& str, const std::function<void(std::string k, std::string v)>& body);
 std::string Replace(const std::string& str, const std::string& before, const std::string& after);
 
-// T: int, float, float2, std::string
+// T: bool, int, float, float2, std::string
 template<class T> T ToValue(const std::string& str);
 
 template<class T> inline std::span<T> MakeSpan(T& v) { return { &v, 1 }; }

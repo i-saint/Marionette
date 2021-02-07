@@ -136,7 +136,7 @@ ScreenMatcher::ScreenMatcher(const Params& params)
         float screen_scale = m_params.scale;
         if (m_params.care_display_scale)
             screen_scale /= sd.info.scale_factor;
-        int2 size = int2(float2(data.info.rect.size) * m_params.scale);
+        int2 size = int2(float2(data.info.rect.size) * screen_scale);
 
         data.grayscale  = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
         data.biased     = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);

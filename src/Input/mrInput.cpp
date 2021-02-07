@@ -57,7 +57,7 @@ std::string OpRecord::toText() const
         auto& p = exdata.match_params;
         ret += "MatchParams";
         ret += Format(" Scale:%.2f", p.scale);
-        ret += Format(" CareDisplayScale:%d", (int)p.care_display_scale);
+        ret += Format(" CareDisplayScale:%s", p.care_display_scale ? "true" : "false");
         ret += Format(" ColorRange:{%.2f,%.2f}", p.color_range.x, p.color_range.y);
         ret += Format(" ContourRadius:%.2f", p.contour_radius);
         ret += Format(" ExpandRadius:%.2f", p.expand_radius);
@@ -130,9 +130,9 @@ bool OpRecord::fromText(const std::string& v)
         ScanKVP(src, [this](std::string k, std::string v) {
             auto& p = exdata.match_params;
             if (k == "Scale")
-                p.scale = ToValue<int>(v);
+                p.scale = ToValue<float>(v);
             else if (k == "CareDisplayScale")
-                p.care_display_scale = ToValue<int>(v) != 0;
+                p.care_display_scale = ToValue<bool>(v);
             else if (k == "ColorRange")
                 p.color_range = ToValue<float2>(v);
             else if (k == "ContourRadius")
