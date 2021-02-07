@@ -24,14 +24,8 @@ enum class OpType : int
 
 struct OpRecord
 {
-    struct TemplateData
-    {
-        ITemplatePtr tmpl;
-        std::string path;
-    };
-
     OpType type = OpType::Unknown;
-    millisec time{};
+    uint32_t time{}; // in millisec
     union
     {
         struct
@@ -45,6 +39,13 @@ struct OpRecord
         } key;
     } data{};
 
+
+    struct TemplateData
+    {
+        std::string path;
+        ITemplatePtr tmpl{};
+    };
+
     struct
     {
         int wait_time = 0;
@@ -52,6 +53,7 @@ struct OpRecord
         int save_slot = 0;
         IScreenMatcher::Params match_params{};
         float match_threshold = 0.2f;
+        ITemplate::MatchPattern match_pattern{};
         std::vector<TemplateData> templates;
     } exdata{};
 

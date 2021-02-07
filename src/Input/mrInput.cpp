@@ -5,63 +5,74 @@ namespace mr {
 
 std::string OpRecord::toText() const
 {
+    auto templates_to_string = [this]() {
+        std::string ret;
+        ret += Format(" Threshold:%.2f", exdata.match_threshold);
+        switch (exdata.match_pattern) {
+        case  ITemplate::MatchPattern::Binary:
+            ret += " Pattern:\"Binary\"";
+            break;
+        case  ITemplate::MatchPattern::Grayscale:
+            ret += " Pattern:\"Grayscale\"";
+            break;
+        default:
+            ret += " Pattern:\"BinaryContour\"";
+            break;
+        }
+
+        for (auto& id : exdata.templates)
+            ret += Format(" Template:\"%s\"", id.path.c_str());
+        return ret;
+    };
+
     switch (type)
     {
     case OpType::KeyDown:
-        return Format("%lld: KeyDown %d", time, data.key.code);
+        return Format("%u: KeyDown %d", time, data.key.code);
 
     case OpType::KeyUp:
-        return Format("%lld: KeyUp %d", time, data.key.code);
+        return Format("%u: KeyUp %d", time, data.key.code);
 
     case OpType::MouseDown:
-        return Format("%lld: MouseDown %d", time, data.mouse.button);
+        return Format("%u: MouseDown %d", time, data.mouse.button);
 
     case OpType::MouseUp:
-        return Format("%lld: MouseUp %d", time, data.mouse.button);
+        return Format("%u: MouseUp %d", time, data.mouse.button);
 
     case OpType::MouseMoveAbs:
-        return Format("%lld: MouseMoveAbs %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
+        return Format("%u: MouseMoveAbs %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
 
     case OpType::MouseMoveRel:
-        return Format("%lld: MouseMoveRel %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
+        return Format("%u: MouseMoveRel %d %d", time, data.mouse.pos.x, data.mouse.pos.y);
 
     case OpType::SaveMousePos:
-        return Format("%lld: SaveMousePos %d", time, exdata.save_slot);
+        return Format("%u: SaveMousePos %d", time, exdata.save_slot);
 
     case OpType::LoadMousePos:
-        return Format("%lld: LoadMousePos %d", time, exdata.save_slot);
+        return Format("%u: LoadMousePos %d", time, exdata.save_slot);
 
     case OpType::MatchParams:
     {
         std::string ret;
         auto& p = exdata.match_params;
         ret += "MatchParams";
-        ret += Format(" Scale=%.2f", p.scale);
-        ret += Format(" CareDisplayScale=%d", (int)p.care_display_scale);
-        ret += Format(" ColorRange=%.2f,%.2f", p.color_range.x, p.color_range.y);
-        ret += Format(" ContourRadius=%.2f", p.contour_radius);
-        ret += Format(" ExpandRadius=%.2f", p.expand_radius);
-        ret += Format(" BinarizeThreshold=%.2f", p.binarize_threshold);
+        ret += Format(" Scale:%.2f", p.scale);
+        ret += Format(" CareDisplayScale:%d", (int)p.care_display_scale);
+        ret += Format(" ColorRange:{%.2f,%.2f}", p.color_range.x, p.color_range.y);
+        ret += Format(" ContourRadius:%.2f", p.contour_radius);
+        ret += Format(" ExpandRadius:%.2f", p.expand_radius);
+        ret += Format(" BinarizeThreshold:%.2f", p.binarize_threshold);
         return ret;
     }
 
     case OpType::MouseMoveMatch:
-    case OpType::WaitUntilMatch:
-    {
-        std::string ret;
-        ret += Format("%lld: ", time);
-        if (type == OpType::MouseMoveMatch)
-            ret += "MouseMoveMatch";
-        else if (type == OpType::WaitUntilMatch)
-            ret += "WaitUntilMatch";
+        return Format("%u: MouseMoveMatch") + templates_to_string();
 
-        for (auto& id : exdata.templates)
-            ret += Format(" \"%s\"", id.path.c_str());
-        return ret;
-    }
+    case OpType::WaitUntilMatch:
+        return Format("%u: WaitUntilMatch") + templates_to_string();
 
     case OpType::Wait:
-        return Format("%lld: Wait %d", time, exdata.wait_time);
+        return Format("%u: Wait %d", time, exdata.wait_time);
 
     default:
         return "";
@@ -71,65 +82,76 @@ std::string OpRecord::toText() const
 bool OpRecord::fromText(const std::string& v)
 {
     type = OpType::Unknown;
+    if (v.empty() || v.front() == '\r' || v.front() == '\n' || v.front() == '#')
+        return false;
+
     const char* src = v.c_str();
 
-    auto skip = [&src]() {
-        while (*src != '\0') {
-            if (src[0] == ' ' && src[1] != ' ') {
-                ++src;
-                break;
+    auto scan_templates = [this, &src]() {
+        ScanKVP(src, [this](std::string k, std::string v) {
+            if (k == "Threshold") {
+                exdata.match_threshold = ToValue<float>(v);
             }
-            ++src;
-        }
+            else if (k == "Pattern") {
+                auto p = ToValue<std::string>(v);
+                if (p == "Binary")
+                    exdata.match_pattern = ITemplate::MatchPattern::Binary;
+                else if (p == "Grayscale")
+                    exdata.match_pattern = ITemplate::MatchPattern::Grayscale;
+                else
+                    exdata.match_pattern = ITemplate::MatchPattern::BinaryContour;
+            }
+            else if (k == "Template") {
+                exdata.templates.push_back({ ToValue<std::string>(v) });
+            }
+            });
     };
 
     if (sscanf(src, "TimeShift %d", &exdata.time_shift) == 1)
         type = OpType::TimeShift;
-    else if (sscanf(src, "%lld: KeyDown %d", &time, &data.key.code) == 2)
+    else if (sscanf(src, "%u: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
-    else if (sscanf(src, "%lld: KeyUp %d", &time, &data.key.code) == 2)
+    else if (sscanf(src, "%u: KeyUp %d", &time, &data.key.code) == 2)
         type = OpType::KeyUp;
-    else if (sscanf(src, "%lld: MouseDown %d", &time, &data.mouse.button) == 2)
+    else if (sscanf(src, "%u: MouseDown %d", &time, &data.mouse.button) == 2)
         type = OpType::MouseDown;
-    else if (sscanf(src, "%lld: MouseUp %d", &time, &data.mouse.button) == 2)
+    else if (sscanf(src, "%u: MouseUp %d", &time, &data.mouse.button) == 2)
         type = OpType::MouseUp;
-    else if (sscanf(src, "%lld: MouseMoveAbs %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
+    else if (sscanf(src, "%u: MouseMoveAbs %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
         type = OpType::MouseMoveAbs;
-    else if (sscanf(src, "%lld: MouseMoveRel %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
+    else if (sscanf(src, "%u: MouseMoveRel %d %d", &time, &data.mouse.pos.x, &data.mouse.pos.y) == 3)
         type = OpType::MouseMoveRel;
-    else if (sscanf(src, "%lld: SaveMousePos %d", &time, &exdata.save_slot) == 2)
+    else if (sscanf(src, "%u: SaveMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::SaveMousePos;
-    else if (sscanf(src, "%lld: LoadMousePos %d", &time, &exdata.save_slot) == 2)
+    else if (sscanf(src, "%u: LoadMousePos %d", &time, &exdata.save_slot) == 2)
         type = OpType::LoadMousePos;
     else if (std::strstr(src, "MatchParams ")) {
         type = OpType::MatchParams;
-
-        auto& p = exdata.match_params;
-        float fv;
-        float2 f2v;
-        int iv;
-        skip();
-        while (*src != '\0') {
-            if (sscanf(src, "Scale=%f", &fv) == 1) p.scale = fv;
-            else if (sscanf(src, "CareDisplayScale=%d", &iv) == 1) p.care_display_scale = iv != 0;
-            else if (sscanf(src, "ColorRange=%f,%f", &f2v.x, &f2v.y) == 2) p.color_range = f2v;
-            else if (sscanf(src, "ContourRadius=%f", &fv) == 1) p.contour_radius = fv;
-            else if (sscanf(src, "ExpandRadius=%f", &fv) == 1) p.expand_radius = fv;
-            else if (sscanf(src, "BinarizeThreshold=%f", &fv) == 1) p.binarize_threshold = fv;
-            skip();
-        }
-    }
-    else if ((std::strstr(src, "MouseMoveMatch") || std::strstr(src, "WaitUntilMatch")) && sscanf(src, "%lld: ", &time) == 1) {
-        if (std::strstr(src, "MouseMoveMatch"))
-            type = OpType::MouseMoveMatch;
-        else if (std::strstr(src, "WaitUntilMatch"))
-            type = OpType::WaitUntilMatch;
-
-        Scan(src, std::regex("\"([^\"]+)\""), [this](std::string path) {
-            exdata.templates.push_back({ 0, path });
+        ScanKVP(src, [this](std::string k, std::string v) {
+            auto& p = exdata.match_params;
+            if (k == "Scale")
+                p.scale = ToValue<int>(v);
+            else if (k == "CareDisplayScale")
+                p.care_display_scale = ToValue<int>(v) != 0;
+            else if (k == "ColorRange")
+                p.color_range = ToValue<float2>(v);
+            else if (k == "ContourRadius")
+                p.contour_radius = ToValue<float>(v);
+            else if (k == "ExpandRadius")
+                p.expand_radius = ToValue<float>(v);
+            else if (k == "BinarizeThreshold")
+                p.binarize_threshold = ToValue<float>(v);
             });
     }
-    else if (sscanf(src, "%lld: Wait %d", &time, &exdata.wait_time) == 2) {
+    else if (std::strstr(src, "MouseMoveMatch") && sscanf(src, "%u: ", &time) == 1) {
+        type = OpType::MouseMoveMatch;
+        scan_templates();
+    }
+    else if (std::strstr(src, "WaitUntilMatch") && sscanf(src, "%u: ", &time) == 1) {
+        type = OpType::WaitUntilMatch;
+        scan_templates();
+    }
+    else if (sscanf(src, "%u: Wait %d", &time, &exdata.wait_time) == 2) {
         type = OpType::Wait;
     }
     return type != OpType::Unknown;

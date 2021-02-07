@@ -19,6 +19,7 @@ public:
 
 private:
     bool m_playing = false;
+    millisec m_time_start_real = 0;
     millisec m_time_start = 0;
     millisec m_time_wait = 0;
     uint32_t m_record_index = 0;
@@ -50,7 +51,7 @@ bool Player::start(uint32_t loop)
     if (m_playing || m_records.empty())
         return false;
 
-    m_time_start = NowMS();
+    m_time_start_real = m_time_start = NowMS();
     m_loop_required = loop;
     m_loop_count = 0;
     m_record_index = 0;
@@ -94,6 +95,7 @@ bool Player::update()
             auto go_next = execRecord(rec);
 
             millisec time_after_exec = NowMS();
+            millisec timestamp = time_after_exec - m_time_start_real;
             millisec elapsed = time_after_exec - time_before_exec;
             if (!go_next) {
                 m_time_start = time_after_exec - rec.time;
@@ -102,7 +104,8 @@ bool Player::update()
             else if (!m_playing) {
                 break;
             }
-            mrDbgPrint("record executed (%ld ms): %s\n", elapsed, rec.toText().c_str());
+
+            mrDbgPrint("record executed (%ld %ld ms): %s\n", timestamp, elapsed, rec.toText().c_str());
             ++m_record_index;
 
             // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
@@ -320,7 +323,7 @@ bool Player::load(const char* path)
                 for (auto& id : rec.exdata.templates) {
                     id.tmpl = m_smatch->createTemplate(id.path.c_str());
                     if (id.tmpl) {
-                        //id.tmpl->setMatchPattern(ITemplate::MatchPattern::Grayscale);
+                        id.tmpl->setMatchPattern(rec.exdata.match_pattern);
                     }
                     else {
                         mrDbgPrint("*** failed to load template %s ***\n", id.path.c_str());

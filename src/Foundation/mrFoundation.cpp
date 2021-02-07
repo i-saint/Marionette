@@ -83,21 +83,67 @@ void Split(const std::string& str, const std::string& separator, const std::func
     }
 }
 
-void Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body)
+const char* Scan(const char* s, const std::regex& exp, const std::function<void(std::cmatch& m)>& body)
 {
     std::cmatch match;
-    const char* s = str.c_str();
     for (;;) {
         std::regex_search(s, match, exp);
         if (!match.empty()) {
-            body(match.str(1));
+            body(match);
             s += match.position() + match.length();
         }
         else {
             break;
         }
     }
+    return s;
 }
+
+const char* Scan(const std::string& str, const std::regex& exp, const std::function<void(std::cmatch& m)>& body)
+{
+    return Scan(str.c_str(), exp, body);
+}
+
+const char* Scan(const std::string& str, const std::regex& exp, const std::function<void(std::string sub)>& body)
+{
+    return Scan(str, exp, [&body](std::cmatch& m) { body(m.str(1)); });
+}
+
+const char* ScanKVP(const char* s, const std::function<void(std::string k, std::string v)>& body)
+{
+    auto ex_key = std::regex(R"((\w+)\s*:\s*)");
+    auto ex_value = std::regex(R"(^([^ ]+))");
+    auto ex_parenthesis = std::regex(R"(^\{([^}]+)\})");
+    std::cmatch match;
+    for (;;) {
+        std::regex_search(s, match, ex_key);
+        if (!match.empty()) {
+            std::string key, value;
+            key = match.str(1);
+            s += match.position() + match.length();
+
+            if (std::regex_search(s, match, ex_parenthesis) || std::regex_search(s, match, ex_value)) {
+                value = match.str(1);
+                s += match.position() + match.length();
+
+                body(key, value);
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    return s;
+}
+
+const char* ScanKVP(const std::string& str, const std::function<void(std::string k, std::string v)>& body)
+{
+    return ScanKVP(str.c_str(), body);
+}
+
 
 std::string Replace(const std::string& str, const std::string& before, const std::string& after)
 {
@@ -113,6 +159,24 @@ std::string Replace(const std::string& str, const std::string& before, const std
         return str;
     }
 }
+
+// T: int, float, float2, std::string
+template<> int ToValue(const std::string& str) { return std::stoi(str); }
+template<> float ToValue(const std::string& str) { return std::stof(str); }
+template<> float2 ToValue(const std::string& str)
+{
+    float2 r{};
+    if (sscanf(str.c_str(), "%f,%f", &r.x, & r.y) == 2)
+        return r;
+    return float2{};
+}
+template<> std::string ToValue(const std::string& str)
+{
+    if (str.size() >= 2 && str.front() == '"' && str.back() == '"')
+        return std::string(str.begin() + 1, str.end() - 1);
+    return "";
+}
+
 
 Timer::Timer()
 {
