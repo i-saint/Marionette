@@ -127,16 +127,16 @@ void DrawRect(mr::ITexture2DPtr dst, Rect rect, float border, float4 color)
 
 testCase(Filter)
 {
-    mr::CaptureMonitor(mr::GetPrimaryMonitor(), [](const void* data, int w, int h) {
-        mr::SaveAsPNG("EntireScreen.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
-        });
-
     std::vector<std::future<bool>> async_ops;
     auto wait_async_ops = [&]() {
         for (auto& a : async_ops)
             a.wait();
         async_ops.clear();
     };
+
+    mr::CaptureMonitor(mr::GetPrimaryMonitor(), [](const void* data, int w, int h) {
+        mr::SaveAsPNG("Screen.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
+        });
 
     const float scale = 0.5f;
     const float contour_radius = 1.0f;
@@ -179,23 +179,10 @@ testCase(Filter)
         testPrint("\n");
     }
 
-    auto surface = gfx->createTextureFromFile("EntireScreen.png");
-    if (surface) {
-        // downscale filter test
-        int2 size = int2(float2(surface->getSize()) * 0.25f);
+    auto surface = gfx->createTextureFromFile("Screen.png");
+    testExpect(surface != nullptr);
 
-        auto with_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
-        auto without_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
-
-        filter->transform(with_filter, surface, false, true);
-        filter->transform(without_filter, surface, false, false);
-
-        async_ops.push_back(with_filter->saveAsync("EntireScreen_half_with_filter.png"));
-        async_ops.push_back(without_filter->saveAsync("EntireScreen_half_without_filter.png"));
-    }
-    wait_async_ops();
-
-    if (surface) {
+    {
         std::lock_guard<mr::IGfxInterface> lock(*gfx);
 
         //auto surf_gray, surf_cont, surf_binary, match;
@@ -261,6 +248,52 @@ testCase(Filter)
             async_ops.push_back(match_normalized->saveAsync("EntireScreen_score.png"));
     }
     wait_async_ops();
+}
+
+testCase(ScalingFilter)
+{
+    std::vector<std::future<bool>> async_ops;
+    auto wait_async_ops = [&]() {
+        for (auto& a : async_ops)
+            a.wait();
+        async_ops.clear();
+    };
+
+    mr::CaptureWindow(::GetForegroundWindow(), [](const void* data, int w, int h) {
+        mr::SaveAsPNG("Window.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
+        });
+
+
+    auto gfx = mr::GetGfxInterface();
+    auto filter = mr::CreateFilterSet();
+    auto surface = gfx->createTextureFromFile("Window.png");
+    testExpect(surface != nullptr);
+
+    auto resize_and_export = [&](int2 size, const char* path1, const char* path2) {
+        auto with_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
+        auto without_filter = gfx->createTexture(size.x, size.y, mr::TextureFormat::RGBAu8);
+
+        filter->transform(with_filter, surface, false, true);
+        filter->transform(without_filter, surface, false, false);
+
+        async_ops.push_back(with_filter->saveAsync(path1));
+        async_ops.push_back(without_filter->saveAsync(path2));
+    };
+
+    // downscale filter test
+    resize_and_export(
+        int2(float2(surface->getSize()) * 0.5f),
+        "Window_downscale_with_filter.png",
+        "Window_downscale_without_filter.png");
+
+    // upscale filter test
+    resize_and_export(
+        int2(float2(surface->getSize()) * 3.0f),
+        "Window_upscale_with_filter.png",
+        "Window_upscale_without_filter.png");
+
+    wait_async_ops();
+
 }
 
 testCase(ScreenCapture)
@@ -460,7 +493,7 @@ testCase(ScreenMatcher)
     testExpect(tmpl != nullptr);
     //tmpl->setMatchPattern(mr::ITemplate::MatchPattern::Grayscale);
 
-    auto tsize = tmpl->getSize();
+    auto tsize = tmpl->getImage()->getSize();
 
     Window window;
     window.open(tsize, L"Marionette Tracking");

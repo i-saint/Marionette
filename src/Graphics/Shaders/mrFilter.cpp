@@ -3,7 +3,6 @@
 
 // shader binaries
 #include "Transform.hlsl.h"
-#include "Bias.hlsl.h"
 #include "Normalize_F.hlsl.h"
 #include "Normalize_I.hlsl.h"
 #include "Binarize.hlsl.h"
@@ -53,6 +52,7 @@ public:
     void setSrc(ITexture2DPtr v) override;
     void setDst(ITexture2DPtr v) override;
     void setSrcRegion(Rect v) override;
+    void setColorRange(float2 v) override;
     void setGrayscale(bool v) override;
     void setFillAlpha(bool v) override;
     void setFiltering(bool v) override;
@@ -63,6 +63,7 @@ public:
     BufferPtr m_const;
 
     Rect m_region{};
+    float2 m_color_range{ 0.0f, 1.0f };
     bool m_grayscale = false;
     bool m_fill_alpha = false;
     bool m_filtering = false;
@@ -73,6 +74,7 @@ Transform::Transform(TransformCS* v) : m_cs(v) {}
 void Transform::setSrc(ITexture2DPtr v) { mrCheckDirty(m_src.get() == v.get()); super::setSrc(v); }
 void Transform::setDst(ITexture2DPtr v) { mrCheckDirty(m_dst.get() == v.get()); super::setDst(v); }
 void Transform::setSrcRegion(Rect v) { mrCheckDirty(m_region == v); m_region = v; }
+void Transform::setColorRange(float2 v) { mrCheckDirty(m_color_range == v); m_color_range = v; }
 void Transform::setGrayscale(bool v) { mrCheckDirty(m_grayscale == v); m_grayscale = v; }
 void Transform::setFillAlpha(bool v) { mrCheckDirty(m_fill_alpha == v); m_fill_alpha = v; }
 void Transform::setFiltering(bool v) { mrCheckDirty(m_filtering == v); m_filtering = v; }
@@ -94,19 +96,25 @@ void Transform::dispatch()
             float2 pixel_size;
             float2 pixel_offset;
             float2 sample_step;
+            float2 bias;
             uint32_t flags;
             int filter;
+            int2 pad;
         } params{};
         params.pixel_size = 1.0f / float2(src_size);
         params.pixel_offset = params.pixel_size * m_region.pos;
         params.sample_step = (float2(size) / float2(src_size)) / float2(dst_size);
+        params.bias = float2{ m_color_range.x, 1.0f / (m_color_range.y - m_color_range.x) };
         if (m_grayscale)
             set_flag(params.flags, Flag::Grayscale, true);
         if (m_fill_alpha)
             set_flag(params.flags, Flag::FillAlpha, true);
+
         params.filter = 0;
         if (m_filtering) {
-            if (dst_size.x < src_size.x / 3) params.filter = 4;
+            if (dst_size.x == src_size.x) params.filter = 0;
+            else if (dst_size.x > src_size.x) params.filter = 1;
+            else if (dst_size.x < src_size.x / 3) params.filter = 4;
             else if (dst_size.x < src_size.x / 2) params.filter = 3;
             else if (dst_size.x < src_size.x / 1) params.filter = 2;
         }
@@ -140,77 +148,6 @@ void TransformCS::dispatch(ICSContext& ctx)
 ITransformPtr TransformCS::createContext()
 {
     return make_ref<Transform>(this);
-}
-
-
-class Bias : public FilterCommon<IBias>
-{
-public:
-    Bias(BiasCS* v);
-    void setRange(float2 v) override;
-    void dispatch() override;
-
-public:
-    BiasCS* m_cs{};
-    BufferPtr m_const;
-
-    float2 m_range = { 0.0f, 1.0f };
-    bool m_dirty = true;
-};
-
-Bias::Bias(BiasCS* v) : m_cs(v) {}
-
-void Bias::setRange(float2 v)
-{
-    mrCheckDirty(m_range == v);
-    m_range = v;
-}
-
-void Bias::dispatch()
-{
-    if (!m_src || !m_dst) {
-        mrDbgPrint("*** Bias::dispatch(): invaid params ***\n");
-        return;
-    }
-
-    if (m_dirty) {
-        struct
-        {
-            float bias;
-            float mul;
-            int2 pad;
-        } params{};
-        params.bias = m_range.x;
-        params.mul = 1.0f / (m_range.y - m_range.x);
-
-        m_const = Buffer::createConstant(params);
-        m_dirty = false;
-    }
-
-    m_cs->dispatch(*this);
-}
-
-BiasCS::BiasCS()
-{
-    m_cs.initialize(mrBytecode(g_hlsl_Bias));
-}
-
-void BiasCS::dispatch(ICSContext& ctx)
-{
-    auto& c = static_cast<Bias&>(ctx);
-
-    auto size = c.m_dst->getInternalSize();
-    m_cs.setCBuffer(c.m_const);
-    m_cs.setSRV(c.m_src);
-    m_cs.setUAV(c.m_dst);
-    m_cs.dispatch(
-        ceildiv(size.x, 32),
-        ceildiv(size.y, 32));
-}
-
-IBiasPtr BiasCS::createContext()
-{
-    return make_ref<Bias>(this);
 }
 
 

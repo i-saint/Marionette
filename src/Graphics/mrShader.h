@@ -15,18 +15,6 @@ private:
 };
 
 
-class BiasCS : public ICompute
-{
-public:
-    BiasCS();
-    void dispatch(ICSContext& ctx) override;
-    IBiasPtr createContext();
-
-private:
-    ComputeShader m_cs;
-};
-
-
 class NormalizeCS : public ICompute
 {
 public:

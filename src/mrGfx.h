@@ -103,7 +103,6 @@ public:
 
 #define mrEachCS(Body)\
     Body(Transform)\
-    Body(Bias)\
     Body(Normalize)\
     Body(Binarize)\
     Body(Contour)\
@@ -147,15 +146,10 @@ class ITransform : public IFilter
 {
 public:
     virtual void setSrcRegion(Rect v) = 0;
+    virtual void setColorRange(float2 v) = 0;
     virtual void setGrayscale(bool v) = 0;
     virtual void setFillAlpha(bool v) = 0;
     virtual void setFiltering(bool v) = 0;
-};
-
-class IBias : public IFilter
-{
-public:
-    virtual void setRange(float2 v) = 0;
 };
 
 class INormalize : public IFilter
@@ -299,9 +293,9 @@ public:
     inline  void copy(ITexture2DPtr dst, ITexture2DPtr src, int2 size) { return copy(dst, src, Rect{ {}, size }); }
     inline  void copy(ITexture2DPtr dst, ITexture2DPtr src) { return copy(dst, src, Rect{}); }
     virtual void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale, bool filtering, Rect src_region = {}) = 0;
-    inline  void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale) { return transform(dst, src, grayscale, dst->getSize().x < src->getSize().x); }
+    inline  void transform(ITexture2DPtr dst, ITexture2DPtr src, bool grayscale) { return transform(dst, src, grayscale, dst->getSize().x != src->getSize().x); }
+    virtual void grayscale(ITexture2DPtr dst, ITexture2DPtr src, float2 range = { 0.0f, 1.0f }) = 0;
 
-    virtual void bias(ITexture2DPtr dst, ITexture2DPtr src, float2 range) = 0;
     virtual void normalize(ITexture2DPtr dst, ITexture2DPtr src, float denom) = 0;
     virtual void binarize(ITexture2DPtr dst, ITexture2DPtr src, float threshold) = 0;
     virtual void contour(ITexture2DPtr dst, ITexture2DPtr src, float radius) = 0;

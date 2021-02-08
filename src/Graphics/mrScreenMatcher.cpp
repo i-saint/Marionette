@@ -207,12 +207,7 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
         img.contour_b   = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
         img.mask        = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
 
-        filter->transform(img.grayscale, base_image, true);
-        if (m_params.color_range != float2{ 0.0f, 1.0f }) {
-            auto tmp = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
-            filter->bias(tmp, img.grayscale, m_params.color_range);
-            std::swap(tmp, img.grayscale);
-        }
+        filter->grayscale(img.grayscale, base_image, m_params.color_range);
         filter->binarize(img.binary, img.grayscale, m_params.binarize_threshold);
 
         filter->contour(img.contour, img.grayscale, m_params.contour_radius);
@@ -273,11 +268,7 @@ void ScreenMatcher::updateScreen(ScreenData& sd)
         // make binarized surface
         sd.last_frame = frame.present_time;
         sd.surface = frame.surface;
-        sd.filter->transform(sd.grayscale, sd.surface, true);
-        if (m_params.color_range != float2{ 0.0f, 1.0f }) {
-            sd.filter->bias(sd.biased, sd.grayscale, m_params.color_range);
-            std::swap(sd.biased, sd.grayscale);
-        }
+        sd.filter->grayscale(sd.grayscale, sd.surface, m_params.color_range);
         sd.filter->binarize(sd.binary, sd.grayscale, m_params.binarize_threshold);
 
         sd.filter->contour(sd.contour, sd.grayscale, m_params.contour_radius);
