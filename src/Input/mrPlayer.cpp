@@ -112,6 +112,10 @@ bool Player::update()
             if (rec.type == OpType::MouseMoveMatch)
                 m_time_start += elapsed;
 
+            // handle time shift
+            if (rec.type == OpType::TimeShift)
+                m_time_start = time_after_exec - rec.time + rec.exdata.time_shift;
+
             if (m_record_index >= m_records.size()) {
                 // go next loop or stop
                 m_record_index = 0;
@@ -303,16 +307,11 @@ bool Player::load(const char* path)
     if (!ifs)
         return false;
 
-    int time_shift = 0;
     std::string l;
     while (std::getline(ifs, l)) {
         OpRecord rec;
         if (rec.fromText(l)) {
-            if (rec.type == OpType::TimeShift) {
-                time_shift = rec.exdata.time_shift;
-                continue;
-            }
-            else if (rec.type == OpType::MatchParams) {
+            if (rec.type == OpType::MatchParams) {
                 m_smatch = CreateScreenMatcher(rec.exdata.match_params);
             }
 
@@ -331,7 +330,6 @@ bool Player::load(const char* path)
                 }
             }
 
-            rec.time += time_shift;
             m_records.push_back(rec);
         }
     }

@@ -41,6 +41,7 @@ bool Recorder::start()
 
     m_handle = receiver->addRecorder(
         [this](OpRecord& rec) {
+            rec.time = NowMS() - m_time_start;
             addRecord(rec);
             return true;
         });
@@ -75,12 +76,8 @@ bool Recorder::update()
     return m_handle != 0;
 }
 
-void Recorder::addRecord(const OpRecord& rec_)
+void Recorder::addRecord(const OpRecord& rec)
 {
-    OpRecord rec = rec_;
-    if (rec.time == -1) {
-        rec.time = NowMS() - m_time_start;
-    }
     m_records.push_back(rec);
     mrDbgPrint("record added: %s\n", rec.toText().c_str());
 }

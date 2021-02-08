@@ -9,14 +9,16 @@ std::string OpRecord::toText() const
         std::string ret;
         ret += Format(" Threshold:%.2f", exdata.match_threshold);
         switch (exdata.match_pattern) {
-        case  ITemplate::MatchPattern::Binary:
+        case ITemplate::MatchPattern::BinaryContour:
+            ret += " Pattern:\"BinaryContour\"";
+            break;
+        case ITemplate::MatchPattern::Binary:
             ret += " Pattern:\"Binary\"";
             break;
-        case  ITemplate::MatchPattern::Grayscale:
+        case ITemplate::MatchPattern::Grayscale:
             ret += " Pattern:\"Grayscale\"";
             break;
         default:
-            ret += " Pattern:\"BinaryContour\"";
             break;
         }
 
@@ -74,6 +76,9 @@ std::string OpRecord::toText() const
     case OpType::Wait:
         return Format("%u: Wait %d", time, exdata.wait_time);
 
+    case OpType::TimeShift:
+        return Format("%u: TimeShift %d", time, exdata.time_shift);
+
     default:
         return "";
     }
@@ -94,12 +99,12 @@ bool OpRecord::fromText(const std::string& v)
             }
             else if (k == "Pattern") {
                 auto p = ToValue<std::string>(v);
-                if (p == "Binary")
+                if (p == "BinaryContour")
+                    exdata.match_pattern = ITemplate::MatchPattern::BinaryContour;
+                else if (p == "Binary")
                     exdata.match_pattern = ITemplate::MatchPattern::Binary;
                 else if (p == "Grayscale")
                     exdata.match_pattern = ITemplate::MatchPattern::Grayscale;
-                else
-                    exdata.match_pattern = ITemplate::MatchPattern::BinaryContour;
             }
             else if (k == "Template") {
                 exdata.templates.push_back({ ToValue<std::string>(v) });
@@ -107,9 +112,7 @@ bool OpRecord::fromText(const std::string& v)
             });
     };
 
-    if (sscanf(src, "TimeShift %d", &exdata.time_shift) == 1)
-        type = OpType::TimeShift;
-    else if (sscanf(src, "%u: KeyDown %d", &time, &data.key.code) == 2)
+    if (sscanf(src, "%u: KeyDown %d", &time, &data.key.code) == 2)
         type = OpType::KeyDown;
     else if (sscanf(src, "%u: KeyUp %d", &time, &data.key.code) == 2)
         type = OpType::KeyUp;
@@ -151,9 +154,11 @@ bool OpRecord::fromText(const std::string& v)
         type = OpType::WaitUntilMatch;
         scan_templates();
     }
-    else if (sscanf(src, "%u: Wait %d", &time, &exdata.wait_time) == 2) {
+    else if (sscanf(src, "%u: Wait %d", &time, &exdata.wait_time) == 2)
         type = OpType::Wait;
-    }
+    else if (sscanf(src, "%u: TimeShift %d", &time, &exdata.time_shift) == 2)
+        type = OpType::TimeShift;
+
     return type != OpType::Unknown;
 }
 
