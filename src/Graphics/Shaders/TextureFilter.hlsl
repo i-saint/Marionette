@@ -1,4 +1,98 @@
 
+float4 SampleTexture1x1(in Texture2D<float4> tex, in SamplerState smp, float2 uv)
+{
+    return tex.SampleLevel(smp, uv, 0);
+}
+
+float4 SampleTexture2x2(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
+{
+    float2 s = block_size / 3.0f;
+    float2 t = s * 2.0f;
+    float w = 1.0f / 4.0f;
+
+    float4 r = 0.0f;
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            float2 offset = (t * float2(x, y)) - s;
+            r += tex.SampleLevel(smp, uv + offset, 0) * w;
+        }
+    }
+    return r;
+}
+
+float4 SampleTexture3x3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
+{
+    float2 s = block_size / 3.0f;
+    float2 t = s;
+    float w = 1.0f / 9.0f;
+
+    float4 r = 0.0f;
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            float2 offset = (t * float2(x, y)) - s;
+            r += tex.SampleLevel(smp, uv + offset, 0) * w;
+        }
+    }
+    return r;
+}
+
+float4 SampleTexture4x4(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
+{
+    float2 s = block_size / 3.0f;
+    float2 t = s / 1.5f;
+    float w = 1.0f / 16.0f;
+
+    float4 r = 0.0f;
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            float2 offset = (t * float2(x, y)) - s;
+            r += tex.SampleLevel(smp, uv + offset, 0.0f) * w;
+        }
+    }
+    return r;
+}
+
+
+static const float PI = 3.14159265359f;
+
+float lanczos3(float x)
+{
+    if (x == 0.0f)
+        return 1.0f;
+    const float radius = 3.0f;
+    float rx = x / radius;
+    return (sin(PI * x) / (PI * x)) * (sin(PI * rx) / (PI * rx));
+}
+
+float4 SampleTextureLanczos3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
+{
+    uint2 dim;
+    tex.GetDimensions(dim.x, dim.y);
+    float2 inv_dim = 1.0f / float2(dim);
+    float2 pos = float2(dim) * uv;
+    float2 f = frac(pos - 0.5f);
+
+    float2 weights[6];
+    for (int i = 0; i < 6; ++i) {
+        float2 d = (float(i) - 2.5f) + f;
+        weights[i] = float2(lanczos3(d.x), lanczos3(d.y));
+        //weights[i] = 1.0f;
+    }
+
+    float4 r = 0.0f;
+    float wt = 0.0f;
+    for (int y = 0; y < 6; ++y) {
+        float4 rx = 0.0f;
+        for (int x = 0; x < 6; ++x) {
+            float2 p = uv + ((float2(x, y) - 2.5f) / 5.0f * block_size);
+            float w = weights[x].x + weights[y].y;
+            r += tex.SampleLevel(smp, p, 0) * w;
+            wt += w;
+        }
+    }
+    return r / wt;
+}
+
 // The following code is licensed under the MIT license: https://gist.github.com/TheRealMJP/bc503b0b87b643d3505d41eab8b332ae
 // Samples a texture with Catmull-Rom filtering, using 9 texture fetches instead of 16.
 // See http://vec3.ca/bicubic-filtering-in-fewer-taps/ for more details
@@ -54,57 +148,4 @@ float4 SampleTextureCatmullRom(in Texture2D<float4> tex, in SamplerState smp, in
     result += tex.SampleLevel(smp, float2(texPos3.x, texPos3.y), 0.0f) * w3.x * w3.y;
 
     return result;
-}
-
-float4 Sample1x1(in Texture2D<float4> tex, in SamplerState smp, float2 uv)
-{
-    return tex.SampleLevel(smp, uv, 0);
-}
-
-float4 Sample2x2(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
-{
-    float2 s = block_size / 3.0f;
-    float2 t = s * 2.0f;
-    float w = 1.0f / 4.0f;
-
-    float4 r = 0.0f;
-    for (int y = 0; y < 2; ++y) {
-        for (int x = 0; x < 2; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0) * w;
-        }
-    }
-    return r;
-}
-
-float4 Sample3x3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
-{
-    float2 s = block_size / 3.0f;
-    float2 t = s;
-    float w = 1.0f / 9.0f;
-
-    float4 r = 0.0f;
-    for (int y = 0; y < 3; ++y) {
-        for (int x = 0; x < 3; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0) * w;
-        }
-    }
-    return r;
-}
-
-float4 Sample4x4(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
-{
-    float2 s = block_size / 3.0f;
-    float2 t = s / 1.5f;
-    float w = 1.0f / 16.0f;
-
-    float4 r = 0.0f;
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0.0f) * w;
-        }
-    }
-    return r;
 }

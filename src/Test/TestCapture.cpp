@@ -252,6 +252,25 @@ testCase(Filter)
 
 testCase(ScalingFilter)
 {
+    static const float PI = 3.14159265359f;
+
+    auto lanczos3 = [](float x)
+    {
+        if (x == 0.0f)
+            return 1.0f;
+        const float radius = 3.0f;
+        float rx = x / radius;
+        return (std::sin(PI * x) / (PI * x)) * (std::sin(PI * rx) / (PI * rx));
+    };
+
+    float weights[6]{};
+    for (int i = 0; i < 6; ++i) {
+        float d = (float(i) - 2.5f);
+        weights[i] = lanczos3(d);
+    }
+
+
+
     std::vector<std::future<bool>> async_ops;
     auto wait_async_ops = [&]() {
         for (auto& a : async_ops)
@@ -259,6 +278,7 @@ testCase(ScalingFilter)
         async_ops.clear();
     };
 
+    ::Sleep(2000);
     mr::CaptureWindow(::GetForegroundWindow(), [](const void* data, int w, int h) {
         mr::SaveAsPNG("Window.png", w, h, mr::PixelFormat::BGRAu8, data, 0, true);
         });

@@ -26,11 +26,9 @@ void main(uint2 tid : SV_DispatchThreadID)
     float2 uv = (g_sample_step * float2(tid)) + g_pixel_offset + (g_pixel_size * 0.5f);
     float4 p;
     switch (g_filter) {
+    case 0: p = SampleTexture1x1(g_src, g_sampler, uv); break;
     case 1: p = SampleTextureCatmullRom(g_src, g_sampler, uv); break;
-    case 2: p = Sample2x2(g_src, g_sampler, uv, g_sample_step); break;
-    case 3: p = Sample3x3(g_src, g_sampler, uv, g_sample_step); break;
-    case 4: p = Sample4x4(g_src, g_sampler, uv, g_sample_step); break;
-    default: p = Sample1x1(g_src, g_sampler, uv); break;
+    default: p = SampleTextureLanczos3(g_src, g_sampler, uv, g_sample_step); break;
     }
 
     if (g_flags & F_Grayscale) {
