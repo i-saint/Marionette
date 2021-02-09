@@ -263,11 +263,20 @@ testCase(ScalingFilter)
         return (std::sin(PI * x) / (PI * x)) * (std::sin(PI * rx) / (PI * rx));
     };
 
-    float weights[6]{};
-    for (int i = 0; i < 6; ++i) {
-        float d = (float(i) - 2.5f);
-        weights[i] = lanczos3(d);
+    testPrint("lanczos3:\n");
+    float2 offset{0.5f, 0.5f}; // -0.5 ~ 0.5
+    for (int y = 0; y < 6; ++y) {
+        for (int x = 0; x < 6; ++x) {
+            float d = mr::length((float2{ (float)x, (float)y } - 2.5f + offset));
+            float w = lanczos3(d);
+            if (w < 0.0f)
+                testPrint("%.2f ", w);
+            else
+                testPrint(" %.2f ", w);
+        }
+        testPrint("\n");
     }
+    testPrint("\n");
 
 
 

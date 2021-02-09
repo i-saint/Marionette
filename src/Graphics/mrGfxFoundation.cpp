@@ -59,7 +59,8 @@ GfxGlobals::~GfxGlobals()
     mrEachCS(Body)
 #undef Body
 
-    m_sampler = {};
+    m_sampler_point = {};
+    m_sampler_linear = {};
     m_fence = {};
     m_context = {};
 
@@ -107,12 +108,16 @@ bool GfxGlobals::initialize()
     // sampler
     {
         D3D11_SAMPLER_DESC desc{};
-        desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
         desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
         desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
         desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
         desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-        m_device->CreateSamplerState(&desc, m_sampler.put());
+
+        desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        m_device->CreateSamplerState(&desc, m_sampler_point.put());
+
+        desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        m_device->CreateSamplerState(&desc, m_sampler_linear.put());
     }
 
     return true;
@@ -162,9 +167,14 @@ bool GfxGlobals::sync(int timeout_ms)
     return waitFence(fv, timeout_ms);
 }
 
-ID3D11SamplerState* GfxGlobals::getDefaultSampler()
+ID3D11SamplerState* GfxGlobals::getPointSampler()
 {
-    return m_sampler.get();
+    return m_sampler_point.get();
+}
+
+ID3D11SamplerState* GfxGlobals::getLinearSampler()
+{
+    return m_sampler_linear.get();
 }
 
 void GfxGlobals::lock()

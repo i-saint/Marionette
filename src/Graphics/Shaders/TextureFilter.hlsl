@@ -1,20 +1,19 @@
 
 float4 SampleTexture1x1(in Texture2D<float4> tex, in SamplerState smp, float2 uv)
 {
-    return tex.SampleLevel(smp, uv, 0);
+    return tex.SampleLevel(smp, uv, 0.0f);
 }
 
 float4 SampleTexture2x2(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
 {
-    float2 s = block_size / 3.0f;
-    float2 t = s * 2.0f;
+    float2 b = block_size / 1.5f;
     float w = 1.0f / 4.0f;
 
     float4 r = 0.0f;
     for (int y = 0; y < 2; ++y) {
         for (int x = 0; x < 2; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0) * w;
+            float2 c = (float2(x, y) - 0.5); // -0.5 ~ 0.5
+            r += tex.SampleLevel(smp, uv + (b * c), 0.0f) * w;
         }
     }
     return r;
@@ -22,15 +21,14 @@ float4 SampleTexture2x2(in Texture2D<float4> tex, in SamplerState smp, float2 uv
 
 float4 SampleTexture3x3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
 {
-    float2 s = block_size / 3.0f;
-    float2 t = s;
+    float2 b = block_size / 1.5f;
     float w = 1.0f / 9.0f;
 
     float4 r = 0.0f;
     for (int y = 0; y < 3; ++y) {
         for (int x = 0; x < 3; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0) * w;
+            float2 c = (float2(x, y) - 1.0f) / 2.0f; // -0.5 ~ 0.5
+            r += tex.SampleLevel(smp, uv + (b * c), 0.0f) * w;
         }
     }
     return r;
@@ -38,55 +36,51 @@ float4 SampleTexture3x3(in Texture2D<float4> tex, in SamplerState smp, float2 uv
 
 float4 SampleTexture4x4(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
 {
-    float2 s = block_size / 3.0f;
-    float2 t = s / 1.5f;
+    float2 b = block_size / 1.5f;
     float w = 1.0f / 16.0f;
 
     float4 r = 0.0f;
     for (int y = 0; y < 4; ++y) {
         for (int x = 0; x < 4; ++x) {
-            float2 offset = (t * float2(x, y)) - s;
-            r += tex.SampleLevel(smp, uv + offset, 0.0f) * w;
+            float2 c = (float2(x, y) - 1.5f) / 3.0f; // -0.5 ~ 0.5
+            r += tex.SampleLevel(smp, uv + (b * c), 0.0f) * w;
         }
     }
     return r;
 }
 
 
-static const float PI = 3.14159265359f;
 
 float lanczos3(float x)
 {
     if (x == 0.0f)
         return 1.0f;
-    const float radius = 3.0f;
-    float rx = x / radius;
+
+    const float PI = 3.14159265359f;
+    const float lobe = 3.0f;
+    float rx = x / lobe;
     return (sin(PI * x) / (PI * x)) * (sin(PI * rx) / (PI * rx));
 }
 
 float4 SampleTextureLanczos3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
 {
-    uint2 dim;
-    tex.GetDimensions(dim.x, dim.y);
-    float2 inv_dim = 1.0f / float2(dim);
-    float2 pos = float2(dim) * uv;
-    float2 f = frac(pos - 0.5f);
-
-    float2 weights[6];
-    for (int i = 0; i < 6; ++i) {
-        float2 d = (float(i) - 2.5f) + f;
-        weights[i] = float2(lanczos3(d.x), lanczos3(d.y));
-        //weights[i] = 1.0f;
-    }
+    uint2 tex_size;
+    tex.GetDimensions(tex_size.x, tex_size.y);
+    float2 pixel_size = 1.0f / float2(tex_size);
+    float2 pos = float2(tex_size) * uv;
+    float2 tpos = floor(pos - 0.5f) + 0.5f;
+    float2 f = pos - tpos;
+    float2 b = block_size / 1.5f;
 
     float4 r = 0.0f;
     float wt = 0.0f;
     for (int y = 0; y < 6; ++y) {
-        float4 rx = 0.0f;
         for (int x = 0; x < 6; ++x) {
-            float2 p = uv + ((float2(x, y) - 2.5f) / 5.0f * block_size);
-            float w = weights[x].x + weights[y].y;
-            r += tex.SampleLevel(smp, p, 0) * w;
+            float2 xy = float2(x, y) - 2.5f; // -2.5 ~ 2.5
+            float w = lanczos3(length(xy + f));
+            float2 c = xy / 5.0f; // -0.5 ~ 0.5
+
+            r += tex.SampleLevel(smp, uv + (b * c), 0) * w;
             wt += w;
         }
     }

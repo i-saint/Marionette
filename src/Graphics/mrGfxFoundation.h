@@ -47,7 +47,8 @@ public:
     void flush();
     bool sync(int timeout_ms = 1000);
 
-    ID3D11SamplerState* getDefaultSampler();
+    ID3D11SamplerState* getPointSampler();
+    ID3D11SamplerState* getLinearSampler();
 
     void lock();
     void unlock();
@@ -76,7 +77,8 @@ private:
     FenceEvent m_fence_event;
     uint64_t m_fence_value = 0;
 
-    com_ptr<ID3D11SamplerState> m_sampler;
+    com_ptr<ID3D11SamplerState> m_sampler_point;
+    com_ptr<ID3D11SamplerState> m_sampler_linear;
 
     std::mutex m_mutex;
 
@@ -88,7 +90,8 @@ private:
 #define mrGfxGlobals() GfxGlobals::get()
 #define mrGfxDevice() mrGfxGlobals()->getDevice()
 #define mrGfxContext() mrGfxGlobals()->getContext()
-#define mrGfxDefaultSampler() mrGfxGlobals()->getDefaultSampler()
+#define mrGfxPointSampler() mrGfxGlobals()->getPointSampler()
+#define mrGfxLinearSampler() mrGfxGlobals()->getLinearSampler()
 #define mrGfxFlush(...) mrGfxGlobals()->flush()
 #define mrGfxSync(...) mrGfxGlobals()->sync(__VA_ARGS__)
 #define mrGfxLock(Body) mrGfxGlobals()->lock(Body)

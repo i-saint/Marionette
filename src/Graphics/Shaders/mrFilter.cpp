@@ -128,7 +128,8 @@ void Transform::dispatch()
 TransformCS::TransformCS()
 {
     m_cs.initialize(mrBytecode(g_hlsl_Transform));
-    m_cs.setSampler(mrGfxDefaultSampler());
+    m_cs.setSampler(mrGfxPointSampler(), 0);
+    m_cs.setSampler(mrGfxLinearSampler(), 1);
 }
 
 void TransformCS::dispatch(ICSContext& ctx)
