@@ -79,6 +79,9 @@ std::string OpRecord::toText() const
     case OpType::TimeShift:
         return Format("%u: TimeShift %d", time, exdata.time_shift);
 
+    case OpType::Repeat:
+        return Format("%u: Repeat %d", time, exdata.repeat_point);
+
     default:
         return "";
     }
@@ -158,6 +161,8 @@ bool OpRecord::fromText(const std::string& v)
         type = OpType::Wait;
     else if (sscanf(src, "%u: TimeShift %d", &time, &exdata.time_shift) == 2)
         type = OpType::TimeShift;
+    else if (sscanf(src, "%u: Repeat %d", &time, &exdata.repeat_point) == 2)
+        type = OpType::Repeat;
 
     return type != OpType::Unknown;
 }

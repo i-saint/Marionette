@@ -20,6 +20,7 @@ enum class OpType : int
     Wait,
     WaitUntilMatch,
     TimeShift,
+    Repeat,
 };
 
 struct OpRecord
@@ -50,6 +51,7 @@ struct OpRecord
     {
         int wait_time = 0;
         int time_shift = 0;
+        int repeat_point = 0;
         int save_slot = 0;
         IScreenMatcher::Params match_params{};
         float match_threshold = 0.2f;

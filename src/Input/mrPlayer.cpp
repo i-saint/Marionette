@@ -108,13 +108,23 @@ bool Player::update()
             mrDbgPrint("record executed (%ld %ld ms): %s\n", timestamp, elapsed, rec.toText().c_str());
             ++m_record_index;
 
-            // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
-            if (rec.type == OpType::MouseMoveMatch)
+            if (rec.type == OpType::MouseMoveMatch) {
+                // adjust time if MouseMoveMatch because it is very slow and causes input hiccup
                 m_time_start += elapsed;
-
-            // handle time shift
-            if (rec.type == OpType::TimeShift)
+            }
+            else if (rec.type == OpType::TimeShift) {
+                // handle time shift
                 m_time_start = time_after_exec - rec.time + rec.exdata.time_shift;
+            }
+            else if (rec.type == OpType::Repeat) {
+                // rewind time and record index
+                m_time_start = NowMS() - rec.exdata.repeat_point;
+
+                auto it = std::lower_bound(m_records.begin(), m_records.end(), rec.exdata.repeat_point,
+                    [](const OpRecord& r, int t) { return r.time < t; });
+                m_record_index = (uint32_t)std::distance(m_records.begin(), it);
+                break;
+            }
 
             if (m_record_index >= m_records.size()) {
                 // go next loop or stop
