@@ -56,20 +56,24 @@ float lanczos3(float x)
     if (x == 0.0f)
         return 1.0f;
 
-    const float PI = 3.14159265359f;
-    const float lobe = 3.0f;
-    float rx = x / lobe;
-    return (sin(PI * x) / (PI * x)) * (sin(PI * rx) / (PI * rx));
+    static const float PI = 3.14159265359f;
+    static const float Lobe = 3.0f;
+    float xpi = PI * x;
+    float rxpi = PI * (x / Lobe);
+    return (sin(xpi) / (xpi)) * (sin(rxpi) / (rxpi));
 }
 
 float4 SampleTextureLanczos3(in Texture2D<float4> tex, in SamplerState smp, float2 uv, float2 block_size)
 {
     uint2 tex_size;
     tex.GetDimensions(tex_size.x, tex_size.y);
-    float2 pixel_size = 1.0f / float2(tex_size);
     float2 pos = float2(tex_size) * uv;
-    float2 tpos = floor(pos - 0.5f) + 0.5f;
-    float2 f = pos - tpos;
+    float2 tpos = floor(pos);
+    float f = length(pos - tpos);
+    f = min(f, length((tpos + float2(1.0f, 0.0f)) - pos));
+    f = min(f, length((tpos + float2(1.0f, 1.0f)) - pos));
+    f = min(f, length((tpos + float2(0.0f, 1.0f)) - pos));
+
     float2 b = block_size / 1.5f;
 
     float4 r = 0.0f;
@@ -77,13 +81,17 @@ float4 SampleTextureLanczos3(in Texture2D<float4> tex, in SamplerState smp, floa
     for (int y = 0; y < 6; ++y) {
         for (int x = 0; x < 6; ++x) {
             float2 xy = float2(x, y) - 2.5f; // -2.5 ~ 2.5
-            float w = lanczos3(length(xy + f));
+            float w = lanczos3((length(xy) + f) / 3.0f);
             float2 c = xy / 5.0f; // -0.5 ~ 0.5
 
             r += tex.SampleLevel(smp, uv + (b * c), 0) * w;
             wt += w;
         }
     }
+
+    //r = length(f / 1.4142135623730951f);
+    //r.a = 1.0f;
+    //return r;
     return r / wt;
 }
 

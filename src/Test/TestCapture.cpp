@@ -250,9 +250,10 @@ testCase(Filter)
     wait_async_ops();
 }
 
-testCase(ScalingFilter)
+testCase(Lanczos3)
 {
     static const float PI = 3.14159265359f;
+    static const float MaxDistance = 3.0f;
 
     auto lanczos3 = [](float x)
     {
@@ -264,11 +265,11 @@ testCase(ScalingFilter)
     };
 
     testPrint("lanczos3:\n");
-    float2 offset{0.5f, 0.5f}; // -0.5 ~ 0.5
+    float2 offset{ 0.0f, 0.0f }; // -0.5 ~ 0.5
     for (int y = 0; y < 6; ++y) {
         for (int x = 0; x < 6; ++x) {
             float d = mr::length((float2{ (float)x, (float)y } - 2.5f + offset));
-            float w = lanczos3(d);
+            float w = lanczos3(d / MaxDistance);
             if (w < 0.0f)
                 testPrint("%.2f ", w);
             else
@@ -277,9 +278,10 @@ testCase(ScalingFilter)
         testPrint("\n");
     }
     testPrint("\n");
+}
 
-
-
+testCase(ScalingFilter)
+{
     std::vector<std::future<bool>> async_ops;
     auto wait_async_ops = [&]() {
         for (auto& a : async_ops)
@@ -309,17 +311,33 @@ testCase(ScalingFilter)
         async_ops.push_back(without_filter->saveAsync(path2));
     };
 
+    // copy test
+    resize_and_export(
+        int2(float2(surface->getSize())),
+        "Window_100%_f.png",
+        "Window_100%.png");
+
     // downscale filter test
     resize_and_export(
+        int2(float2(surface->getSize()) * 0.66666f),
+        "Window_66%_f.png",
+        "Window_66%.png");
+
+    resize_and_export(
         int2(float2(surface->getSize()) * 0.5f),
-        "Window_downscale_with_filter.png",
-        "Window_downscale_without_filter.png");
+        "Window_50%_f.png",
+        "Window_50%.png");
+
+    resize_and_export(
+        int2(float2(surface->getSize()) * 0.333333f),
+        "Window_33%_f.png",
+        "Window_33%.png");
 
     // upscale filter test
     resize_and_export(
-        int2(float2(surface->getSize()) * 3.0f),
-        "Window_upscale_with_filter.png",
-        "Window_upscale_without_filter.png");
+        int2(float2(surface->getSize()) * 2.0f),
+        "Window_200%_f.png",
+        "Window_200%.png");
 
     wait_async_ops();
 
