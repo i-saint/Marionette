@@ -55,7 +55,7 @@ static void InitializeGraphicsCapture()
 {
     static std::once_flag s_once;
     std::call_once(s_once, []() {
-        init_apartment();
+        winrt::init_apartment();
         });
 }
 
@@ -71,8 +71,6 @@ inline auto GetDXGIInterfaceFromObject(winrt::Windows::Foundation::IInspectable 
 
 GraphicsCapture::GraphicsCapture()
 {
-    InitializeGraphicsCapture();
-
     auto dxgi = As<IDXGIDevice>(mrGfxDevice());
     com_ptr<::IInspectable> device_rt;
     ::CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), device_rt.put());
@@ -166,6 +164,7 @@ void GraphicsCapture::onFrameArrived(Direct3D11CaptureFramePool const& sender, w
 
 bool IsWindowsGraphicsCaptureSupported()
 {
+    InitializeGraphicsCapture();
     return GraphicsCaptureSession::IsSupported();
 }
 
