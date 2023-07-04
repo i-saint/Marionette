@@ -6,11 +6,12 @@ cbuffer Constants : register(b0)
     uint2 g_template_size; // for TemplateMatch_Binary
 };
 
-Texture2D<float> g_image : register(t0);
-Texture2D<float> g_template : register(t1);
+Texture2D<float3> g_image : register(t0);
+Texture2D<float3> g_template : register(t1);
 Texture2D<float> g_mask_image : register(t2);
 Texture2D<float> g_mask_template : register(t3);
 RWTexture2D<float> g_result : register(u0);
+
 
 float GetMaskValue(uint2 ipos, uint2 tpos)
 {
@@ -33,7 +34,6 @@ float GetMaskValue(uint2 ipos, uint2 tpos)
     return r;
 }
 
-
 [numthreads(32, 32, 1)]
 void main(uint2 tid : SV_DispatchThreadID)
 {
@@ -50,10 +50,10 @@ void main(uint2 tid : SV_DispatchThreadID)
         for (uint j = 0; j < tw; ++j) {
             uint2 tpos = uint2(j, i);
             uint2 ipos = bpos + tpos;
-            float s = g_image[ipos];
-            float t = g_template[tpos];
-            float diff = abs(s - t) * GetMaskValue(ipos, tpos);
-            r += diff;
+            float3 s = g_image[ipos].xyz;
+            float3 t = g_template[tpos].xyz;
+            float3 diff = abs(s - t) * GetMaskValue(ipos, tpos);
+            r += max(max(diff.x, diff.y), diff.z);
         }
     }
 

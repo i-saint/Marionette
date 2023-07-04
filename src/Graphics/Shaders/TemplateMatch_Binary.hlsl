@@ -8,7 +8,8 @@ cbuffer Constants : register(b0)
 
 Texture2D<uint> g_image : register(t0);
 Texture2D<uint> g_template : register(t1);
-Texture2D<uint> g_mask : register(t2);
+Texture2D<float> g_mask_image : register(t2);
+Texture2D<float> g_mask_template : register(t3);
 RWTexture2D<uint> g_result : register(u0);
 
 
@@ -33,7 +34,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
 
      uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
-    g_mask.GetDimensions(mask_size.x, mask_size.y);
+    g_mask_template.GetDimensions(mask_size.x, mask_size.y);
 
     const uint tw = template_size.x;
     const uint th = template_size.y;
@@ -88,7 +89,7 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
                     if (ci < cache_size) {
                         uint2 ti = uint2(ti1 % tw, ti1 / tw);
                         s_template[ci] = g_template[ti];
-                        s_mask[ci] = g_mask[ti];
+                        s_mask[ci] = g_mask_template[ti];
                     }
                 }
                 GroupMemoryBarrierWithGroupSync();
@@ -108,8 +109,9 @@ void main(uint2 tid : SV_DispatchThreadID, uint gi : SV_GroupIndex)
         }
     }
 
-    if (tid.x < g_range.x && tid.y < g_range.y)
+    if (tid.x < g_range.x && tid.y < g_range.y) {
         g_result[tid] = r;
+    }
 }
 
 #else // EnableGroupShared
@@ -119,7 +121,7 @@ void main(uint2 tid : SV_DispatchThreadID)
 {
     uint2 template_size, mask_size;
     g_template.GetDimensions(template_size.x, template_size.y);
-    g_mask.GetDimensions(mask_size.x, mask_size.y);
+    g_mask_template.GetDimensions(mask_size.x, mask_size.y);
 
     const uint tw = template_size.x;
     const uint th = template_size.y;
@@ -138,8 +140,9 @@ void main(uint2 tid : SV_DispatchThreadID)
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
                 uint bits = iv ^ tv;
-                if (j == tw - 1)
+                if (j == tw - 1) {
                     bits &= edge_mask;
+                }
                 r += countbits(bits);
             }
         }
@@ -153,16 +156,18 @@ void main(uint2 tid : SV_DispatchThreadID)
                 uint iv = lshift(g_image[uint2(px, py)], g_image[uint2(px + 1, py)], bit_shift);
                 uint tv = g_template[uint2(j, i)];
                 uint bits = iv ^ tv;
-                if (j == tw - 1)
+                if (j == tw - 1) {
                     bits &= edge_mask;
-                uint mask = g_mask[uint2(j, i)];
+                }
+                uint mask = g_mask_template[uint2(j, i)];
                 r += countbits(bits & mask);
             }
         }
     }
 
-    if (tid.x < g_range.x && tid.y < g_range.y)
+    if (tid.x < g_range.x && tid.y < g_range.y) {
         g_result[tid] = r;
+    }
 }
 
 #endif // EnableGroupShared

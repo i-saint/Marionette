@@ -30,3 +30,5 @@
 #include <span>
 #include <bit>
 #include <ranges>
+#include <type_traits>
+#include <array>

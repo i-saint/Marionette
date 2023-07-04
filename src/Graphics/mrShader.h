@@ -75,6 +75,7 @@ public:
 private:
     ComputeShader m_cs_grayscale;
     ComputeShader m_cs_binary;
+    ComputeShader m_cs_rgb;
 };
 
 

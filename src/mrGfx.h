@@ -335,6 +335,7 @@ public:
         BinaryContour, // default
         Binary,
         Grayscale,
+        RGB,
     };
 
     virtual void setMatchPattern(MatchPattern v) = 0;

@@ -21,6 +21,7 @@ public:
     struct Image
     {
         float scale_factor{}; // corresponding display scale factor
+        ITexture2DPtr rgb{};
         ITexture2DPtr grayscale{};
         ITexture2DPtr binary{};
         ITexture2DPtr contour{};
@@ -48,6 +49,7 @@ public:
 
         IFilterSetPtr filter;
         ITexture2DPtr surface;
+        ITexture2DPtr rgb;
         ITexture2DPtr grayscale;
         ITexture2DPtr biased;
         ITexture2DPtr binary;
@@ -201,12 +203,14 @@ ITemplatePtr ScreenMatcher::createTemplate(const char* path)
 
         Template::Image img{};
         img.scale_factor= scale_factor;
+        img.rgb         = m_gfx->createTexture(size.x, size.y, TextureFormat::RGBAu8);
         img.grayscale   = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
         img.binary      = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
         img.contour     = m_gfx->createTexture(size.x, size.y, TextureFormat::Ru8);
         img.contour_b   = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
         img.mask        = m_gfx->createTexture(size.x, size.y, TextureFormat::Binary);
 
+        filter->transform(img.rgb, base_image, false);
         filter->grayscale(img.grayscale, base_image, m_params.color_range);
         filter->binarize(img.binary, img.grayscale, m_params.binarize_threshold);
 
@@ -268,6 +272,7 @@ void ScreenMatcher::updateScreen(ScreenData& sd)
         // make binarized surface
         sd.last_frame = frame.present_time;
         sd.surface = frame.surface;
+        sd.filter->transform(sd.rgb, sd.surface, false);
         sd.filter->grayscale(sd.grayscale, sd.surface, m_params.color_range);
         sd.filter->binarize(sd.binary, sd.grayscale, m_params.binarize_threshold);
 
@@ -307,6 +312,10 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
     minmax->setRegion({ {}, region.size });
 
     switch (tmpl.match_pattern) {
+    case ITemplate::MatchPattern::RGB:
+        sd.filter->match(sd.match_f, sd.rgb, img.rgb, nullptr, region);
+        minmax->setSrc(sd.match_f);
+        break;
     case ITemplate::MatchPattern::Grayscale:
         sd.filter->match(sd.match_f, sd.grayscale, img.grayscale, nullptr, region);
         minmax->setSrc(sd.match_f);
@@ -336,21 +345,30 @@ void ScreenMatcher::matchImpl(Template& tmpl, ScreenData& sd, Rect rect)
             rect.pos + int2(float2(mm.pos_min) / scale),
             int2(float2(tsize) / scale)
         };
-#ifdef mrDebug
-        ret.result = sd.match_f;
-#endif
 
         switch (tmpl.match_pattern) {
         case ITemplate::MatchPattern::Grayscale:
             ret.score = float(double(mm.valf_min) / double(tsize.x * tsize.y));
+#ifdef mrDebug
+            ret.result = sd.match_f;
+#endif
             break;
         case ITemplate::MatchPattern::Binary:
             ret.score = float(double(mm.vali_min) / double(tsize.x * tsize.y));
+#ifdef mrDebug
+            ret.result = sd.match_i;
+#endif
             break;
         default:
             ret.score = float(double(mm.vali_min) / double(img.mask_bits));
+#ifdef mrDebug
+            ret.result = sd.match_i;
+#endif
             break;
         }
+#ifdef mrDebug
+        //ret.result->save(Format("frame_%llu_result.png", sd.last_frame));
+#endif
 
         return ret;
     });

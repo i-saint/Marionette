@@ -11,6 +11,7 @@
 #include "Expand_Binary.hlsl.h"
 #include "TemplateMatch_Grayscale.hlsl.h"
 #include "TemplateMatch_Binary.hlsl.h"
+#include "TemplateMatch_RGB.hlsl.h"
 #include "Shape.hlsl.h"
 
 #define mrBytecode(A) A, std::size(A)
@@ -444,7 +445,8 @@ public:
 public:
     TemplateMatchCS* m_cs{};
     Texture2DPtr m_template;
-    Texture2DPtr m_mask;
+    Texture2DPtr m_mask_image;
+    Texture2DPtr m_mask_template;
     BufferPtr m_const;
 
     int2 m_src_size{};
@@ -473,7 +475,7 @@ void TemplateMatch::setTemplate(ITexture2DPtr v)
 
 void TemplateMatch::setMask(ITexture2DPtr v)
 {
-    m_mask = cast(v);
+    m_mask_template = cast(v);
 }
 
 void TemplateMatch::setRegion(Rect v)
@@ -523,6 +525,7 @@ TemplateMatchCS::TemplateMatchCS()
 {
     m_cs_grayscale.initialize(mrBytecode(g_hlsl_TemplateMatch_Grayscale));
     m_cs_binary.initialize(mrBytecode(g_hlsl_TemplateMatch_Binary));
+    m_cs_rgb.initialize(mrBytecode(g_hlsl_TemplateMatch_RGB));
 }
 
 void TemplateMatchCS::dispatch(ICSContext& ctx)
@@ -535,11 +538,27 @@ void TemplateMatchCS::dispatch(ICSContext& ctx)
         return;
     }
 
-    auto& cs = c.m_src->getFormat() == TextureFormat::Binary ? m_cs_binary : m_cs_grayscale;
+    ComputeShader* pcs = nullptr;
+    switch (c.m_src->getFormat()) {
+    case TextureFormat::Binary:
+        pcs = &m_cs_binary;
+        break;
+    case TextureFormat::Ru8:
+    case TextureFormat::Rf16:
+    case TextureFormat::Rf32:
+        pcs = &m_cs_grayscale;
+        break;
+    default:
+        pcs = &m_cs_rgb;
+        break;
+    }
+
+    auto& cs = *pcs;
     cs.setCBuffer(c.m_const, 0);
     cs.setSRV(c.m_src, 0);
     cs.setSRV(c.m_template, 1);
-    cs.setSRV(c.m_mask, 2);
+    cs.setSRV(c.m_mask_image, 2);
+    cs.setSRV(c.m_mask_template, 3);
     cs.setUAV(c.m_dst);
     cs.dispatch(
         ceildiv(size.x, 32),

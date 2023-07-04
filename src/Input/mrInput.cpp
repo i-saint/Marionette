@@ -18,6 +18,9 @@ std::string OpRecord::toText() const
         case ITemplate::MatchPattern::Grayscale:
             ret += " Pattern:\"Grayscale\"";
             break;
+        case ITemplate::MatchPattern::RGB:
+            ret += " Pattern:\"RGB\"";
+            break;
         default:
             break;
         }
@@ -108,6 +111,8 @@ bool OpRecord::fromText(const std::string& v)
                     exdata.match_pattern = ITemplate::MatchPattern::Binary;
                 else if (p == "Grayscale")
                     exdata.match_pattern = ITemplate::MatchPattern::Grayscale;
+                else if (p == "RGB")
+                    exdata.match_pattern = ITemplate::MatchPattern::RGB;
             }
             else if (k == "Template") {
                 exdata.templates.push_back({ ToValue<std::string>(v) });
